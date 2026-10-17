@@ -2,36 +2,6 @@ import AppKit
 import SwiftUI
 import WatcherCore
 
-/// Watcher's own icon, so the Dock shows it even when the app runs unbundled from Xcode or `swift run`.
-public enum WatcherAppIcon {
-    @MainActor public static var image: NSImage? {
-        Bundle.module.url(forResource: "AppIcon", withExtension: "icns").flatMap(NSImage.init(contentsOf:))
-    }
-
-    /// The menu bar glyph: a dot in the lens while the proxy listens. A template image, so macOS colours it for light, dark and tinted bars.
-    @MainActor public static func menuBar(running: Bool) -> NSImage {
-        // Inline rather than a resource: the packaged app does not carry SwiftPM's resource bundle, and Bundle.module would trap there.
-        let dot = running ? ##"<circle cx="22" cy="18" r="2.3" fill="#000"/>"## : ""
-        let svg = ##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 36" fill="none" stroke="#000" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="22" cy="18" r="7.5"/><path d="M4 14 H11.5 M32.5 14 H40 M36.5 10.5 L40 14 L36.5 17.5"/><path d="M40 22 H32.5 M11.5 22 H4 M7.5 18.5 L4 22 L7.5 25.5"/>"## + dot + "</svg>"
-        let image = NSImage(data: Data(svg.utf8)) ?? NSImage()
-        image.size = NSSize(width: 22, height: 18)
-        image.isTemplate = true
-        return image
-    }
-}
-
-/// The app's own icon inside its windows; follows the Dock icon, including its light, dark and tinted looks.
-struct WatcherLogo: View {
-    var size: CGFloat = 56
-
-    var body: some View {
-        // The packaged app's icon is the system's (Liquid Glass on macOS 26); unbundled runs (swift run, Xcode, tests) would show
-        // their host's, so they read Watcher's own icns instead.
-        let image = Bundle.main.object(forInfoDictionaryKey: "CFBundleIconName") != nil ? NSApp.applicationIconImage : WatcherAppIcon.image ?? NSApp.applicationIconImage
-        Image(nsImage: image ?? NSImage()).resizable().interpolation(.high).frame(width: size, height: size).accessibilityHidden(true)
-    }
-}
-
 /// Icons for the apps that send requests and the websites they talk to, loaded once and cached.
 @MainActor @Observable
 final class IconStore {
@@ -160,33 +130,4 @@ final class IconStore {
 @MainActor @Observable
 final class FaviconSlot {
     var image: NSImage?
-}
-
-/// The app's icon, or a terminal symbol for command-line tools.
-struct AppIconView: View {
-    let process: String
-    var size: CGFloat = 16
-
-    var body: some View {
-        if let icon = IconStore.shared.appIcon(for: process) {
-            Image(nsImage: icon).resizable().interpolation(.high).frame(width: size, height: size).accessibilityHidden(true)
-        } else {
-            Image(systemName: "terminal").font(.system(size: size * 0.75)).foregroundStyle(.secondary).frame(width: size, height: size).accessibilityHidden(true)
-        }
-    }
-}
-
-/// The website's favicon, or a globe while it loads or when the site has none.
-struct SiteIconView: View {
-    let domain: String
-    var size: CGFloat = 16
-
-    var body: some View {
-        if let icon = IconStore.shared.favicon(for: domain) {
-            Image(nsImage: icon).resizable().interpolation(.high).frame(width: size, height: size)
-                .clipShape(RoundedRectangle(cornerRadius: 3)).accessibilityHidden(true)
-        } else {
-            Image(systemName: "globe").font(.system(size: size * 0.8)).foregroundStyle(.secondary).frame(width: size, height: size).accessibilityHidden(true)
-        }
-    }
 }

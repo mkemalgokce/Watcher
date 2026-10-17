@@ -1,37 +1,7 @@
 import AVKit
-import PDFKit
 import SwiftUI
 import UniformTypeIdentifiers
 import WatcherCore
-import WebKit
-
-/// What a body can be shown as besides text.
-enum RichKind: Equatable {
-    case image, html, pdf, media, eventStream, form
-
-    static func of(contentType: String?, data: Data) -> RichKind? {
-        let type = (contentType ?? "").lowercased()
-        if type.contains("multipart/form-data") || type.contains("x-www-form-urlencoded") {
-            return .form
-        }
-        if type.hasPrefix("image/") || Base64Finder.imageMime(data) != nil {
-            return .image
-        }
-        if type.contains("text/html") {
-            return .html
-        }
-        if type.contains("application/pdf") || data.starts(with: Data("%PDF".utf8)) {
-            return .pdf
-        }
-        if type.hasPrefix("audio/") || type.hasPrefix("video/") {
-            return .media
-        }
-        if type.contains("text/event-stream") {
-            return .eventStream
-        }
-        return nil
-    }
-}
 
 struct RichPreview: View {
     let kind: RichKind
@@ -59,44 +29,6 @@ struct RichPreview: View {
             KeyValueTable(rows: KeyValueRow.fields(fields), emptyText: "No fields could be read from this body.").padding(8)
         }
     }
-}
-
-/// Renders an HTML response the way a browser would, but offline: JavaScript is off and every network load is blocked,
-/// so looking at a page never contacts its servers or runs its scripts.
-struct HTMLPreview: NSViewRepresentable {
-    let html: String
-
-    func makeNSView(context _: Context) -> WKWebView {
-        let configuration = WKWebViewConfiguration()
-        configuration.defaultWebpagePreferences.allowsContentJavaScript = false
-        configuration.websiteDataStore = .nonPersistent()
-        let view = WKWebView(frame: .zero, configuration: configuration)
-        view.setAccessibilityLabel("Rendered HTML")
-        WKContentRuleListStore.default().compileContentRuleList(
-            forIdentifier: "watcher.block-all",
-            encodedContentRuleList: #"[{"trigger":{"url-filter":".*"},"action":{"type":"block"}}]"#
-        ) { list, _ in
-            if let list {
-                view.configuration.userContentController.add(list)
-            }
-            view.loadHTMLString(html, baseURL: nil)
-        }
-        return view
-    }
-
-    func updateNSView(_: WKWebView, context _: Context) {}
-}
-
-struct PDFPreview: NSViewRepresentable {
-    let data: Data
-    func makeNSView(context _: Context) -> PDFView {
-        let view = PDFView()
-        view.autoScales = true
-        view.document = PDFDocument(data: data)
-        return view
-    }
-
-    func updateNSView(_: PDFView, context _: Context) {}
 }
 
 /// Audio and video play from a temporary file (AVPlayer needs a URL); the file is removed when the view goes away.

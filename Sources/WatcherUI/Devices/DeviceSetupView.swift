@@ -1,4 +1,3 @@
-import CoreImage.CIFilterBuiltins
 import SwiftUI
 import WatcherCore
 
@@ -45,33 +44,6 @@ struct DeviceSetupView: View {
         .frame(minWidth: 640, idealWidth: 780, minHeight: 480, idealHeight: 580)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.keyboardShortcut(.defaultAction) } }
         .task { await model.devices.refresh() }
-    }
-}
-
-/// Outcome of the last device action: in progress, done, or failed.
-struct DeviceStatusLabel: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        if let status = model.devices.status {
-            HStack(spacing: 6) {
-                switch status {
-                case .working: ProgressView().controlSize(.small)
-                case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(Palette.done)
-                case .failed: Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Palette.error)
-                }
-                Text(status.text).textSelection(.enabled)
-                    .foregroundStyle({
-                        if case .failed = status {
-                            Palette.error
-                        } else {
-                            Color.secondary
-                        }
-                    }())
-            }
-            .font(.callout)
-            .accessibilityElement(children: .combine)
-        }
     }
 }
 
@@ -213,18 +185,6 @@ private struct AndroidPane: View {
             .frame(minHeight: 180)
         }
         Button("Refresh", systemImage: "arrow.clockwise") { Task { await model.devices.refresh() } }.disabled(model.devices.isScanning)
-    }
-}
-
-enum QRCode {
-    static func image(for text: String) -> NSImage? {
-        let filter = CIFilter.qrCodeGenerator()
-        filter.message = Data(text.utf8)
-        guard let output = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8)) else { return nil }
-        let rep = NSCIImageRep(ciImage: output)
-        let image = NSImage(size: rep.size)
-        image.addRepresentation(rep)
-        return image
     }
 }
 

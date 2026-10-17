@@ -18,31 +18,3 @@ struct BlockListTool: Tool {
         return .block(hidden: hit.hidden)
     }
 }
-
-/// Only lets matching requests through; everything else is blocked.
-struct AllowListTool: Tool {
-    let name = "Allow List"
-    var needsRequestBody: Bool {
-        matchers.contains { $0.readsBody }
-    }
-
-    private let matchers: [RequestMatcher]
-
-    init(rules: [AllowRule]) {
-        matchers = rules.map { $0.matching.compile() }
-    }
-
-    func intercept(request: inout RequestRecord) async -> RequestDecision {
-        matchers.contains { $0.matches(request) } ? .forward : .block(hidden: false)
-    }
-}
-
-/// Forces fresh responses by stripping validators and disabling caches.
-struct NoCachingTool: Tool {
-    let name = "No Caching"
-
-    func intercept(request: inout RequestRecord) async -> RequestDecision {
-        request = request.droppingCacheValidators()
-        return .forward
-    }
-}

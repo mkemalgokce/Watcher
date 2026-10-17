@@ -225,40 +225,6 @@ private struct GettingStarted: View {
     }
 }
 
-struct MethodBadge: View {
-    let method: String
-
-    var body: some View {
-        Text(method).font(.system(.caption, design: .monospaced).weight(.semibold)).foregroundStyle(Palette.method(method))
-    }
-}
-
-struct StatusPill: View {
-    let flow: Flow
-
-    private var text: String {
-        switch flow.state {
-        case .pending: "…"
-        case .failed: "Failed"
-        case .blocked, .completed: flow.response.map { "\($0.status)" } ?? "—"
-        }
-    }
-
-    var body: some View {
-        let tint = Palette.status(flow.response?.status, failed: flow.state == .failed)
-        HStack(spacing: 4) {
-            Text(text).font(.caption.weight(.medium).monospacedDigit()).foregroundStyle(tint)
-                .padding(.horizontal, 6).padding(.vertical, 1).background(tint.opacity(0.14), in: Capsule())
-            if !flow.appliedTools.isEmpty {
-                Image(systemName: "wrench.adjustable").font(.caption2).foregroundStyle(Palette.modified)
-                    .help("Changed by \(flow.appliedTools.joined(separator: ", "))").accessibilityLabel("changed by a tool")
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(flow.response.map { "Status \($0.status) \(HTTPStatus.reason($0.status))" } ?? text)
-    }
-}
-
 /// Shown only while something narrows the list: how many requests are left, and one click to see them all again.
 /// The filters themselves are tokens in the search field.
 private struct FilterSummary: View {
@@ -281,78 +247,5 @@ private struct FilterSummary: View {
             .overlay(alignment: .bottom) { Divider() }
             .transition(.move(edge: .top).combined(with: .opacity))
         }
-    }
-}
-
-/// Context menu of the request list; the same actions are in the Request menu of the menu bar.
-struct FlowActions: View {
-    @Environment(AppModel.self) private var model
-    let ids: Set<Flow.ID>
-    var onComment: (Flow) -> Void = { _ in }
-
-    var body: some View {
-        if let flow = model.flows.first(where: { ids.contains($0.id) }) {
-            let request = flow.request
-            Button("Repeat", systemImage: "arrow.clockwise") { model.repeatRequest(request) }
-            Button("Edit & Repeat…", systemImage: "square.and.pencil") { model.editAndRepeat(flow) }
-            Divider()
-            Button(flow.isStarred ? "Remove Star" : "Star", systemImage: flow.isStarred ? "star.slash" : "star") { model.toggleStar(ids) }
-            Button("Add Comment…", systemImage: "text.bubble") { onComment(flow) }
-            Menu("Copy as", systemImage: "doc.on.doc") {
-                Button("URL") { model.copy(request.url) }
-                ForEach(CodeGenerator.Language.allCases, id: \.self) { language in
-                    Button(language.rawValue) { model.copy(model.code(for: request, as: language)) }
-                }
-            }
-            Menu("Response Body", systemImage: "doc") {
-                let body = model.body(of: flow, side: .response)
-                Button("Save…", systemImage: "square.and.arrow.down") { model.saveData(body, suggestedName: model.suggestedFileName(for: flow, side: .response)) }
-                OpenWithMenu(data: body, name: model.suggestedFileName(for: flow, side: .response), contentType: flow.response?.headers.value(for: "content-type"))
-                Button("Copy as Text", systemImage: "doc.on.doc") { model.copy(String(decoding: body, as: UTF8.self), "Response body copied") }
-                Button("Copy as Base64") { model.copy(body.base64EncodedString(), "Response body copied as Base64") }
-            }
-            .disabled(flow.response?.body.isEmpty ?? true)
-            Menu("Copy Headers", systemImage: "list.bullet.rectangle") {
-                Button("Request Headers") { model.copy(model.headerText(of: flow, side: .request), "Request headers copied") }
-                Button("Response Headers") { model.copy(model.headerText(of: flow, side: .response), "Response headers copied") }.disabled(flow.response == nil)
-            }
-            if !flow.request.body.isEmpty {
-                Button("Save Request Body…", systemImage: "square.and.arrow.up") {
-                    model.saveData(model.body(of: flow, side: .request), suggestedName: model.suggestedFileName(for: flow, side: .request))
-                }
-            }
-            Button("Set as Compare Base", systemImage: "arrow.left.arrow.right") { model.compare(withBase: flow) }
-            Button("Mock This Response", systemImage: "theatermasks") { model.mockResponse(flow) }.disabled(flow.response == nil)
-            Divider()
-            Button("Add Breakpoint for this URL", systemImage: "pause.circle") {
-                model.settings.breakpoints.isEnabled = true
-                model.settings.breakpoints.rules.append(BreakpointRule(name: request.host, matching: MatchingRule(pattern: "\(request.host)\(request.path.split(separator: "?").first.map(String.init) ?? "/")")))
-            }
-            Button("Block this Host", systemImage: "nosign") {
-                model.settings.blockList.isEnabled = true
-                model.settings.blockList.rules.append(BlockRule(name: request.host, matching: MatchingRule(pattern: "\(request.host)/*")))
-            }
-            Divider()
-            Button("Delete", systemImage: "trash", role: .destructive) { model.delete(ids) }
-        }
-    }
-}
-
-/// What kind of content a request returned, at a glance.
-struct ContentKindIcon: View {
-    let kind: FlowFilter.ContentKind
-
-    var body: some View {
-        let (symbol, name) = switch kind {
-        case .json: ("curlybraces", "JSON")
-        case .xml: ("chevron.left.forwardslash.chevron.right", "XML")
-        case .html: ("doc.richtext", "HTML")
-        case .image: ("photo", "Image")
-        case .javascript: ("curlybraces.square", "JavaScript")
-        case .css: ("paintbrush", "CSS")
-        case .form: ("list.bullet.rectangle", "Form")
-        case .other: ("doc", "Other")
-        }
-        Image(systemName: symbol).font(.caption2).foregroundStyle(.secondary).frame(width: 14).help(name).accessibilityLabel(name)
     }
 }

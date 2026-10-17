@@ -166,9 +166,3 @@ private struct AdvancedSettings: View {
 #if DEBUG
     #Preview("Settings") { SettingsView().environment(AppModel.preview()) }
 #endif
-
-enum PortRange {
-    static func isValid(_ port: Int) -> Bool {
-        (1 ... 65535).contains(port)
-    }
-}
