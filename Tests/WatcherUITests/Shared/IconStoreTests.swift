@@ -1,13 +1,14 @@
 import AppKit
 import Observation
+import Testing
 import WatcherTestSupport
 @testable import WatcherUI
-import XCTest
 
 /// A sidebar with hundreds of domains must not redraw every row each time one site's icon arrives.
 @MainActor
-final class IconStoreTests: XCTestCase {
-    func testAFaviconArrivingRedrawsOnlyItsOwnRow() {
+struct IconStoreTests {
+    @Test
+    func aFaviconArrivingRedrawsOnlyItsOwnRow() {
         let store = IconStore()
         let otherRowChanged = ObservationFlag()
         withObservationTracking {
@@ -16,7 +17,7 @@ final class IconStoreTests: XCTestCase {
             otherRowChanged.set()
         }
         store.setFavicon(NSImage(size: NSSize(width: 16, height: 16)), for: "b.example")
-        XCTAssertFalse(otherRowChanged.value, "b.example's icon must not invalidate a.example's row")
+        #expect(!otherRowChanged.value, "b.example's icon must not invalidate a.example's row")
 
         let ownRowChanged = ObservationFlag()
         withObservationTracking {
@@ -25,7 +26,7 @@ final class IconStoreTests: XCTestCase {
             ownRowChanged.set()
         }
         store.setFavicon(NSImage(size: NSSize(width: 16, height: 16)), for: "c.example")
-        XCTAssertTrue(ownRowChanged.value, "the row whose icon arrived redraws")
-        XCTAssertNotNil(store.favicon(for: "c.example", fetch: false))
+        #expect(ownRowChanged.value, "the row whose icon arrived redraws")
+        #expect(store.favicon(for: "c.example", fetch: false) != nil)
     }
 }
