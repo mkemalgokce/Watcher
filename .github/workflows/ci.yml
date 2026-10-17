@@ -26,15 +26,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ~/.mint
-          key: mint-${{ runner.os }}-${{ hashFiles('Mintfile') }}
+          path: .tools
+          key: tools-${{ runner.os }}-${{ hashFiles('scripts/install-tools.sh') }}
       - name: Install tools
         run: |
-          brew install mint actionlint shellcheck
+          brew install actionlint shellcheck
           make tools
       - name: Format and lint Swift
         run: make format-check lint
+      # A full xcodebuild takes minutes, so unused-code analysis runs nightly and on demand, not on every change.
       - name: Analyze unused code
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: make lint-analyze
       - name: Lint workflows and scripts
         run: |

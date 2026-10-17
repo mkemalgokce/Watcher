@@ -1,5 +1,5 @@
-SWIFTFORMAT := mint run swiftformat
-SWIFTLINT := mint run swiftlint
+SWIFTFORMAT := .tools/swiftformat
+SWIFTLINT := .tools/swiftlint
 BASELINE := .swiftlint-baseline.json
 ANALYZE_BASELINE := .swiftlint-analyze-baseline.json
 ANALYZE_PATH := .build/analyze
@@ -14,7 +14,7 @@ bootstrap:
 	lefthook install
 
 tools:
-	mint bootstrap
+	scripts/install-tools.sh
 
 format:
 	$(SWIFTFORMAT) .

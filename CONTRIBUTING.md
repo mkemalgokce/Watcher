@@ -18,11 +18,11 @@ code owner (@mkemalgokce, see `.github/CODEOWNERS`) before it can be merged.
 
 | Target | Does |
 |---|---|
-| `make bootstrap` | Installs the Brewfile and Mintfile tools and the lefthook git hooks |
+| `make bootstrap` | Installs the Brewfile tools, the pinned SwiftLint and SwiftFormat binaries (`scripts/install-tools.sh`) and the lefthook git hooks |
 | `make format` / `make format-check` | Formats with SwiftFormat / fails on unformatted code |
 | `make lint` | SwiftLint, strict; violations recorded in `.swiftlint-baseline.json` are tolerated, new ones fail |
 | `make lint-baseline` | Rewrites the baseline; only to drop violations that were fixed, never to accept new ones |
-| `make lint-analyze` / `make lint-analyze-baseline` | SwiftLint's unused-code analyzer against `.swiftlint-analyze-baseline.json` / rewrites that baseline |
+| `make lint-analyze` / `make lint-analyze-baseline` | SwiftLint's unused-code analyzer (a full build, a few minutes; CI runs it nightly) against `.swiftlint-analyze-baseline.json` / rewrites that baseline |
 | `make test` | Every test, including `WatcherInteractionTests` (they skip without the Accessibility permission) |
 | `make test-unit` | Every test except `WatcherInteractionTests`; the pre-push hook runs it |
 | `make coverage` | `test-unit` with coverage, gated by `scripts/coverage-thresholds.txt` |
@@ -60,6 +60,9 @@ look at the new images and commit them with the change.
 Only the maintainer releases. Pushing a `v*` tag starts `.github/workflows/release.yml`; the build waits for approval in the
 `release` environment, then signs the DMG with the project's Developer ID, notarizes and staples it, and publishes the
 release with notes from git-cliff. The signing and notary secrets live only in that environment.
+
+The DMG window's background is `tools/dmg/background.svg`; after editing it, run `tools/dmg/render-background.sh`
+(needs `librsvg` from the Brewfile) to rebuild the 1x and 2x `background.tiff`.
 
 ## Design rules
 

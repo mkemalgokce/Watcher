@@ -13,7 +13,7 @@ trap 'rm -rf "$workdir"' EXIT
 cp -R "$fixtures/Sources" "$root/.swiftlint.yml" "$workdir/"
 
 # Lint exits non-zero because the fixtures violate rules; a crash shows up as a missing violation below.
-output="$(cd "$workdir" && mint run --silent --mintfile "$root/Mintfile" swiftlint lint --quiet 2>&1)" || true
+output="$(cd "$workdir" && "$root/.tools/swiftlint" lint --quiet 2>&1)" || true
 actual="$(sed -nE "s#${violation}#\\1:\\2 \\3#p" <<< "$output" | sort)"
 
 expected="$(sort <<'LIST'

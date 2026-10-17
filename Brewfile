@@ -1,4 +1,3 @@
-brew "mint"
 brew "lefthook"
 brew "git-cliff"
 brew "actionlint"
