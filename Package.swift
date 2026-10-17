@@ -23,6 +23,7 @@ let package = Package(
         .package(url: "https://github.com/tree-sitter/tree-sitter-html", from: "0.23.0"),
         .package(url: "https://github.com/tree-sitter/tree-sitter-css", exact: "0.25.0"),
         .package(url: "https://github.com/tree-sitter/tree-sitter-javascript", exact: "0.25.0"),
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.19.6"),
     ],
     targets: [
         .target(
@@ -114,6 +115,28 @@ let package = Package(
         .testTarget(
             name: "WatcherCoreTests",
             dependencies: ["WatcherCore", "WatcherTestSupport"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .testTarget(
+            name: "WatcherIntegrationTests",
+            dependencies: ["WatcherCore", "WatcherUI", "WatcherTestSupport"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .testTarget(
+            name: "WatcherE2ETests",
+            // Listed so that `swift test` builds the binary these tests launch.
+            dependencies: ["WatcherCore", "WatcherTestSupport", "watcher-cli"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .testTarget(
+            name: "WatcherSnapshotTests",
+            dependencies: [
+                "WatcherCore",
+                "WatcherUI",
+                "WatcherTestSupport",
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+            ],
+            exclude: ["__Snapshots__"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
     ]

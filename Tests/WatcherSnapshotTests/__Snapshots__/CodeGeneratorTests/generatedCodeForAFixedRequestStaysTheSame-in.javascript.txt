@@ -1,0 +1,6 @@
+const response = await fetch("https://api.example.com/v1/users?page=2&sort=name", {
+  method: "POST",
+  headers: {"Content-Type": "application/json", "Authorization": "Bearer it's-a-token"},
+  body: "{\"name\":\"O'Brien\",\"tags\":[\"a\",\"b\"]}",
+});
+console.log(response.status, await response.text());

@@ -1,0 +1,8 @@
+<?php
+$ch = curl_init('https://api.example.com/v1/users?page=2&sort=name');
+curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'Authorization: Bearer it\'s-a-token']);
+curl_setopt($ch, CURLOPT_POSTFIELDS, '{"name":"O\'Brien","tags":["a","b"]}');
+echo curl_exec($ch);
+curl_close($ch);
