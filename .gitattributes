@@ -1,0 +1,4 @@
+# Language statistics and code scanning: the Brewfile is not Ruby code, and the tree-sitter scanners are copied
+# third-party code.
+Brewfile linguist-detectable=false
+Sources/TreeSitterScanners/** linguist-vendored

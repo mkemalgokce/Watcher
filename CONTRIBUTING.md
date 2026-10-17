@@ -11,20 +11,20 @@ Watcher uses GitHub flow on `main`; changes arrive as pull requests from forks.
    at most 66 characters; it becomes the squash commit (GitHub appends ` (#N)`) and the changelog entry.
 4. The maintainer squash-merges it after review.
 
-`main` is protected: a pull request needs passing `lint`, `test`, `package` and `pr-title` checks and a review from the
+`main` is protected: a pull request needs passing `checks`, `swift` and `pr-title` checks (`swift` is skipped when only docs change) and a review from the
 code owner (@mkemalgokce, see `.github/CODEOWNERS`) before it can be merged.
 
 ## Make targets
 
 | Target | Does |
 |---|---|
-| `make bootstrap` | Installs the Brewfile and Mintfile tools and the lefthook git hooks |
+| `make bootstrap` | Installs the Brewfile tools, the pinned SwiftLint and SwiftFormat binaries (`scripts/install-tools.sh`) and the lefthook git hooks |
 | `make format` / `make format-check` | Formats with SwiftFormat / fails on unformatted code |
 | `make lint` | SwiftLint, strict; violations recorded in `.swiftlint-baseline.json` are tolerated, new ones fail |
 | `make lint-baseline` | Rewrites the baseline; only to drop violations that were fixed, never to accept new ones |
-| `make lint-analyze` / `make lint-analyze-baseline` | SwiftLint's unused-code analyzer against `.swiftlint-analyze-baseline.json` / rewrites that baseline |
+| `make lint-analyze` / `make lint-analyze-baseline` | SwiftLint's unused-code analyzer (a full build, a few minutes; CI runs it nightly) against `.swiftlint-analyze-baseline.json` / rewrites that baseline |
 | `make test` | Every test, including `WatcherInteractionTests` (they skip without the Accessibility permission) |
-| `make test-unit` | Every test except `WatcherInteractionTests`; the pre-push hook runs it |
+| `make test-unit` | Every test except `WatcherInteractionTests`; CI runs it with coverage on every pull request |
 | `make coverage` | `test-unit` with coverage, gated by `scripts/coverage-thresholds.txt` |
 | `make changelog` | Regenerates `CHANGELOG.md` with git-cliff |
 | `make dmg` | Builds `dist/Watcher-$(VERSION).dmg` (default 0.0.0) like a release, signed ad hoc and not notarized |
@@ -60,6 +60,9 @@ look at the new images and commit them with the change.
 Only the maintainer releases. Pushing a `v*` tag starts `.github/workflows/release.yml`; the build waits for approval in the
 `release` environment, then signs the DMG with the project's Developer ID, notarizes and staples it, and publishes the
 release with notes from git-cliff. The signing and notary secrets live only in that environment.
+
+The DMG window's background is `tools/dmg/background.svg`; after editing it, run `tools/dmg/render-background.sh`
+(needs `librsvg` from the Brewfile) to rebuild the 1x and 2x `background.tiff`.
 
 ## Design rules
 

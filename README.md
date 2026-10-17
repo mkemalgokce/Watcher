@@ -137,7 +137,7 @@ Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for
 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md); report security problems privately as described in [SECURITY.md](SECURITY.md).
 
 ```sh
-make bootstrap   # once: tools from Brewfile and Mintfile, git hooks
+make bootstrap   # once: Homebrew tools, pinned SwiftLint and SwiftFormat, git hooks
 make test        # every test; make test-unit skips the Accessibility-driven interaction tests
 make lint        # also: make format, make format-check, make coverage
 ```
