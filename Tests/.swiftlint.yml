@@ -1,0 +1,4 @@
+disabled_rules:
+  - force_unwrapping
+  - function_body_length
+  - large_tuple # parameterized test tables

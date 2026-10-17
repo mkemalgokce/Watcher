@@ -1,0 +1,71 @@
+included:
+  - Sources
+  - Tests
+  - Package.swift
+excluded:
+  - .build
+  - .swiftpm
+  - Sources/TreeSitterScanners
+
+disabled_rules:
+  - trailing_comma # SwiftFormat owns trailing commas
+
+opt_in_rules:
+  - contains_over_first_not_nil
+  - empty_count
+  - explicit_init
+  - fatal_error_message
+  - first_where
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - private_swiftui_state
+  - redundant_type_annotation
+  - sorted_imports
+  - unowned_variable_capture
+  - yoda_condition
+
+analyzer_rules:
+  - unused_declaration
+  - unused_import
+
+line_length:
+  warning: 120
+  ignores_comments: true
+file_length:
+  warning: 400
+  error: 400
+type_body_length:
+  warning: 250
+  error: 250
+function_body_length:
+  warning: 40
+  error: 40
+cyclomatic_complexity:
+  warning: 10
+  error: 10
+
+custom_rules:
+  no_print:
+    name: No print
+    regex: '\bprint\('
+    excluded_match_kinds: [comment, comment.mark, comment.url, doccomment, doccomment.field, string]
+    included: 'Sources/.*\.swift'
+    excluded: 'Sources/watcher-cli/.*' # the CLI writes to stdout on purpose
+    message: "Use Logger instead of print."
+    severity: error
+  no_live_singletons:
+    name: Injected side effects
+    regex: 'UserDefaults\.standard|FileManager\.default|\bProcess\(\)'
+    excluded_match_kinds: [comment, comment.mark, comment.url, doccomment, doccomment.field, string]
+    included: 'Sources/.*\.swift'
+    excluded: '/Live[A-Za-z]*\.swift'
+    message: "Reach system singletons only from Live* adapters and inject them."
+    severity: error
+  design_system_colors:
+    name: Design system tokens
+    regex: '\bColor\((red|white|hue):|\bColor\(\.(sRGB|displayP3|linearSRGB)|\bNSColor\((red|calibratedRed|srgbRed|white|calibratedWhite):|\bFont\.(system|custom)\(|\.font\(\.(system|custom)\('
+    excluded_match_kinds: [comment, comment.mark, comment.url, doccomment, doccomment.field, string]
+    included: 'Sources/.*\.swift'
+    excluded: 'Sources/WatcherUI/Design/.*'
+    message: "Use design system color and typography tokens."
+    severity: error

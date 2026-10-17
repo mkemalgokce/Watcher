@@ -1,0 +1,3 @@
+func report() {
+    print("x")
+}

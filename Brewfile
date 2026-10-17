@@ -1,0 +1,7 @@
+brew "mint"
+brew "lefthook"
+brew "git-cliff"
+brew "actionlint"
+brew "shellcheck"
+brew "create-dmg"
+brew "librsvg"
