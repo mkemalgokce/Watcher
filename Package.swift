@@ -8,6 +8,7 @@ let package = Package(
         .library(name: "WatcherCore", targets: ["WatcherCore"]),
         .library(name: "WatcherUI", targets: ["WatcherUI"]),
         .executable(name: "watcher-cli", targets: ["watcher-cli"]),
+        .executable(name: "Watcher", targets: ["Watcher"]),
     ],
     dependencies: [
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.24.0"),
@@ -63,6 +64,30 @@ let package = Package(
             dependencies: ["WatcherCore"],
             resources: [.copy("Resources/AppIcon.icns")],
             swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .executableTarget(
+            name: "Watcher",
+            dependencies: ["WatcherUI", "WatcherCore"],
+            exclude: ["Info.plist"],
+            swiftSettings: [.swiftLanguageMode(.v5)],
+            linkerSettings: [.unsafeFlags([
+                "-Xlinker",
+                "-sectcreate",
+                "-Xlinker",
+                "__TEXT",
+                "-Xlinker",
+                "__info_plist",
+                "-Xlinker",
+                "Sources/Watcher/Info.plist",
+                "-Xlinker",
+                "-platform_version",
+                "-Xlinker",
+                "macos",
+                "-Xlinker",
+                "14.0",
+                "-Xlinker",
+                "27.0",
+            ])]
         ),
         .testTarget(
             name: "WatcherUITests",

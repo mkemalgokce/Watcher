@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleName</key><string>Watcher</string>
+  <key>CFBundleIdentifier</key><string>dev.watcher.app</string>
+  <key>CFBundleVersion</key><string>1</string>
+  <key>NSLocalNetworkUsageDescription</key><string>Watcher lets phones and tablets on your network send their traffic through it.</string>
+</dict></plist>
