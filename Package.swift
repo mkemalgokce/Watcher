@@ -16,7 +16,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.29.0"),
         .package(url: "https://github.com/apple/swift-nio-http2.git", from: "1.34.0"),
         .package(url: "https://github.com/apple/swift-certificates.git", from: "1.6.0"),
-        .package(url: "https://github.com/apple/swift-crypto.git", from: "3.9.0"),
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "5.0.1"),
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
         .package(url: "https://github.com/ChimeHQ/SwiftTreeSitter", from: "0.9.0"),
         .package(url: "https://github.com/tree-sitter/tree-sitter-json", from: "0.23.0"),
