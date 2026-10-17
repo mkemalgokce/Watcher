@@ -1,15 +1,15 @@
 import AppKit
-import XCTest
+import Testing
+import WatcherTestSupport
 
 /// A misspelled or unavailable SF Symbol draws nothing and fails silently, so every name in the UI sources must exist.
-final class SymbolNamesTests: XCTestCase {
-    func testEverySymbolNameExists() throws {
-        let tests = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-        let sources = tests.appendingPathComponent("../../Sources").standardized
+struct SymbolNamesTests {
+    @Test
+    func everySymbolNameExists() throws {
         let pattern = try NSRegularExpression(pattern: #"(?:systemImage|systemName|symbol)\s*[:(]\s*([^,\n]*)"#)
         let name = try NSRegularExpression(pattern: #""([a-z][a-z0-9]*(?:\.[a-z0-9]+)+)""#)
         var missing: Set<String> = []
-        let enumerator = FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil)
+        let enumerator = FileManager.default.enumerator(at: SourceTree.url("Sources"), includingPropertiesForKeys: nil)
         let files = enumerator?.compactMap { $0 as? URL } ?? []
         for file in files where file.pathExtension == "swift" {
             let text = try String(contentsOf: file, encoding: .utf8)
@@ -23,6 +23,6 @@ final class SymbolNamesTests: XCTestCase {
                 }
             }
         }
-        XCTAssertTrue(missing.isEmpty, "unknown SF Symbols: \(missing.sorted())")
+        #expect(missing.isEmpty, "unknown SF Symbols: \(missing.sorted())")
     }
 }
