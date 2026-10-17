@@ -1,0 +1,59 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+  HOMEBREW_NO_AUTO_UPDATE: 1
+  HOMEBREW_NO_INSTALL_CLEANUP: 1
+
+jobs:
+  # An unsigned DMG, so packaging problems show up before a release; its build cache also speeds up the release job.
+  package:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Restore build cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build
+          key: spm-release-${{ hashFiles('Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            spm-release-${{ hashFiles('Package.resolved') }}-
+            spm-release-
+      - name: Build the DMG
+        run: |
+          brew install create-dmg
+          scripts/package-release.sh 0.0.0 1
+      - name: Save build cache
+        if: ${{ !cancelled() }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build
+          key: spm-release-${{ hashFiles('Package.resolved') }}-${{ github.sha }}
+
+  # SwiftLint's unused-code analysis needs a full xcodebuild, too slow for every change.
+  analyze:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ hashFiles('scripts/install-tools.sh') }}
+      - name: Install lint tools
+        run: make tools
+      - name: Analyze unused code
+        run: make lint-analyze

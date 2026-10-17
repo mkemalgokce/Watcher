@@ -4,13 +4,20 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
     commit-message:
       prefix: build
       include: scope
+
   - package-ecosystem: swift
     directory: /
     schedule:
       interval: weekly
+    groups:
+      swift-minor-and-patch:
+        update-types: [minor, patch]
     commit-message:
       prefix: build
       include: scope

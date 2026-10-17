@@ -9,17 +9,19 @@ permissions:
 
 jobs:
   pr-title:
-    # Dependabot names Swift packages by their full URL, which is longer than a subject allows; a skipped check passes.
+    # Dependabot titles name Swift packages by URL and run past the limit; a skipped check still passes.
     if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Check the title with the commit-message rule
+        with:
+          sparse-checkout: scripts/check-commit-msg.sh
+          sparse-checkout-cone-mode: false
+      - name: Check the title
         env:
           TITLE: ${{ github.event.pull_request.title }}
-          # The squash commit gets " (#N)" appended.
-          COMMIT_SUBJECT_MAX: 66
+          COMMIT_SUBJECT_MAX: 66 # the squash commit gets " (#N)" appended
         run: |
           printf '%s\n' "$TITLE" > "$RUNNER_TEMP/title"
           scripts/check-commit-msg.sh "$RUNNER_TEMP/title"

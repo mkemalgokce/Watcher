@@ -11,7 +11,7 @@ Watcher uses GitHub flow on `main`; changes arrive as pull requests from forks.
    at most 66 characters; it becomes the squash commit (GitHub appends ` (#N)`) and the changelog entry.
 4. The maintainer squash-merges it after review.
 
-`main` is protected: a pull request needs passing `lint`, `test` and `pr-title` checks and a review from the
+`main` is protected: a pull request needs passing `checks`, `swift` and `pr-title` checks (`swift` is skipped when only docs change) and a review from the
 code owner (@mkemalgokce, see `.github/CODEOWNERS`) before it can be merged.
 
 ## Make targets
