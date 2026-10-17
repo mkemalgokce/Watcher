@@ -6,6 +6,7 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .library(name: "WatcherCore", targets: ["WatcherCore"]),
+        .library(name: "WatcherUI", targets: ["WatcherUI"]),
         .executable(name: "watcher-cli", targets: ["watcher-cli"]),
     ],
     dependencies: [
@@ -55,6 +56,22 @@ let package = Package(
                 "WatcherCore",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .target(
+            name: "WatcherUI",
+            dependencies: ["WatcherCore"],
+            resources: [.copy("Resources/AppIcon.icns")],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .testTarget(
+            name: "WatcherUITests",
+            dependencies: ["WatcherUI", "WatcherCore"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .testTarget(
+            name: "WatcherInteractionTests",
+            dependencies: ["WatcherUI", "WatcherCore"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(

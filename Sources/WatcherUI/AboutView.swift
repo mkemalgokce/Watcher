@@ -1,0 +1,114 @@
+import AppKit
+import SwiftUI
+import WatcherCore
+
+/// Watcher ▸ About Watcher: what this build is, who makes it and how to support it, where its files live, and the
+/// open-source work it stands on.
+public struct AboutView: View {
+    @Environment(AppModel.self) private var model
+    public init() {}
+
+    static let libraries: [(name: String, use: String)] = [
+        ("SwiftNIO · swift-nio-ssl · swift-nio-http2", "Proxy, TLS and HTTP/2"),
+        ("AsyncHTTPClient", "Upstream requests"),
+        ("swift-certificates · swift-crypto", "Root CA and per-host certificates"),
+        ("SwiftTreeSitter · tree-sitter grammars", "Syntax colouring of large bodies"),
+        ("swift-argument-parser", "watcher-cli"),
+    ]
+
+    public var body: some View {
+        VStack(spacing: 0) {
+            VStack(spacing: 10) {
+                WatcherLogo(size: 96)
+                Text("Watcher").font(.system(size: 26, weight: .bold))
+                Text("HTTP(S) debugging proxy for macOS").foregroundStyle(.secondary)
+                Text(Self.versionText).font(.callout.monospacedDigit()).foregroundStyle(.secondary).textSelection(.enabled)
+                HStack(spacing: 4) {
+                    Text("by").foregroundStyle(.secondary)
+                    Link(ProjectLinks.authorName, destination: ProjectLinks.author)
+                        .help(ProjectLinks.author.absoluteString)
+                }
+                .font(.callout)
+                HStack(spacing: 8) {
+                    Link(destination: ProjectLinks.repository) {
+                        Label("GitHub", systemImage: "chevron.left.forwardslash.chevron.right")
+                    }
+                    .help("Source code, releases and discussions")
+                    Link(destination: ProjectLinks.sponsor) {
+                        Label("Sponsor", systemImage: "heart.fill").foregroundStyle(.pink)
+                    }
+                    .help("Watcher is free and open source; sponsoring keeps it going")
+                    Link(destination: ProjectLinks.issues) {
+                        Label("Report an Issue", systemImage: "exclamationmark.bubble")
+                    }
+                    .help("Bug reports and feature requests")
+                }
+                .buttonStyle(.bordered).controlSize(.small).padding(.top, 4)
+            }
+            .padding(.top, 28).padding(.bottom, 18)
+
+            VStack(spacing: 10) {
+                Card("Files", symbol: "folder") {
+                    fileRow("Settings, mocks, workspaces", url: WatcherPaths.supportDirectory)
+                    fileRow("Root certificate", url: model.devices.certificateURL)
+                }
+                Card("Built with", symbol: "shippingbox") {
+                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 5) {
+                        ForEach(Self.libraries, id: \.name) { library in
+                            GridRow {
+                                Text(library.name).font(.callout)
+                                Text(library.use).font(.callout).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    // Only a packaged app carries the notices (tools/build-app.sh writes them).
+                    if let notices = ProjectLinks.thirdPartyNotices {
+                        Button("Licences and Notices…") { NSWorkspace.shared.open(notices) }
+                            .buttonStyle(.link).font(.callout).padding(.top, 4)
+                            .help("The licences of the open-source packages Watcher includes")
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+
+            HStack {
+                Text("MIT License · © 2026 \(ProjectLinks.authorName)").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button("Copy Version Info", systemImage: "doc.on.doc") { model.copy(Self.diagnostics, "Version info copied") }
+                    .help("Version, build and macOS version, for bug reports")
+            }
+            .padding(20)
+        }
+        .frame(width: 480)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func fileRow(_ title: String, url: URL) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.callout)
+                Text(url.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")).font(.caption.monospaced()).foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+            }
+            Spacer()
+            IconButton("Show in Finder", symbol: "magnifyingglass") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+        }
+    }
+
+    /// "Version 1.0 (1)" in a packaged app; `swift run`, Xcode and tests run inside another bundle, whose version is not Watcher's.
+    static var versionText: String {
+        let info = Bundle.main.infoDictionary ?? [:]
+        guard info["CFBundleIdentifier"] as? String == "dev.watcher.app", let version = info["CFBundleShortVersionString"] as? String else { return "Development build" }
+        return "Version \(version) (\(info["CFBundleVersion"] as? String ?? "?"))"
+    }
+
+    static var diagnostics: String {
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        #if arch(arm64)
+            let arch = "arm64"
+        #else
+            let arch = "x86_64"
+        #endif
+        return "Watcher \(versionText) · macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion) · \(arch)"
+    }
+}
