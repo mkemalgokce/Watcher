@@ -1,69 +1,5 @@
 import Foundation
 
-public struct Header: Hashable, Codable, Sendable {
-    public var name: String
-    public var value: String
-    public init(_ name: String, _ value: String) {
-        self.name = name; self.value = value
-    }
-}
-
-public struct RequestRecord: Codable, Equatable, Sendable {
-    public var method: String
-    public var scheme: String
-    public var host: String
-    public var port: Int
-    public var path: String
-    public var headers: [Header]
-    public var body: Data
-    /// Program on this Mac that sent the request, when it could be determined.
-    public var clientApp: String?
-
-    public var url: String {
-        let isDefault = (scheme == "https" && port == 443) || (scheme == "http" && port == 80)
-        return "\(scheme)://\(host)\(isDefault ? "" : ":\(port)")\(path)"
-    }
-
-    public init(
-        method: String,
-        scheme: String,
-        host: String,
-        port: Int,
-        path: String,
-        headers: [Header] = [],
-        body: Data = Data(),
-        clientApp: String? = nil
-    ) {
-        self.method = method; self.scheme = scheme; self.host = host
-        self.port = port; self.path = path; self.headers = headers; self.body = body; self.clientApp = clientApp
-    }
-}
-
-public struct ResponseRecord: Codable, Equatable, Sendable {
-    public var status: Int
-    public var headers: [Header]
-    public var body: Data
-    public init(status: Int, headers: [Header] = [], body: Data = Data()) {
-        self.status = status; self.headers = headers; self.body = body
-    }
-}
-
-public struct WebSocketMessage: Codable, Equatable, Sendable {
-    public enum Direction: String, Codable, Sendable { case clientToServer, serverToClient }
-    public enum Kind: String, Codable, Sendable { case text, binary, close, ping, pong }
-
-    public var direction: Direction
-    public var kind: Kind
-    public var payload: Data
-    public var date: Date
-    /// True for permessage-deflate frames, whose payload is shown still compressed.
-    public var isCompressed: Bool
-
-    public init(direction: Direction, kind: Kind, payload: Data, date: Date = Date(), isCompressed: Bool = false) {
-        self.direction = direction; self.kind = kind; self.payload = payload; self.date = date; self.isCompressed = isCompressed
-    }
-}
-
 public struct Flow: Identifiable, Codable, Sendable {
     public enum State: String, Codable, Sendable { case pending, completed, failed, blocked }
 
@@ -90,28 +26,6 @@ public struct Flow: Identifiable, Codable, Sendable {
     public init(sequence: Int, request: RequestRecord) {
         id = UUID(); self.sequence = sequence; startedAt = Date()
         self.request = request; state = .pending; appliedTools = []
-    }
-}
-
-public extension RequestRecord {
-    /// The request without cache validators and with no-cache headers, so the server answers afresh.
-    func droppingCacheValidators() -> RequestRecord {
-        var copy = self
-        copy.headers.removeAll { ["if-none-match", "if-modified-since"].contains($0.name.lowercased()) }
-        copy.headers.set("Cache-Control", "no-cache, no-store")
-        copy.headers.set("Pragma", "no-cache")
-        return copy
-    }
-}
-
-public extension [Header] {
-    func value(for name: String) -> String? {
-        first { $0.name.caseInsensitiveCompare(name) == .orderedSame }?.value
-    }
-
-    mutating func set(_ name: String, _ value: String) {
-        removeAll { $0.name.caseInsensitiveCompare(name) == .orderedSame }
-        append(Header(name, value))
     }
 }
 

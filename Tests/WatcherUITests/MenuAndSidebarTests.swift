@@ -40,7 +40,7 @@ final class MenuAndSidebarTests: XCTestCase {
     func testMenuShortcutsAreUnique() throws {
         let source = try String(
             contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-                .appendingPathComponent("../../Sources/WatcherUI/WatcherCommands.swift").standardized,
+                .appendingPathComponent("../../Sources/WatcherUI/App/WatcherCommands.swift").standardized,
             encoding: .utf8
         )
         let pattern = try NSRegularExpression(pattern: #"\.keyboardShortcut\(("[^"]*"|\.\w+)(?:, modifiers: \[?([^)\]]*)\]?)?\)"#)
@@ -59,7 +59,7 @@ final class MenuAndSidebarTests: XCTestCase {
     func testHelpListsEveryMenuShortcut() throws {
         let source = try String(
             contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-                .appendingPathComponent("../../Sources/WatcherUI/WatcherCommands.swift").standardized,
+                .appendingPathComponent("../../Sources/WatcherUI/App/WatcherCommands.swift").standardized,
             encoding: .utf8
         )
         let listed = Set(Shortcut.groups.flatMap(\.items).map(\.keys))

@@ -4,14 +4,6 @@ import NIO
 import NIOHTTP1
 import NIOSSL
 
-/// Fixed destination for a reverse-proxy listener.
-struct ReverseOrigin: Sendable {
-    let scheme: String
-    let host: String
-    let port: Int
-    let preserveHost: Bool
-}
-
 public final class ProxyServer: @unchecked Sendable {
     public let store: FlowStore
     public let tools: ToolChain

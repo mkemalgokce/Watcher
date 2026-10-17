@@ -1,0 +1,89 @@
+import Foundation
+
+/// Everything configurable, persisted as one JSON document shared by the app and the CLI.
+public struct WatcherSettings: Codable, Equatable, Sendable {
+    public var port = 9090
+    /// Listen on every interface (so phones and simulators can connect) instead of only localhost.
+    public var listenOnAllInterfaces = false
+    /// Fall back to a free port when `port` is taken.
+    public var autoSelectPort = true
+    public var socks = SocksSettings()
+    public var sslProxying = SSLProxyingSettings()
+    public var noCaching = false
+    public var allowList = RuleSet<AllowRule>()
+    public var blockList = RuleSet<BlockRule>()
+    public var mapLocal = RuleSet<MapLocalRule>()
+    public var mapRemote = RuleSet<MapRemoteRule>()
+    public var breakpoints = RuleSet<BreakpointRule>()
+    public var scripting = RuleSet<ScriptRule>()
+    public var throttle = ThrottleSettings()
+    public var dnsSpoofing = RuleSet<DNSSpoofRule>()
+    public var reverseProxy = RuleSet<ReverseProxyRule>()
+    public var externalProxy = ExternalProxySettings()
+    /// `.desc` files (descriptor sets) and the rules that pick a message type per URL.
+    public var protobufSchemas: [String] = []
+    public var protobuf = RuleSet<ProtobufRule>()
+    public var customCertificates = RuleSet<CustomCertificateRule>()
+    /// Offer HTTP/2 to clients on decrypted connections (otherwise HTTP/1.1 only).
+    public var preferHTTP2 = true
+    /// With "listen on all interfaces", also accept IPv6 (binds `::`, which covers IPv4 too).
+    public var listenOnIPv6 = false
+    /// A client that refuses Watcher's certificate (certificate pinning) gets its host added to the never-decrypt list.
+    public var autoIgnoreSSLPinning = false
+    public var accessControl = AccessControlSettings()
+    /// File that receives TLS session secrets in NSS key-log format, for Wireshark. Empty switches it off. The file is sensitive.
+    public var tlsKeyLogFile = ""
+    /// Validity of generated per-host certificates, 1 to 825 days (Apple rejects longer ones).
+    public var leafCertificateValidityDays = 365
+    /// Oldest requests are dropped beyond this many; 0 keeps everything.
+    public var maxFlows = 0
+    /// Adds an `X-Watcher-Applied` response header naming the tools that touched a request.
+    public var markModifiedTraffic = false
+    /// Hides Authorization, Cookie and similar header values from MCP output.
+    public var mcpRedaction = true
+    public var hideAppleTraffic = false
+    public var includeProxyInCURL = false
+    /// Repeating a request strips cache validators so the server answers afresh.
+    public var noCachingOnRepeat = false
+    public var composeTimeoutSeconds = 60
+    /// The app points the macOS system proxy at Watcher while it runs and restores it afterwards.
+    public var autoSystemProxy = false
+    /// User-written viewers: JavaScript that turns a matching message into text, shown as an extra tab.
+    public var previewers = RuleSet<PreviewerRule>()
+    /// Response templates offered when a breakpoint holds a response, next to the built-in ones.
+    public var breakpointTemplates: [BreakpointTemplate] = []
+
+    public init() {}
+
+    private enum CodingKeys: String, CodingKey {
+        case port, listenOnAllInterfaces, autoSelectPort, socks, sslProxying, noCaching, allowList, blockList
+        case mapLocal, mapRemote, breakpoints, scripting, throttle, dnsSpoofing, reverseProxy, externalProxy, protobufSchemas, protobuf
+        case customCertificates, breakpointTemplates, previewers
+        case preferHTTP2, listenOnIPv6, autoIgnoreSSLPinning, accessControl, tlsKeyLogFile, leafCertificateValidityDays, maxFlows
+        case markModifiedTraffic, mcpRedaction, hideAppleTraffic, includeProxyInCURL, noCachingOnRepeat, composeTimeoutSeconds, autoSystemProxy
+    }
+
+    public init(from decoder: Decoder) throws {
+        self.init()
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        port = try c.decode(.port, default: port); listenOnAllInterfaces = try c.decode(.listenOnAllInterfaces, default: false)
+        autoSelectPort = try c.decode(.autoSelectPort, default: true); socks = try c.decode(.socks, default: socks)
+        sslProxying = try c.decode(.sslProxying, default: sslProxying); noCaching = try c.decode(.noCaching, default: false)
+        allowList = try c.decode(.allowList, default: allowList); blockList = try c.decode(.blockList, default: blockList)
+        mapLocal = try c.decode(.mapLocal, default: mapLocal); mapRemote = try c.decode(.mapRemote, default: mapRemote)
+        breakpoints = try c.decode(.breakpoints, default: breakpoints); scripting = try c.decode(.scripting, default: scripting)
+        throttle = try c.decode(.throttle, default: throttle); dnsSpoofing = try c.decode(.dnsSpoofing, default: dnsSpoofing)
+        reverseProxy = try c.decode(.reverseProxy, default: reverseProxy); externalProxy = try c.decode(.externalProxy, default: externalProxy)
+        protobufSchemas = try c.decode(.protobufSchemas, default: []); protobuf = try c.decode(.protobuf, default: protobuf)
+        customCertificates = try c.decode(.customCertificates, default: customCertificates)
+        breakpointTemplates = try c.decode(.breakpointTemplates, default: [])
+        previewers = try c.decode(.previewers, default: previewers)
+        preferHTTP2 = try c.decode(.preferHTTP2, default: true); listenOnIPv6 = try c.decode(.listenOnIPv6, default: false)
+        autoIgnoreSSLPinning = try c.decode(.autoIgnoreSSLPinning, default: false); accessControl = try c.decode(.accessControl, default: accessControl)
+        tlsKeyLogFile = try c.decode(.tlsKeyLogFile, default: ""); leafCertificateValidityDays = try c.decode(.leafCertificateValidityDays, default: 365)
+        maxFlows = try c.decode(.maxFlows, default: 0); markModifiedTraffic = try c.decode(.markModifiedTraffic, default: false)
+        mcpRedaction = try c.decode(.mcpRedaction, default: true); hideAppleTraffic = try c.decode(.hideAppleTraffic, default: false)
+        includeProxyInCURL = try c.decode(.includeProxyInCURL, default: false); noCachingOnRepeat = try c.decode(.noCachingOnRepeat, default: false)
+        composeTimeoutSeconds = try c.decode(.composeTimeoutSeconds, default: 60); autoSystemProxy = try c.decode(.autoSystemProxy, default: false)
+    }
+}

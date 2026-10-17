@@ -1,10 +1,6 @@
 import Foundation
 import JavaScriptCore
 
-struct ScriptError: Error, CustomStringConvertible {
-    let description: String
-}
-
 /// One JavaScript context for one script rule. All access happens on a private serial queue.
 final class ScriptEngine: @unchecked Sendable {
     private let queue = DispatchQueue(label: "watcher.script")
