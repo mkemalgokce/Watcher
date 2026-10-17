@@ -27,4 +27,37 @@ struct FormFieldsTests {
         #expect(fields[2].data == png); #expect(fields[2].contentType == "image/png")
         #expect(fields[2].filename == "a.png")
     }
+
+    @Test
+    func queryUrlencodedAndMultipartFieldsAreListed() {
+        let form = RequestRecord.fixture(
+            method: "POST",
+            host: "a.com",
+            path: "/submit?debug=1&q=a%20b",
+            headers: [Header("Content-Type", "application/x-www-form-urlencoded")],
+            body: Data("name=Ada+L&city=Z%C3%BCrich".utf8)
+        )
+        // `+` in a urlencoded body means a space; URLComponents leaves it, so the viewer shows the raw text for that case.
+        #expect(
+            FormFields.parse(form).map { "\($0.source.rawValue):\($0.name)=\($0.value)" }
+                == ["query:debug=1", "query:q=a b", "form:name=Ada+L", "form:city=Zürich"]
+        )
+
+        let body = "--XX\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nhello\r\n"
+            + "--XX\r\nContent-Disposition: form-data; name=\"upload\"; filename=\"a.png\"\r\n"
+            + "Content-Type: image/png\r\n\r\n\u{1}\u{2}\u{3}\r\n--XX--\r\n"
+        let multipart = RequestRecord.fixture(
+            method: "POST",
+            host: "a.com",
+            path: "/u",
+            headers: [Header("Content-Type", "multipart/form-data; boundary=XX")],
+            body: Data(body.utf8)
+        )
+        let fields = FormFields.parse(multipart)
+        #expect(fields.map(\.name) == ["title", "upload"])
+        #expect(fields[0].value == "hello")
+        #expect(fields[1].filename == "a.png")
+        #expect(fields[1].value == "image/png, 3 bytes")
+        #expect(FormFields.parse(RequestRecord.fixture(host: "a")).isEmpty)
+    }
 }

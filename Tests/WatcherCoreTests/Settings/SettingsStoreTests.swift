@@ -118,6 +118,18 @@ struct SettingsStoreTests {
         #expect(second.value.blockList.rules.count == 1)
     }
 
+    @Test
+    func settingsFromAnOlderVersionStillLoadWithDefaults() throws {
+        let old = #"{"port": 1234, "noCaching": true, "externalProxy": {"isEnabled": true, "host": "h", "port": 1}}"#
+        try Data(old.utf8).write(to: url)
+        let settings = SettingsStore(url: url).value
+        #expect(settings.port == 1234)
+        #expect(settings.noCaching)
+        #expect(settings.externalProxy.host == "h")
+        #expect(settings.socks == SocksSettings())
+        #expect(!settings.listenOnAllInterfaces)
+    }
+
     private func backups() throws -> [URL] {
         try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
             .filter { $0.lastPathComponent.hasPrefix("settings.json.unreadable-") }
