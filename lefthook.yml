@@ -20,8 +20,3 @@ commit-msg:
   jobs:
     - name: conventional commit
       run: scripts/check-commit-msg.sh {1}
-
-pre-push:
-  jobs:
-    - name: unit tests
-      run: make test-unit

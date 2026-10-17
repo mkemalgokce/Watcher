@@ -24,7 +24,7 @@ code owner (@mkemalgokce, see `.github/CODEOWNERS`) before it can be merged.
 | `make lint-baseline` | Rewrites the baseline; only to drop violations that were fixed, never to accept new ones |
 | `make lint-analyze` / `make lint-analyze-baseline` | SwiftLint's unused-code analyzer (a full build, a few minutes; CI runs it nightly) against `.swiftlint-analyze-baseline.json` / rewrites that baseline |
 | `make test` | Every test, including `WatcherInteractionTests` (they skip without the Accessibility permission) |
-| `make test-unit` | Every test except `WatcherInteractionTests`; the pre-push hook runs it |
+| `make test-unit` | Every test except `WatcherInteractionTests`; CI runs it with coverage on every pull request |
 | `make coverage` | `test-unit` with coverage, gated by `scripts/coverage-thresholds.txt` |
 | `make changelog` | Regenerates `CHANGELOG.md` with git-cliff |
 | `make dmg` | Builds `dist/Watcher-$(VERSION).dmg` (default 0.0.0) like a release, signed ad hoc and not notarized |
