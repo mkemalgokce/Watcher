@@ -18,5 +18,5 @@
 
 - [ ] Tests written first and seen failing
 - [ ] `make format-check lint test` passes
-- [ ] New screens have a `#Preview` in `SnapshotMode.swift`
+- [ ] New screens have a `#Preview` in `Previews.swift`
 - [ ] README updated if a feature or limit changed
