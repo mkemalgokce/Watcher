@@ -1,14 +1,10 @@
 @testable import WatcherCore
+import WatcherTestSupport
 import XCTest
 
 final class FilterLocaleTests: XCTestCase {
     private func flow(header: Header = Header("Accept", "*/*"), body: Data = Data()) -> Flow {
-        var request = RequestRecord(method: "GET", scheme: "https", host: "example.com", port: 443, path: "/")
-        request.headers = [header]
-        var result = Flow(sequence: 1, request: request)
-        result.response = ResponseRecord(status: 200, body: body)
-        result.state = .completed
-        return result
+        .fixture(request: .fixture(host: "example.com", headers: [header]), response: .fixture(body: body))
     }
 
     private func filter(_ text: String, _ scope: FlowFilter.Scope, locale: String) -> FlowFilter {

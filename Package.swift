@@ -89,19 +89,31 @@ let package = Package(
                 "27.0",
             ])]
         ),
+        .target(
+            name: "WatcherTestSupport",
+            dependencies: [
+                "WatcherCore",
+                "WatcherUI",
+                .product(name: "AsyncHTTPClient", package: "async-http-client"),
+                .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
+            ],
+            path: "Tests/WatcherTestSupport",
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
         .testTarget(
             name: "WatcherUITests",
-            dependencies: ["WatcherUI", "WatcherCore"],
+            dependencies: ["WatcherUI", "WatcherCore", "WatcherTestSupport"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(
             name: "WatcherInteractionTests",
-            dependencies: ["WatcherUI", "WatcherCore"],
+            dependencies: ["WatcherUI", "WatcherCore", "WatcherTestSupport"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(
             name: "WatcherCoreTests",
-            dependencies: ["WatcherCore"],
+            dependencies: ["WatcherCore", "WatcherTestSupport"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
     ]

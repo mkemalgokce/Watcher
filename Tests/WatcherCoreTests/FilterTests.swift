@@ -1,4 +1,5 @@
 @testable import WatcherCore
+import WatcherTestSupport
 import XCTest
 
 final class FilterTests: XCTestCase {
@@ -11,13 +12,16 @@ final class FilterTests: XCTestCase {
         body: String = "",
         app: String? = nil
     ) -> Flow {
-        var f = Flow(sequence: 1, request: RequestRecord(method: method, scheme: "https", host: host, port: 443, path: path, clientApp: app))
-        if let status {
-            f.response = ResponseRecord(status: status, headers: type.map { [Header("Content-Type", $0)] } ?? [], body: Data(body.utf8)); f.state = .completed
-        } else {
-            f.state = .failed
-        }
-        return f
+        .fixture(
+            request: .fixture(method: method, host: host, path: path, clientApp: app),
+            response: status.map { status in
+                .fixture(
+                    status: status,
+                    headers: type.map { [Header("Content-Type", $0)] } ?? [],
+                    body: Data(body.utf8)
+                )
+            }
+        )
     }
 
     func testEmptyFilterIsInactiveAndKeepsEverything() {
@@ -165,26 +169,5 @@ final class DeviceSetupTests: XCTestCase {
         try devices[1].pushCertificate(URL(fileURLWithPath: "/c.pem")) { calls.mutate($0); return "" }
         XCTAssertEqual(calls.value[0].suffix(2), ["http_proxy", "1.2.3.4:9090"]); XCTAssertEqual(calls.value[1].last, ":0")
         XCTAssertEqual(calls.value[2], ["-s", "R58M123", "push", "/c.pem", "/sdcard/Download/watcher-ca.cer"])
-    }
-}
-
-final class LockedBox<Value>: @unchecked Sendable {
-    private let lock = NSLock(); private var _value: Value
-    init(_ value: Value) {
-        _value = value
-    }
-
-    var value: Value {
-        lock.withLock { _value }
-    }
-
-    func mutate(_ change: (inout Value) -> Void) {
-        lock.withLock { change(&_value) }
-    }
-}
-
-extension LockedBox where Value == [[String]] {
-    func mutate(_ arguments: [String]) {
-        mutate { $0.append(arguments) }
     }
 }

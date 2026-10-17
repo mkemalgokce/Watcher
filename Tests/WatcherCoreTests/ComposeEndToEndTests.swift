@@ -1,4 +1,5 @@
 @testable import WatcherCore
+import WatcherTestSupport
 import XCTest
 
 /// What Compose sends, checked by a server that is not ours: Python's standard library parses the bodies.

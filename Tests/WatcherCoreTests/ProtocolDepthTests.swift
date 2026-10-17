@@ -1,5 +1,6 @@
 import NIO
 @testable import WatcherCore
+import WatcherTestSupport
 import XCTest
 
 final class ProtocolDepthTests: XCTestCase {

@@ -1,4 +1,5 @@
 @testable import WatcherCore
+import WatcherTestSupport
 import XCTest
 
 /// Scoped text conditions from the search field's tokens: each must match, alongside the free text.
@@ -9,14 +10,10 @@ final class FilterTermTests: XCTestCase {
         header: Header? = nil,
         body: String = ""
     ) -> Flow {
-        var request = RequestRecord(method: "POST", scheme: "https", host: host, port: 443, path: path)
-        if let header {
-            request.headers.append(header)
-        }
-        var flow = Flow(sequence: 1, request: request)
-        flow.response = ResponseRecord(status: 200, headers: [], body: Data(body.utf8))
-        flow.state = .completed
-        return flow
+        .fixture(
+            request: .fixture(method: "POST", host: host, path: path, headers: header.map { [$0] } ?? []),
+            response: .fixture(body: Data(body.utf8))
+        )
     }
 
     func testEveryTermMustMatch() {

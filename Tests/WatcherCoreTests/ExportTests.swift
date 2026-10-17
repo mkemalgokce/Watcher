@@ -1,14 +1,23 @@
 @testable import WatcherCore
+import WatcherTestSupport
 import XCTest
 
 final class ExportTests: XCTestCase {
     private func sampleFlow() -> Flow {
-        var flow = Flow(sequence: 1, request: RequestRecord(
-            method: "POST", scheme: "https", host: "api.example.com", port: 443, path: "/v1/users?id=7",
-            headers: [Header("Content-Type", "application/json")], body: Data(#"{"name":"it's"}"#.utf8)
-        ))
-        flow.response = ResponseRecord(status: 201, headers: [Header("Content-Type", "application/json")], body: Data(#"{"ok":true}"#.utf8))
-        flow.state = .completed; flow.duration = 0.25
+        var flow = Flow.fixture(
+            request: .fixture(
+                method: "POST",
+                path: "/v1/users?id=7",
+                headers: [Header("Content-Type", "application/json")],
+                body: Data(#"{"name":"it's"}"#.utf8)
+            ),
+            response: .fixture(
+                status: 201,
+                headers: [Header("Content-Type", "application/json")],
+                body: Data(#"{"ok":true}"#.utf8)
+            )
+        )
+        flow.duration = 0.25
         return flow
     }
 

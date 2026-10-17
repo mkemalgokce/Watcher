@@ -1,9 +1,10 @@
 @testable import WatcherCore
+import WatcherTestSupport
 import XCTest
 
 final class MatchingTests: XCTestCase {
     private func request(_ method: String = "GET", host: String = "api.example.com", path: String = "/v1/users", body: String = "") -> RequestRecord {
-        RequestRecord(method: method, scheme: "https", host: host, port: 443, path: path, body: Data(body.utf8))
+        .fixture(method: method, host: host, path: path, body: Data(body.utf8))
     }
 
     func testWildcardAcceptsSchemeLessPatternsQuestionMarkAndSubpaths() {

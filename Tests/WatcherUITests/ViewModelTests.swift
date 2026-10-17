@@ -1,5 +1,6 @@
 import Foundation
 @testable import WatcherCore
+import WatcherTestSupport
 @testable import WatcherUI
 import XCTest
 
@@ -7,10 +8,9 @@ import XCTest
 @MainActor
 final class ViewModelTests: XCTestCase {
     private func flow(_ n: Int, path: String = "/v1/users", body: String = "", duration: TimeInterval? = 1, firstByte: TimeInterval? = nil, state: Flow.State = .completed) -> Flow {
-        var flow = Flow(sequence: n, request: RequestRecord(method: "GET", scheme: "https", host: "api.example.com", port: 443, path: path))
-        flow.response = ResponseRecord(status: 200, headers: [Header("Content-Type", "application/json")], body: Data(body.utf8))
-        flow.state = state; flow.duration = duration; flow.timeToFirstByte = firstByte
-        return flow
+        var flow = Flow.fixture(sequence: n, request: .fixture(path: path), state: state)
+        flow.response = .fixture(headers: [Header("Content-Type", "application/json")], body: Data(body.utf8))
+        flow.duration = duration; flow.timeToFirstByte = firstByte; return flow
     }
 
     // MARK: Timing

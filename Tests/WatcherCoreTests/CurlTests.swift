@@ -1,19 +1,11 @@
 import Foundation
 @testable import WatcherCore
+import WatcherTestSupport
 import XCTest
 
 final class CurlExportTests: XCTestCase {
     private func request(_ method: String, _ url: String = "https://api.example.com/v1/x", headers: [Header] = [], body: Data = Data()) -> RequestRecord {
-        let components = URLComponents(string: url)!
-        return RequestRecord(
-            method: method,
-            scheme: components.scheme!,
-            host: components.host!,
-            port: components.port ?? (components.scheme == "https" ? 443 : 80),
-            path: components.percentEncodedPath + (components.percentEncodedQuery.map { "?\($0)" } ?? ""),
-            headers: headers,
-            body: body
-        )
+        .fixture(method: method, url: url, headers: headers, body: body)
     }
 
     private func curl(_ request: RequestRecord, proxy: String? = nil, certificate: String? = nil) -> String {
@@ -220,7 +212,7 @@ final class CurlEndToEndTests: XCTestCase {
         }
         let port = harness.upstream.port
         func request(_ method: String, _ body: Data = Data()) -> RequestRecord {
-            RequestRecord(method: method, scheme: "http", host: "upstream.test", port: port, path: "/echo", body: body)
+            .fixture(method: method, scheme: "http", host: "upstream.test", port: port, path: "/echo", body: body)
         }
         XCTAssertTrue(try run(request("GET")).hasPrefix("GET /echo"))
         let started = Date()

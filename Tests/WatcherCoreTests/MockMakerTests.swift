@@ -1,13 +1,20 @@
 @testable import WatcherCore
+import WatcherTestSupport
 import XCTest
 
 final class MockMakerTests: XCTestCase {
     private let folder = FileManager.default.temporaryDirectory.appendingPathComponent("watcher-mocks-\(UUID())")
 
     private func flow(_ method: String = "GET", path: String = "/v1/users?page=1", status: Int = 200, type: String = "application/json", body: String = #"{"a":1}"#) -> Flow {
-        var flow = Flow(sequence: 1, request: RequestRecord(method: method, scheme: "https", host: "api.example.com", port: 443, path: path))
-        flow.response = ResponseRecord(status: status, headers: [Header("Content-Type", type), Header("Content-Length", "7")], body: Data(body.utf8))
-        return flow
+        .fixture(
+            request: .fixture(method: method, path: path),
+            response: .fixture(
+                status: status,
+                headers: [Header("Content-Type", type), Header("Content-Length", "7")],
+                body: Data(body.utf8)
+            ),
+            state: .pending
+        )
     }
 
     func testPlainJSONFileAndRuleThatMatchesTheSamePathWithAnyQuery() throws {
@@ -15,14 +22,11 @@ final class MockMakerTests: XCTestCase {
         XCTAssertEqual(mock.file.pathExtension, "json")
         XCTAssertEqual(try Data(contentsOf: mock.file), Data(#"{"a":1}"#.utf8))
         let matcher = mock.rule.matching.compile()
-        func request(_ method: String, _ path: String, host: String = "api.example.com") -> RequestRecord {
-            RequestRecord(method: method, scheme: "https", host: host, port: 443, path: path)
-        }
-        XCTAssertTrue(matcher.matches(request("GET", "/v1/users")))
-        XCTAssertTrue(matcher.matches(request("GET", "/v1/users?page=2")))
-        XCTAssertFalse(matcher.matches(request("POST", "/v1/users")))
-        XCTAssertFalse(matcher.matches(request("GET", "/v1/users/42")))
-        XCTAssertFalse(matcher.matches(request("GET", "/v1/users", host: "evil-api.example.com")))
+        XCTAssertTrue(matcher.matches(.fixture(method: "GET", path: "/v1/users")))
+        XCTAssertTrue(matcher.matches(.fixture(method: "GET", path: "/v1/users?page=2")))
+        XCTAssertFalse(matcher.matches(.fixture(method: "POST", path: "/v1/users")))
+        XCTAssertFalse(matcher.matches(.fixture(method: "GET", path: "/v1/users/42")))
+        XCTAssertFalse(matcher.matches(.fixture(method: "GET", host: "evil-api.example.com", path: "/v1/users")))
     }
 
     /// A 404 keeps its status: the file is a raw HTTP message that Map Local serves as it is.

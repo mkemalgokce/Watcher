@@ -1,5 +1,6 @@
 import Foundation
 @testable import WatcherCore
+import WatcherTestSupport
 @testable import WatcherUI
 import XCTest
 
@@ -42,11 +43,8 @@ final class RecordFlowTests: XCTestCase {
         file: StaticString = #filePath,
         line: UInt = #line
     ) async {
-        let end = Date().addingTimeInterval(timeout)
-        while !condition(), Date() < end {
-            try? await Task.sleep(for: .milliseconds(20))
-        }
-        XCTAssertTrue(condition(), "timed out", file: file, line: line)
+        let held = await eventually(timeout: timeout) { condition() }
+        XCTAssertTrue(held, "timed out", file: file, line: line)
     }
 
     private func makeModel(_ fake: FakeNetworkSetup) -> AppModel {

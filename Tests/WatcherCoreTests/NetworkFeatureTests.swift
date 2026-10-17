@@ -1,4 +1,5 @@
 @testable import WatcherCore
+import WatcherTestSupport
 import XCTest
 
 final class NetworkFeatureTests: XCTestCase {

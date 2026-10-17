@@ -1,21 +1,17 @@
 @testable import WatcherCore
+import WatcherTestSupport
 import XCTest
 
 /// Session, export and inspector capabilities.
 final class CapabilityTests: XCTestCase {
     private func sampleFlow() -> Flow {
-        var flow = Flow(sequence: 3, request: RequestRecord(
-            method: "POST",
-            scheme: "https",
-            host: "api.example.com",
-            port: 443,
-            path: "/v1/x?a=1,2",
-            headers: [Header("Content-Type", "application/json")],
-            body: Data(#"{"k":"it's #1"}"#.utf8),
-            clientApp: "Google Chrome"
-        ))
-        flow.response = ResponseRecord(status: 200, headers: [Header("Content-Type", "application/json")], body: Data("ok".utf8))
-        flow.duration = 0.25; flow.appliedTools = ["Map Local", "Scripting"]
+        let json = [Header("Content-Type", "application/json")]
+        var request = RequestRecord.fixture(method: "POST", path: "/v1/x?a=1,2", headers: json)
+        request.body = Data(#"{"k":"it's #1"}"#.utf8); request.clientApp = "Google Chrome"
+        let response = ResponseRecord.fixture(headers: json, body: Data("ok".utf8))
+        var flow = Flow.fixture(sequence: 3, request: request, response: response, state: .pending)
+        flow.duration = 0.25
+        flow.appliedTools = ["Map Local", "Scripting"]
         return flow
     }
 
@@ -515,6 +511,7 @@ final class AdvancedSettingsTests: XCTestCase {
 
 final class TLSBehaviourTests: XCTestCase {
     func testHTTP2IsOfferedOnlyWhenPreferred() async throws {
+        try XCTSkipUnless(ExternalTool.python3.isAvailable, "python3 unavailable")
         let harness = try Harness()
         try await harness.start()
         defer { Task { await harness.stop() } }
@@ -527,6 +524,7 @@ final class TLSBehaviourTests: XCTestCase {
     }
 
     func testAClientThatRejectsTheCertificateGetsItsHostExcludedWhenAutoIgnoreIsOn() async throws {
+        try XCTSkipUnless(ExternalTool.python3.isAvailable, "python3 unavailable")
         let harness = try Harness()
         try await harness.start { $0.autoIgnoreSSLPinning = true }
         defer { Task { await harness.stop() } }
@@ -539,6 +537,7 @@ final class TLSBehaviourTests: XCTestCase {
     }
 
     func testRejectedHandshakeIsIgnoredWhenAutoIgnoreIsOff() async throws {
+        try XCTSkipUnless(ExternalTool.python3.isAvailable, "python3 unavailable")
         let harness = try Harness()
         try await harness.start()
         defer { Task { await harness.stop() } }
@@ -548,6 +547,7 @@ final class TLSBehaviourTests: XCTestCase {
     }
 
     func testTLSKeyLogReceivesSessionSecretsInANonPublicFile() async throws {
+        try XCTSkipUnless(ExternalTool.python3.isAvailable, "python3 unavailable")
         let log = FileManager.default.temporaryDirectory.appendingPathComponent("watcher-keylog-\(UUID().uuidString).txt")
         let harness = try Harness()
         try await harness.start { $0.tlsKeyLogFile = log.path }
@@ -798,7 +798,7 @@ final class CharlesSettingsTests: XCTestCase {
     """
 
     private func request(_ host: String, _ path: String, method: String = "GET", scheme: String = "https", port: Int = 443) -> RequestRecord {
-        RequestRecord(method: method, scheme: scheme, host: host, port: port, path: path)
+        .fixture(method: method, scheme: scheme, host: host, port: port, path: path)
     }
 
     func testBlockAndAllowListsKeepPerEntryFlagsAndToolSwitch() throws {

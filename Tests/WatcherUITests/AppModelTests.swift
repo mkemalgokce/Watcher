@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 @testable import WatcherCore
+import WatcherTestSupport
 @testable import WatcherUI
 import XCTest
 
@@ -9,22 +10,17 @@ import XCTest
 @MainActor
 final class AppModelTests: XCTestCase {
     private func flow(_ n: Int, host: String = "api.example.com", status: Int? = 200, starred: Bool = false, app: String? = nil) -> Flow {
-        var flow = Flow(sequence: n, request: RequestRecord(method: "GET", scheme: "https", host: host, port: 443, path: "/\(n)", clientApp: app))
-        if let status {
-            flow.response = ResponseRecord(status: status, headers: [], body: Data(repeating: 0, count: 10)); flow.state = .completed
-        } else {
-            flow.state = .failed
-        }
-        flow.isStarred = starred
-        return flow
+        .fixture(
+            sequence: n,
+            request: .fixture(host: host, path: "/\(n)", clientApp: app),
+            response: status.map { .fixture(status: $0, body: Data(repeating: 0, count: 10)) },
+            starred: starred
+        )
     }
 
     private func waitUntil(_ condition: @autoclosure () -> Bool, timeout: TimeInterval = 5, file: StaticString = #filePath, line: UInt = #line) async {
-        let end = Date().addingTimeInterval(timeout)
-        while !condition(), Date() < end {
-            try? await Task.sleep(for: .milliseconds(20))
-        }
-        XCTAssertTrue(condition(), "timed out", file: file, line: line)
+        let held = await eventually(timeout: timeout) { condition() }
+        XCTAssertTrue(held, "timed out", file: file, line: line)
     }
 
     // MARK: Event batching
