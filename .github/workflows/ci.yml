@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+
+jobs:
+  lint:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.mint
+          key: mint-${{ runner.os }}-${{ hashFiles('Mintfile') }}
+      - name: Install tools
+        run: |
+          brew install mint actionlint shellcheck
+          make tools
+      - name: Format and lint Swift
+        run: make format-check lint
+      - name: Analyze unused code
+        run: make lint-analyze
+      - name: Lint workflows and scripts
+        run: |
+          actionlint
+          shellcheck scripts/*.sh scripts/tests/*.sh tools/*.sh tools/dmg/*.sh
+      - name: Test scripts
+        run: |
+          bash scripts/tests/check-commit-msg-test.sh
+          bash scripts/tests/coverage-gate-test.sh
+          bash scripts/tests/lint-rules-test.sh
+
+  test:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+      # make coverage skips WatcherInteractionTests: they need the Accessibility permission a runner lacks.
+      - name: Test with coverage gate
+        run: make coverage
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: coverage
+          path: |
+            coverage.lcov
+            coverage/report.txt
+          if-no-files-found: ignore
+
+  # Builds the DMG unsigned on every change, so packaging problems show up before release day.
+  package:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build
+          key: spm-release-${{ runner.os }}-${{ hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: spm-release-${{ runner.os }}-
+      - name: Build the DMG
+        run: |
+          brew install create-dmg
+          scripts/package-release.sh 0.0.0 1

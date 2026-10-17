@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="420" viewBox="0 0 660 420">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FCFDFE"/>
+      <stop offset="1" stop-color="#EDF1F6"/>
+    </linearGradient>
+    <radialGradient id="warm" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFB02E" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFB02E" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cool" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#2FE0D0" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#2FE0D0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="arrow" gradientUnits="userSpaceOnUse" x1="258" y1="215" x2="392" y2="215">
+      <stop offset="0" stop-color="#FF7A00"/>
+      <stop offset="1" stop-color="#0A9CB8"/>
+    </linearGradient>
+  </defs>
+  <rect width="660" height="420" fill="url(#paper)"/>
+  <circle cx="60" cy="40" r="260" fill="url(#warm)"/>
+  <circle cx="620" cy="410" r="280" fill="url(#cool)"/>
+  <text x="330" y="62" text-anchor="middle" font-family="Helvetica Neue" font-size="24" font-weight="600" fill="#1D2230">Watcher</text>
+  <text x="330" y="88" text-anchor="middle" font-family="Helvetica Neue" font-size="13" fill="#6B7280">HTTP(S) debugging proxy for macOS</text>
+  <!-- Between the app icon at x=165 and the Applications link at x=495 (both at y=215, 112 pt icons). -->
+  <path d="M258 215 H392" stroke="url(#arrow)" stroke-width="4" stroke-linecap="round" stroke-dasharray="2 12"/>
+  <path d="M388 203 L402 215 L388 227" fill="none" stroke="#0A9CB8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="330" y="364" text-anchor="middle" font-family="Helvetica Neue" font-size="13" fill="#6B7280">Drag Watcher to Applications to install</text>
+</svg>
