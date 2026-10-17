@@ -53,14 +53,25 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # Every run saves its build products, even when it fails, and the next one starts from the closest; only what
+      # changed is compiled again.
+      - name: Restore the build cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .build
-          key: spm-${{ runner.os }}-${{ hashFiles('Package.swift', 'Package.resolved') }}
-          restore-keys: spm-${{ runner.os }}-
+          key: spm-debug-${{ runner.os }}-${{ hashFiles('Package.swift', 'Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            spm-debug-${{ runner.os }}-${{ hashFiles('Package.swift', 'Package.resolved') }}-
+            spm-debug-${{ runner.os }}-
       # make coverage skips WatcherInteractionTests: they need the Accessibility permission a runner lacks.
       - name: Test with coverage gate
         run: make coverage
+      - name: Save the build cache
+        if: ${{ !cancelled() }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build
+          key: spm-debug-${{ runner.os }}-${{ hashFiles('Package.swift', 'Package.resolved') }}-${{ github.sha }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -70,18 +81,31 @@ jobs:
             coverage/report.txt
           if-no-files-found: ignore
 
-  # Builds the DMG unsigned on every change, so packaging problems show up before release day.
+  # Builds the DMG unsigned after every merge, nightly and on demand: a release build takes minutes, so pull requests
+  # skip it, and packaging problems still show up long before release day.
   package:
+    if: github.event_name != 'pull_request'
     runs-on: macos-26
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # Every run saves its build products, even when it fails, and the next one starts from the closest; only what
+      # changed is compiled again.
+      - name: Restore the build cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .build
-          key: spm-release-${{ runner.os }}-${{ hashFiles('Package.swift', 'Package.resolved') }}
-          restore-keys: spm-release-${{ runner.os }}-
+          key: spm-release-${{ runner.os }}-${{ hashFiles('Package.swift', 'Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            spm-release-${{ runner.os }}-${{ hashFiles('Package.swift', 'Package.resolved') }}-
+            spm-release-${{ runner.os }}-
       - name: Build the DMG
         run: |
           brew install create-dmg
           scripts/package-release.sh 0.0.0 1
+      - name: Save the build cache
+        if: ${{ !cancelled() }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build
+          key: spm-release-${{ runner.os }}-${{ hashFiles('Package.swift', 'Package.resolved') }}-${{ github.sha }}
