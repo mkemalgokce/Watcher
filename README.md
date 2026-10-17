@@ -1,12 +1,30 @@
-# Watcher
+<p align="center">
+  <img src=".github/assets/icon.png" width="128" height="128" alt="Watcher icon">
+</p>
 
-[![CI](https://github.com/mkemalgokce/watcher/actions/workflows/ci.yml/badge.svg)](https://github.com/mkemalgokce/watcher/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![macOS 14+](https://img.shields.io/badge/macOS-14%2B-lightgrey.svg)
-[![Sponsor](https://img.shields.io/badge/sponsor-%E2%99%A5-ea4aaa.svg)](https://github.com/sponsors/mkemalgokce)
+<h1 align="center">Watcher</h1>
 
-A free, open-source HTTP(S) debugging proxy for macOS. Capture, decrypt, inspect, mock and modify the traffic of your Mac,
-iOS Simulators, iPhones, iPads and Android devices. A native SwiftUI app, with a command line tool for scripts and AI agents.
+<p align="center">
+  A free, open-source HTTP(S) debugging proxy for macOS.<br>
+  Capture, decrypt, inspect, mock and modify the traffic of your Mac, iOS Simulators, iPhones, iPads and Android devices.
+</p>
+
+<p align="center">
+  <a href="https://github.com/mkemalgokce/watcher/actions/workflows/ci.yml"><img src="https://github.com/mkemalgokce/watcher/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/mkemalgokce/watcher/releases/latest"><img src="https://img.shields.io/github/v/release/mkemalgokce/watcher?include_prereleases&sort=semver" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/macOS-14%2B-lightgrey.svg" alt="macOS 14 or later">
+  <a href="https://github.com/sponsors/mkemalgokce"><img src="https://img.shields.io/badge/sponsor-%E2%99%A5-ea4aaa.svg" alt="Sponsor"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/mkemalgokce/watcher/releases/latest"><b>Download</b></a> ·
+  <a href="#getting-started">Getting started</a> ·
+  <a href="#command-line">Command line</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
+
+Watcher is a native SwiftUI app with a command line tool for scripts and an MCP server for AI agents.
 
 ## Features
 
