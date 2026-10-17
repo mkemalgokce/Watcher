@@ -2,7 +2,7 @@
 --language-mode 5
 --exclude .build,.swiftpm,build,DerivedData,Sources/TreeSitterScanners,scripts/tests/fixtures
 --indent 4
-# No --maxwidth: ScreensTests reads the menu shortcuts out of WatcherCommands.swift one line at a time, and
+# No --maxwidth: MenuAndSidebarTests reads the menu shortcuts out of WatcherCommands.swift one line at a time, and
 # wrapping long lines breaks that. SwiftLint's line_length still reports long lines.
 --wraparguments before-first
 --wrapparameters before-first

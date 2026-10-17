@@ -1,30 +1,5 @@
-import AppKit
 import SwiftUI
 import WatcherCore
-
-/// Renders views to PNG without a screen-recording permission; the screen tests compare against these images.
-@MainActor
-enum SnapshotMode {
-    /// Draws the view's backing layer tree itself, which includes the SwiftUI content cacheDisplay skips.
-    static func render(layerOf view: NSView) -> Data? {
-        view.wantsLayer = true
-        guard let layer = view.layer, let rep = NSBitmapImageRep(
-            bitmapDataPlanes: nil, pixelsWide: Int(view.bounds.width * 2), pixelsHigh: Int(view.bounds.height * 2), bitsPerSample: 8,
-            samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
-        ),
-            let context = NSGraphicsContext(bitmapImageRep: rep)?.cgContext else { return nil }
-        context.scaleBy(x: 2, y: 2)
-        var background = NSColor.windowBackgroundColor.cgColor
-        view.effectiveAppearance.performAsCurrentDrawingAppearance { background = NSColor.windowBackgroundColor.cgColor }
-        context.setFillColor(background)
-        context.fill(view.bounds)
-        // Layer space is flipped relative to a bitmap.
-        context.translateBy(x: 0, y: view.bounds.height)
-        context.scaleBy(x: 1, y: -1)
-        layer.render(in: context)
-        return rep.representation(using: .png, properties: [:])
-    }
-}
 
 extension AppModel {
     /// A handful of realistic-looking requests covering the list's states.

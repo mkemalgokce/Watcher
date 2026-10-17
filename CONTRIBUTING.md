@@ -49,12 +49,6 @@ Every change starts with a failing test.
 3. **Green.** Write the minimum code.
 4. **Refactor** with `make format lint test` green.
 
-## Screen tests
-
-`Tests/WatcherUITests/ScreensTests` renders every screen and compares it with the PNGs in
-`Tests/WatcherUITests/__Snapshots__`. After an intended UI change, run `WATCHER_RECORD=1 swift test --filter ScreensTests`,
-look at the new images and commit them with the change.
-
 ## Releases
 
 Only the maintainer releases. Pushing a `v*` tag starts `.github/workflows/release.yml`; the build waits for approval in the
