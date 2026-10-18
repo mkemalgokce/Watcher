@@ -95,7 +95,6 @@ let package = Package(
             dependencies: [
                 "WatcherCore",
                 "WatcherUI",
-                .product(name: "AsyncHTTPClient", package: "async-http-client"),
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
             ],
