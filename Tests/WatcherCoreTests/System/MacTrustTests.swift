@@ -18,4 +18,26 @@ struct MacTrustTests {
         let failing = MacTrust(keychain: "/k") { _, _ in (1, "denied") }
         #expect(throws: (any Error).self) { try failing.install(certificate: URL(fileURLWithPath: "/x")) }
     }
+
+    @Test
+    func removeDeletesTheNamedCertificateAndReportsFailure() throws {
+        let calls = LockedBox<[[String]]>([])
+        try MacTrust(keychain: "/k") { _, args in calls.mutate(args); return (0, "") }.remove()
+        #expect(calls.value == [["delete-certificate", "-c", "Watcher Root CA", "/k"]])
+        let failing = MacTrust(keychain: "/k") { _, _ in (44, "not found") }
+        #expect(throws: CommandFailure(description: "security delete-certificate: not found")) { try failing.remove() }
+    }
+
+    @Test
+    func theProcessRunnerAnswersWithStatusAndMergedOutput() throws {
+        let spy = CommandRunnerSpy(result: CommandResult(status: 44, output: Data("missing".utf8)))
+        let result = try MacTrust.process(using: spy.runner)("/usr/bin/security", ["find-certificate"])
+        #expect(result.status == 44)
+        #expect(result.output == "missing")
+        #expect(spy.commands == [Command(
+            executable: URL(fileURLWithPath: "/usr/bin/security"),
+            arguments: ["find-certificate"],
+            mergesErrorOutput: true
+        )])
+    }
 }

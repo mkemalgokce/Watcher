@@ -40,4 +40,19 @@ struct SimulatorCertificateTests {
             try SimulatorCertificate.install(certificate: cert, device: device) { _ in "" }
         }
     }
+
+    @Test
+    func xcrunRunsTheDeveloperToolAndThrowsWhatAFailurePrinted() throws {
+        let succeeding = CommandRunnerSpy(result: CommandResult(status: 0, output: Data("{}".utf8)))
+        #expect(try SimulatorCertificate.xcrun(using: succeeding.runner)(["simctl", "list"]) == "{}")
+        #expect(succeeding.commands == [Command(
+            executable: URL(fileURLWithPath: "/usr/bin/xcrun"),
+            arguments: ["simctl", "list"],
+            mergesErrorOutput: true
+        )])
+        let failing = CommandRunnerSpy(result: CommandResult(status: 1, output: Data("no devices".utf8)))
+        #expect(throws: CommandFailure(description: "xcrun simctl list: no devices")) {
+            try SimulatorCertificate.xcrun(using: failing.runner)(["simctl", "list"])
+        }
+    }
 }

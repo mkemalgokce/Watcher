@@ -79,4 +79,23 @@ struct SystemProxyTests {
         )
         #expect(SystemProxy.parse("") == .init(enabled: false, server: "", port: 0))
     }
+
+    @Test
+    func networksetupRunsTheSystemToolWithItsErrorOutputMerged() throws {
+        let spy = CommandRunnerSpy(result: CommandResult(status: 0, output: Data("Wi-Fi\n".utf8)))
+        #expect(try SystemProxy.networksetup(using: spy.runner)(["-listallnetworkservices"]) == "Wi-Fi\n")
+        #expect(spy.commands == [Command(
+            executable: URL(fileURLWithPath: "/usr/sbin/networksetup"),
+            arguments: ["-listallnetworkservices"],
+            mergesErrorOutput: true
+        )])
+    }
+
+    @Test
+    func networksetupFailingThrowsWhatItPrinted() {
+        let spy = CommandRunnerSpy(result: CommandResult(status: 14, output: Data("no such service".utf8)))
+        #expect(throws: CommandFailure(description: "networksetup -getwebproxy X: no such service")) {
+            try SystemProxy.networksetup(using: spy.runner)(["-getwebproxy", "X"])
+        }
+    }
 }

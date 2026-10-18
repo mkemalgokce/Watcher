@@ -4,10 +4,6 @@ import Foundation
 /// The original setting is saved before it is overridden, so a proxy the user already had is restored rather than merely
 /// switched off.
 public struct SystemProxy: Sendable {
-    public struct Failure: Error, CustomStringConvertible {
-        public let description: String
-    }
-
     /// Runs `networksetup` with the given arguments and returns its output; replaceable so the command sequence can be tested.
     public typealias Runner = @Sendable ([String]) throws -> String
 
@@ -106,16 +102,13 @@ public struct SystemProxy: Sendable {
         return Setting(enabled: value("Enabled").lowercased() == "yes", server: value("Server"), port: Int(value("Port")) ?? 0)
     }
 
-    public static let networksetup: Runner = { arguments in
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/sbin/networksetup")
-        process.arguments = arguments
-        let pipe = Pipe()
-        process.standardOutput = pipe; process.standardError = pipe
-        try process.run()
-        let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else { throw Failure(description: "networksetup \(arguments.joined(separator: " ")): \(output)") }
-        return output
+    public static let networksetup: Runner = networksetup(using: LiveCommandRunner.run)
+
+    static func networksetup(using runner: @escaping CommandRunner) -> Runner {
+        { arguments in
+            let executable = URL(fileURLWithPath: "/usr/sbin/networksetup")
+            return try Command(executable: executable, arguments: arguments, mergesErrorOutput: true)
+                .checkedOutput(using: runner)
+        }
     }
 }

@@ -39,18 +39,28 @@ public struct AndroidDevice: Equatable, Identifiable, Sendable {
         isEmulator ? "10.0.2.2:\(port)" : lanAddress.map { "\($0):\(port)" }
     }
 
-    public static let adb: Runner = { arguments in
-        let candidates = ["/opt/homebrew/bin/adb", "/usr/local/bin/adb", "\(NSHomeDirectory())/Library/Android/sdk/platform-tools/adb"]
-        guard let path = candidates.first(where: FileManager.default.isExecutableFile(atPath:)) else {
-            throw SimulatorCertificate.Failure(description: "adb not found. Install Android platform-tools (brew install android-platform-tools).")
+    public static let adb: Runner = adb(
+        using: LiveCommandRunner.run,
+        isExecutable: FileAccess.live.isExecutable,
+        home: NSHomeDirectory()
+    )
+
+    static func adb(
+        using runner: @escaping CommandRunner,
+        isExecutable: @escaping @Sendable (String) -> Bool,
+        home: String
+    ) -> Runner {
+        let candidates = [
+            "/opt/homebrew/bin/adb", "/usr/local/bin/adb", "\(home)/Library/Android/sdk/platform-tools/adb",
+        ]
+        return { arguments in
+            guard let path = candidates.first(where: isExecutable) else {
+                throw CommandFailure(
+                    description: "adb not found. Install Android platform-tools (brew install android-platform-tools)."
+                )
+            }
+            return try Command(executable: URL(fileURLWithPath: path), arguments: arguments, mergesErrorOutput: true)
+                .checkedOutput(using: runner)
         }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: path); process.arguments = arguments
-        let pipe = Pipe(); process.standardOutput = pipe; process.standardError = pipe
-        try process.run()
-        let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else { throw SimulatorCertificate.Failure(description: "adb \(arguments.joined(separator: " ")): \(output)") }
-        return output
     }
 }

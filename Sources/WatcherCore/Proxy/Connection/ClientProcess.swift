@@ -4,12 +4,17 @@ import Foundation
 public enum ClientProcess {
     /// Name of the process whose end of a loopback TCP connection uses `port`; nil for remote clients or when lsof fails.
     public static func name(forLocalPort port: Int) -> String? {
-        name(forLocalPort: port, lsof: runLsof(port:))
+        name(forLocalPort: port, runner: LiveCommandRunner.run)
     }
 
-    static func name(forLocalPort port: Int, lsof: (Int) -> String?) -> String? {
-        guard let output = lsof(port) else { return nil }
-        return parse(output, port: port)
+    static func name(forLocalPort port: Int, runner: CommandRunner) -> String? {
+        let lsof = Command(
+            executable: URL(fileURLWithPath: "/usr/sbin/lsof"),
+            // +c 0: full command names; -F: machine-readable fields (pid, command, name).
+            arguments: ["-nP", "+c", "0", "-iTCP:\(port)", "-sTCP:ESTABLISHED", "-Fpcn"]
+        )
+        guard let result = try? runner(lsof) else { return nil }
+        return parse(result.text, port: port)
     }
 
     /// `lsof -F` output: `p<pid>` starts a process, `c<command>` names it, `n<local>-><remote>` describes a socket.
@@ -26,18 +31,5 @@ public enum ClientProcess {
             }
         }
         return nil
-    }
-
-    private static func runLsof(port: Int) -> String? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
-        // +c 0: full command names; -F: machine-readable fields (pid, command, name).
-        process.arguments = ["-nP", "+c", "0", "-iTCP:\(port)", "-sTCP:ESTABLISHED", "-Fpcn"]
-        let pipe = Pipe()
-        process.standardOutput = pipe; process.standardError = FileHandle.nullDevice
-        guard (try? process.run()) != nil else { return nil }
-        let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        process.waitUntilExit()
-        return output
     }
 }

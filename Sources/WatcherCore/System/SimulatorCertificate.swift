@@ -2,7 +2,7 @@ import Foundation
 
 /// Installs the Watcher root certificate into an iOS Simulator's keychain.
 public enum SimulatorCertificate {
-    public struct Failure: Error, CustomStringConvertible { public let description: String }
+    public typealias Failure = CommandFailure
 
     public typealias Runner = @Sendable ([String]) throws -> String
 
@@ -47,16 +47,13 @@ public enum SimulatorCertificate {
         return ([String(platform)] + [parts.dropFirst().joined(separator: ".")]).filter { !$0.isEmpty }.joined(separator: " ")
     }
 
-    public static let xcrun: Runner = { arguments in
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
-        process.arguments = arguments
-        let pipe = Pipe()
-        process.standardOutput = pipe; process.standardError = pipe
-        try process.run()
-        let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else { throw Failure(description: "xcrun \(arguments.joined(separator: " ")): \(output)") }
-        return output
+    public static let xcrun: Runner = xcrun(using: LiveCommandRunner.run)
+
+    static func xcrun(using runner: @escaping CommandRunner) -> Runner {
+        { arguments in
+            let executable = URL(fileURLWithPath: "/usr/bin/xcrun")
+            return try Command(executable: executable, arguments: arguments, mergesErrorOutput: true)
+                .checkedOutput(using: runner)
+        }
     }
 }
