@@ -61,7 +61,7 @@ extension Base64Segment {
         return switch kind {
         case let .image(mime): mime
         case .text: (try? JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)) != nil ? "application/json" : "text/plain"
-        case .binary: isPDF ? "application/pdf" : "application/octet-stream"
+        case .binary: "application/octet-stream"
         }
     }
 
@@ -72,7 +72,7 @@ extension Base64Segment {
         return switch kind {
         case let .image(mime): mime.replacingOccurrences(of: "image/", with: "").uppercased() + " image"
         case .text: mimeType == "application/json" ? "JSON" : "Text"
-        case .binary: isPDF ? "PDF" : "Binary"
+        case .binary: "Binary"
         }
     }
 
@@ -83,14 +83,14 @@ extension Base64Segment {
         return switch kind {
         case .image: "photo"
         case .text: mimeType == "application/json" ? "curlybraces" : "doc.text"
-        case .binary: isPDF ? "doc.richtext" : "number.square"
+        case .binary: "number.square"
         }
     }
 
     /// A file name for saving: the JSON key when there is one, with the extension of the decoded type.
     var suggestedFileName: String {
         let base = (label ?? "decoded").replacingOccurrences(of: "/", with: "-")
-        let ext = UTType(mimeType: mimeType)?.preferredFilenameExtension ?? (isPDF ? "pdf" : "bin")
+        let ext = UTType(mimeType: mimeType)?.preferredFilenameExtension ?? "bin"
         return base.hasSuffix(".\(ext)") ? base : "\(base).\(ext)"
     }
 }
