@@ -5,8 +5,18 @@ import WatcherCore
 public extension AppDependencies {
     /// Everything in memory: an engine on a fake file system and doubles for every system service.
     @MainActor
-    static func test(engine: WatcherEngine? = nil, clipboard: ClipboardSpy? = nil) throws -> AppDependencies {
-        try AppDependencies(engine: engine ?? .inMemory(), clipboard: clipboard ?? ClipboardSpy())
+    static func test(
+        engine: WatcherEngine? = nil,
+        clipboard: ClipboardSpy? = nil,
+        sleep: Sleep? = nil,
+        announcer: AnnouncerSpy? = nil
+    ) throws -> AppDependencies {
+        try AppDependencies(
+            engine: engine ?? .inMemory(),
+            clipboard: clipboard ?? ClipboardSpy(),
+            sleep: sleep ?? liveSleep,
+            announce: (announcer ?? AnnouncerSpy()).announce
+        )
     }
 }
 

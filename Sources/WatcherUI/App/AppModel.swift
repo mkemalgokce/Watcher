@@ -9,6 +9,7 @@ import WatcherCore
 public final class AppModel {
     let engine: WatcherEngine
     @ObservationIgnored let clipboard: any Clipboard
+    let notices: NoticeCenter
     /// Certificate trust and device setup (DeviceSetupView, the welcome sheet and the first-run list). Previews and tests
     /// get a probe that never asks the keychain, simctl or adb, so what they show is the same on every Mac.
     let devices: DevicesViewModel
@@ -93,20 +94,9 @@ public final class AppModel {
     func compare(withBase flow: Flow) {
         diffBase = flow
         compareWindowRequest += 1
-        notify("#\(flow.sequence) is the compare base. Select another request to compare.")
+        notices.notify("#\(flow.sequence) is the compare base. Select another request to compare.")
     }
 
-    /// Anything assigned here is shown as an error notice instead of a blocking alert.
-    var errorMessage: String? {
-        didSet {
-            if let message = errorMessage {
-                errorMessage = nil; notify(message, .error)
-            }
-        }
-    }
-
-    private(set) var notice: Notice?
-    @ObservationIgnored private var noticeTask: Task<Void, Never>?
     var settings: WatcherSettings {
         didSet {
             scheduleCommit()
@@ -136,6 +126,7 @@ public final class AppModel {
     init(dependencies: AppDependencies, listening: Bool = false, systemProxy: SystemProxy? = nil) {
         engine = dependencies.engine
         clipboard = dependencies.clipboard
+        notices = NoticeCenter(sleep: dependencies.sleep, announce: dependencies.announce)
         let directory = engine.authority.certificateURL.deletingLastPathComponent()
         devices = DevicesViewModel(probe: listening ? .live : .none, certificateURL: WatcherPaths.supportDirectory.appendingPathComponent("watcher-ca.pem"))
         settings = engine.settings.value
@@ -170,40 +161,6 @@ public final class AppModel {
         Task { for await _ in breakpointChanges {
             self.breakpointsChanged(self.engine.breakpoints.pending)
         } }
-    }
-
-    struct Notice: Identifiable, Equatable {
-        enum Kind { case success, info, error }
-        let id = UUID()
-        let message: String
-        let kind: Kind
-        var action: NoticeAction?
-
-        static func == (lhs: Notice, rhs: Notice) -> Bool {
-            lhs.id == rhs.id
-        }
-    }
-
-    /// Short feedback shown over the window and read out by VoiceOver; errors and notices with a button stay longer.
-    func notify(_ message: String, _ kind: Notice.Kind = .info, action: NoticeAction? = nil) {
-        let notice = Notice(message: message, kind: kind, action: action)
-        self.notice = notice
-        NSAccessibility.post(
-            element: NSApp as Any,
-            notification: .announcementRequested,
-            userInfo: [.announcement: message, .priority: NSAccessibilityPriorityLevel.high.rawValue]
-        )
-        noticeTask?.cancel()
-        noticeTask = Task {
-            try? await Task.sleep(for: .seconds(kind == .error ? 9 : action == nil ? 3 : 8))
-            if !Task.isCancelled, self.notice == notice {
-                self.notice = nil
-            }
-        }
-    }
-
-    func dismissNotice() {
-        noticeTask?.cancel(); notice = nil
     }
 
     enum Sheet: Identifiable {
@@ -299,8 +256,9 @@ public final class AppModel {
     func toggleRunning() {
         guard !isSwitchingProxy else { return }
         if !isRunning, !PortRange.isValid(settings.port) {
-            proxyError = "Port \(settings.port) is not valid. Choose a port from 1 to 65535 in Settings."
-            errorMessage = proxyError
+            let error = "Port \(settings.port) is not valid. Choose a port from 1 to 65535 in Settings."
+            proxyError = error
+            notices.notify(error, .error)
             return
         }
         isSwitchingProxy = true
@@ -325,12 +283,13 @@ public final class AppModel {
             if settings.autoSystemProxy {
                 systemProxySwitch = Task { await switchSystemProxy(true) }
             }
-            notify("Recording on 127.0.0.1:\(proxyPort)", .success)
+            notices.notify("Recording on 127.0.0.1:\(proxyPort)", .success)
         } catch {
             isRunning = engine.isRunning
-            proxyError = "Cannot start the proxy: \(error). Another app may be using port \(settings.port); "
+            let message = "Cannot start the proxy: \(error). Another app may be using port \(settings.port); "
                 + "pick a different port in Settings."
-            errorMessage = proxyError
+            proxyError = message
+            notices.notify(message, .error)
         }
     }
 
@@ -346,7 +305,7 @@ public final class AppModel {
         } else {
             try? await engine.stop()
         }
-        notify("Recording paused; the proxy is off")
+        notices.notify("Recording paused; the proxy is off")
     }
 
     /// End of the welcome screen: remember the choice, then start capturing.
@@ -377,19 +336,23 @@ public final class AppModel {
             let message = enable
                 ? "System proxy on. Mac traffic now goes through Watcher."
                 : "System proxy off. Your original settings are back."
-            notify(message, .success)
-        } catch { errorMessage = "Cannot change the system proxy: \(error). macOS may need your permission in System Settings → Privacy & Security." }
+            notices.notify(message, .success)
+        } catch {
+            let message = "Cannot change the system proxy: \(error). "
+                + "macOS may need your permission in System Settings → Privacy & Security."
+            notices.notify(message, .error)
+        }
     }
 
     /// Clearing can drop thousands of requests at once, so the notice offers Undo for a few seconds.
     func clear() {
         let removed = engine.store.clear()
-        guard !removed.isEmpty else { return notify("Session cleared") }
+        guard !removed.isEmpty else { return notices.notify("Session cleared") }
         let undo = NoticeAction(title: "Undo") { [weak self] in
             self?.engine.store.restore(removed)
-            self?.notify("Requests restored", .success)
+            self?.notices.notify("Requests restored", .success)
         }
-        notify("Cleared \(removed.count) request\(removed.count == 1 ? "" : "s")", action: undo)
+        notices.notify("Cleared \(removed.count) request\(removed.count == 1 ? "" : "s")", action: undo)
     }
 
     // MARK: Session files
@@ -414,7 +377,7 @@ public final class AppModel {
 
     /// Reads and decodes off the main thread: a large HAR used to freeze the window while it parsed.
     func importFile(at url: URL) async {
-        guard busyMessage == nil else { return notify("Wait for the current file to finish.", .error) }
+        guard busyMessage == nil else { return notices.notify("Wait for the current file to finish.", .error) }
         busyMessage = "Opening \(url.lastPathComponent)…"
         defer { busyMessage = nil }
         do {
@@ -431,17 +394,28 @@ public final class AppModel {
                 }.value
             }
             engine.store.load(flows)
-            notify(flows.isEmpty ? "\(url.lastPathComponent) has no requests" : "Opened \(flows.count) requests from \(url.lastPathComponent)", flows.isEmpty ? .info : .success)
-        } catch { errorMessage = "Cannot open \(url.lastPathComponent): \(error)" }
+            let name = url.lastPathComponent
+            if flows.isEmpty {
+                notices.notify("\(name) has no requests")
+            } else {
+                notices.notify("Opened \(flows.count) requests from \(name)", .success)
+            }
+        } catch { notices.notify("Cannot open \(url.lastPathComponent): \(error)", .error) }
     }
 
     func saveWorkspace(named name: String) {
-        do { try engine.saveWorkspace(named: name); workspaces = engine.workspaces.list() } catch { errorMessage = "\(error)" }
+        do {
+            try engine.saveWorkspace(named: name)
+            workspaces = engine.workspaces.list()
+        } catch { notices.notify("\(error)", .error) }
     }
 
     func openWorkspace(_ name: String) {
         Task {
-            do { try await engine.openWorkspace(named: name); settings = engine.settings.value } catch { errorMessage = "\(error)" }
+            do {
+                try await engine.openWorkspace(named: name)
+                settings = engine.settings.value
+            } catch { notices.notify("\(error)", .error) }
         }
     }
 
@@ -455,9 +429,13 @@ public final class AppModel {
     /// File ▸ New Request from cURL: the command on the clipboard opens in Compose, ready to change and send.
     func composeFromClipboardCurl() {
         guard let text = clipboard.string(), CurlImport.looksLikeCurl(text) else {
-            return notify("Copy a curl command first, then choose New Request from cURL.", .error)
+            return notices.notify("Copy a curl command first, then choose New Request from cURL.", .error)
         }
-        do { composeDraft = try CurlImport.parse(text); composeSource = nil; show(.compose) } catch { notify("Cannot read the cURL command: \(error)", .error) }
+        do {
+            composeDraft = try CurlImport.parse(text)
+            composeSource = nil
+            show(.compose)
+        } catch { notices.notify("Cannot read the cURL command: \(error)", .error) }
     }
 
     func repeatRequest(_ request: RequestRecord) {
@@ -486,9 +464,13 @@ public final class AppModel {
             let mock = try MockMaker.make(from: flow, in: WatcherPaths.supportDirectory.appendingPathComponent("mocks", isDirectory: true))
             settings.mapLocal.isEnabled = true
             settings.mapLocal.rules.append(mock.rule)
-            notify("Mock created: \(flow.request.method) \(flow.request.path.split(separator: "?").first ?? "") now answers from \(mock.file.lastPathComponent). Edit the file to change the answer; switch it off in Tools → Map Local.", .success)
+            let path = flow.request.path.split(separator: "?").first ?? ""
+            let file = mock.file.lastPathComponent
+            let message = "Mock created: \(flow.request.method) \(path) now answers from \(file). "
+                + "Edit the file to change the answer; switch it off in Tools → Map Local."
+            notices.notify(message, .success)
             NSWorkspace.shared.open(mock.file)
-        } catch { errorMessage = "Cannot create the mock: \(error)" }
+        } catch { notices.notify("Cannot create the mock: \(error)", .error) }
     }
 
     func toggleStar(_ ids: Set<Flow.ID>) {
@@ -497,7 +479,7 @@ public final class AppModel {
         for flow in targets {
             engine.store.annotate(flow.id, starred: star)
         }
-        notify(star ? "Starred" : "Star removed")
+        notices.notify(star ? "Starred" : "Star removed")
     }
 
     func setComment(_ comment: String, for id: Flow.ID) {
@@ -514,27 +496,30 @@ public final class AppModel {
     }
 
     func send(_ request: RequestRecord, followRedirects: Bool = false) {
-        guard isRunning else { return notify("Start the proxy to send requests.", .error) }
+        guard isRunning else { return notices.notify("Start the proxy to send requests.", .error) }
         Task {
             let response = await engine.send(request, followRedirects: followRedirects)
-            notify("\(request.method) \(request.host) → \(response.status)", response.status < 400 ? .success : .error)
+            let kind: Notice.Kind = response.status < 400 ? .success : .error
+            notices.notify("\(request.method) \(request.host) → \(response.status)", kind)
         }
     }
 
     func composeWebSocket(url: URL, headers: [Header], messages: [String]) {
         Task {
-            do { try await engine.composeWebSocket(url: url, headers: headers, messages: messages) } catch { errorMessage = "\(error)" }
+            do {
+                try await engine.composeWebSocket(url: url, headers: headers, messages: messages)
+            } catch { notices.notify("\(error)", .error) }
         }
     }
 
     func copy(_ text: String, _ what: String = "Copied") {
         clipboard.setString(text)
-        notify(what, .success)
+        notices.notify(what, .success)
     }
 
     func copy(image: NSImage) {
         clipboard.setImage(image)
-        notify("Image copied", .success)
+        notices.notify("Image copied", .success)
     }
 
     /// New pauses are announced, never pushed into a window: opening Breakpoints on every hit took over the screen
@@ -543,7 +528,7 @@ public final class AppModel {
         let added = pending.count - hits.count
         hits = pending
         if added > 0 {
-            notify("\(pending.count) paused at a breakpoint. Review with ⌘B, or remove the breakpoint there.", .info)
+            notices.notify("\(pending.count) paused at a breakpoint. Review with ⌘B, or remove the breakpoint there.")
         }
     }
 
@@ -561,7 +546,10 @@ public final class AppModel {
         for paused in hits where breakpointRules(matching: paused.request).isEmpty {
             resolve(paused, with: .proceed(request: paused.request, response: paused.response))
         }
-        notify(doomed.count == 1 ? "Breakpoint “\(doomed[0].name.isEmpty ? doomed[0].matching.pattern : doomed[0].name)” removed" : "\(doomed.count) breakpoints removed", .success)
+        let removed = doomed.count == 1
+            ? "Breakpoint “\(doomed[0].displayName)” removed"
+            : "\(doomed.count) breakpoints removed"
+        notices.notify(removed, .success)
     }
 
     func resolve(_ hit: BreakpointCenter.Hit, with resolution: BreakpointCenter.Resolution) {
@@ -599,8 +587,8 @@ public final class AppModel {
         Task {
             do {
                 try await Task.detached(priority: .userInitiated) { try data.write(to: url, options: .atomic) }.value
-                notify("Saved \(url.lastPathComponent) (\(Format.bytes(data.count)))", .success)
-            } catch { errorMessage = "Cannot save \(url.lastPathComponent): \(error)" }
+                notices.notify("Saved \(url.lastPathComponent) (\(Format.bytes(data.count)))", .success)
+            } catch { notices.notify("Cannot save \(url.lastPathComponent): \(error)", .error) }
         }
     }
 
@@ -610,8 +598,8 @@ public final class AppModel {
         defer { busyMessage = nil }
         do {
             try await Task.detached(priority: .userInitiated) { try data(flows).write(to: url, options: .atomic) }.value
-            notify("Saved \(flows.count) requests to \(url.lastPathComponent)", .success)
-        } catch { errorMessage = "Cannot save \(url.lastPathComponent): \(error)" }
+            notices.notify("Saved \(flows.count) requests to \(url.lastPathComponent)", .success)
+        } catch { notices.notify("Cannot save \(url.lastPathComponent): \(error)", .error) }
     }
 
     /// Store events arrive one per request, header and chunk; applying each on its own re-rendered the whole window
@@ -679,7 +667,7 @@ public final class AppModel {
             do {
                 try engine.settings.replace(with: settings)
                 await engine.apply(settings)
-            } catch { errorMessage = "\(error)" }
+            } catch { notices.notify("\(error)", .error) }
         }
     }
 }

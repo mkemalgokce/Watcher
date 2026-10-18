@@ -27,7 +27,7 @@ struct AppModelProxyTests {
         #expect(await eventually { !model.isSwitchingProxy })
         #expect(!model.isRunning)
         #expect(model.proxyError != nil)
-        #expect(model.notice?.kind == .error)
+        #expect(model.notices.notice?.kind == .error)
 
         try await first.engine.stop()
         model.toggleRunning()

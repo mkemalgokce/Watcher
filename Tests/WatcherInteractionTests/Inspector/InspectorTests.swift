@@ -20,7 +20,7 @@ extension InteractionTests {
                 #expect(!window.elements("Remove Star").isEmpty, "the button now offers to undo")
 
                 try await window.press("Copy as cURL")
-                #expect(model.notice?.message == "cURL copied")
+                #expect(model.notices.notice?.message == "cURL copied")
                 #expect(model.clipboard.string() == model.code(for: selected.request, as: .curl))
 
                 try await window.press("Edit & Repeat")

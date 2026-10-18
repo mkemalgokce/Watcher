@@ -16,7 +16,7 @@ extension InteractionTests {
                     "an unbundled run says so instead of borrowing another version"
                 )
                 try await window.press("Copy Version Info")
-                #expect(model.notice?.message == "Version info copied")
+                #expect(model.notices.notice?.message == "Version info copied")
                 let copied = clipboard.text
                 #expect(copied?.hasPrefix("Watcher Development build · macOS") == true)
             }

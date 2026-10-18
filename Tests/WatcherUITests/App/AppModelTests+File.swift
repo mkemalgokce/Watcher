@@ -20,12 +20,12 @@ extension AppModelTests {
             #expect(model.busyMessage != nil, "saving shows a busy state right away")
             await saving.value
             #expect(model.busyMessage == nil)
-            #expect(model.notice?.kind == .success)
+            #expect(model.notices.notice?.kind == .success)
 
             await model.importFile(at: url)
             #expect(model.busyMessage == nil)
-            #expect(model.notice?.kind == .success)
-            #expect(model.notice?.message == "Opened 2 requests from \(url.lastPathComponent)")
+            #expect(model.notices.notice?.kind == .success)
+            #expect(model.notices.notice?.message == "Opened 2 requests from \(url.lastPathComponent)")
             model.syncFromStore()
             #expect(model.flows.count == 2)
         }
@@ -37,7 +37,7 @@ extension AppModelTests {
             let url = directory.appending("broken.har")
             try Data("not json".utf8).write(to: url)
             await model.importFile(at: url)
-            #expect(model.notice?.kind == .error)
+            #expect(model.notices.notice?.kind == .error)
             #expect(model.busyMessage == nil)
         }
 
@@ -48,8 +48,8 @@ extension AppModelTests {
             let url = directory.appending("empty.watcher")
             try SessionFile.encode([]).write(to: url)
             await model.importFile(at: url)
-            #expect(model.notice?.kind == .info)
-            #expect(model.notice?.message.contains("no requests") == true)
+            #expect(model.notices.notice?.kind == .info)
+            #expect(model.notices.notice?.message.contains("no requests") == true)
         }
     }
 }

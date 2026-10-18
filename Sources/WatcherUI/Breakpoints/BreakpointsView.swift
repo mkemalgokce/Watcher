@@ -45,10 +45,13 @@ struct BreakpointsView: View {
                 .help("Turn every breakpoint off without deleting the rules")
             GlassGroup {
                 HStack(spacing: 2) {
-                    IconButton("Continue All", symbol: "play.fill") { model.engine.breakpoints.releaseAll(); model.notify("All paused traffic continued", .success) }
-                        .disabled(model.hits.isEmpty)
+                    IconButton("Continue All", symbol: "play.fill") {
+                        model.engine.breakpoints.releaseAll()
+                        model.notices.notify("All paused traffic continued", .success)
+                    }
+                    .disabled(model.hits.isEmpty)
                     IconButton("Abort All", symbol: "xmark.octagon", tint: model.hits.isEmpty ? nil : Palette.error) {
-                        model.engine.breakpoints.abortAll(); model.notify("All paused traffic aborted")
+                        model.engine.breakpoints.abortAll(); model.notices.notify("All paused traffic aborted")
                     }
                     .disabled(model.hits.isEmpty)
                 }
@@ -90,7 +93,7 @@ struct BreakpointsView: View {
                     })) {
                         guard model.settings.breakpoints.rules.indices.contains(index) else { return }
                         model.settings.breakpoints.rules.remove(at: index)
-                        model.notify("Breakpoint “\(rule.name.isEmpty ? rule.matching.pattern : rule.name)” removed", .success)
+                        model.notices.notify("Breakpoint “\(rule.displayName)” removed", .success)
                     }
                     .selectionDisabled()
                 }
@@ -217,18 +220,24 @@ private struct HitEditor: View {
             }
             Text("⌘↩ send with your changes · ⇧⌘↩ continue unchanged · ⇧⌘⌫ abort").font(.caption).foregroundStyle(.secondary)
             HStack {
-                Button("Abort", systemImage: "xmark.octagon", role: .destructive) { model.resolve(hit, with: .abort); model.notify("Aborted \(hit.request.host)") }
-                    .keyboardShortcut(.delete, modifiers: [.command, .shift]).help("Fail this request (⇧⌘⌫)")
+                Button("Abort", systemImage: "xmark.octagon", role: .destructive) {
+                    model.resolve(hit, with: .abort)
+                    model.notices.notify("Aborted \(hit.request.host)")
+                }
+                .keyboardShortcut(.delete, modifiers: [.command, .shift]).help("Fail this request (⇧⌘⌫)")
                 Button("Remove Breakpoint", systemImage: "trash") { model.removeBreakpoints(for: hit) }
                     .help("Delete the rule that stopped this request and let it continue, so it stops pausing")
                     .disabled(model.breakpointRules(matching: hit.request).isEmpty)
                 Spacer()
-                Button("Continue Unchanged") { model.resolve(hit, with: .proceed(request: hit.request, response: hit.response)); model.notify("Continued unchanged", .success) }
-                    .keyboardShortcut(.return, modifiers: [.command, .shift]).help("Let the original through (⇧⌘↩)")
+                Button("Continue Unchanged") {
+                    model.resolve(hit, with: .proceed(request: hit.request, response: hit.response))
+                    model.notices.notify("Continued unchanged", .success)
+                }
+                .keyboardShortcut(.return, modifiers: [.command, .shift]).help("Let the original through (⇧⌘↩)")
                 Button("Execute Edited", systemImage: "play.fill") {
                     guard let resolution = viewModel.resolution() else { return }
                     model.resolve(hit, with: resolution)
-                    model.notify("Sent edited \(viewModel.isResponse ? "response" : "request")", .success)
+                    model.notices.notify("Sent edited \(viewModel.isResponse ? "response" : "request")", .success)
                 }
                 .buttonStyle(.borderedProminent).keyboardShortcut(.return, modifiers: .command)
                 .disabled(!viewModel.canExecute).help("Send with your changes (⌘↩)")

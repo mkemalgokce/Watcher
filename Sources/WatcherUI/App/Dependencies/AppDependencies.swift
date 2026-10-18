@@ -7,4 +7,6 @@ import WatcherCore
 public struct AppDependencies {
     var engine: WatcherEngine
     var clipboard: any Clipboard
+    var sleep: Sleep
+    var announce: Announce
 }

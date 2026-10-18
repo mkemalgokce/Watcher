@@ -34,7 +34,8 @@ struct SidebarView: View {
                                 Button("Block \(group.name)", systemImage: "nosign") {
                                     model.settings.blockList.isEnabled = true
                                     model.settings.blockList.rules.append(BlockRule(name: group.name, matching: MatchingRule(pattern: "*\(group.name)/*")))
-                                    model.notify("Requests to \(group.name) are now blocked (Tools ▸ Block List)", .success)
+                                    let message = "Requests to \(group.name) are now blocked (Tools ▸ Block List)"
+                                    model.notices.notify(message, .success)
                                 }
                                 Button("Copy Domain", systemImage: "doc.on.doc") { model.copy(group.name, "Domain copied") }
                             }

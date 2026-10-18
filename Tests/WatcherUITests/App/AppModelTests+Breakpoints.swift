@@ -17,10 +17,10 @@ extension AppModelTests {
             let model = AppModel(listening: false)
             model.breakpointsChanged([hit("/a")])
             #expect(model.sheet == nil, "a pause must never take over the window")
-            #expect(model.notice?.kind == .info)
-            model.dismissNotice()
+            #expect(model.notices.notice?.kind == .info)
+            model.notices.dismiss()
             model.breakpointsChanged([])
-            #expect(model.notice == nil, "a resolved pause is not announced")
+            #expect(model.notices.notice == nil, "a resolved pause is not announced")
         }
 
         @Test
@@ -47,7 +47,7 @@ extension AppModelTests {
             ])
             model.removeBreakpoints(for: hit("/login"))
             #expect(model.settings.breakpoints.rules.map(\.name) == ["keep"])
-            #expect(model.notice?.message == "Breakpoint “login” removed")
+            #expect(model.notices.notice?.message == "Breakpoint “login” removed")
             // Removing for a request no rule matches only lets it continue and leaves the rules alone.
             model.removeBreakpoints(for: hit("/nothing"))
             #expect(model.settings.breakpoints.rules.map(\.name) == ["keep"])

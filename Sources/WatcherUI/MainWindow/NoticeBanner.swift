@@ -5,7 +5,7 @@ struct NoticeBanner: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        if let notice = model.notice {
+        if let notice = model.notices.notice {
             HStack(spacing: 10) {
                 Image(systemName: icon(notice.kind)).foregroundStyle(tint(notice.kind)).imageScale(.large).accessibilityHidden(true)
                 Text(notice.message).font(.callout).lineLimit(3).textSelection(.enabled)
@@ -13,7 +13,8 @@ struct NoticeBanner: View {
                     Button(action.title) { action.perform() }.buttonStyle(.borderless).fontWeight(.semibold)
                 }
                 if notice.kind == .error {
-                    Button("Dismiss", systemImage: "xmark") { model.dismissNotice() }.labelStyle(.iconOnly).buttonStyle(.plain).help("Dismiss")
+                    Button("Dismiss", systemImage: "xmark") { model.notices.dismiss() }
+                        .labelStyle(.iconOnly).buttonStyle(.plain).help("Dismiss")
                 }
             }
             .padding(.horizontal, 16).padding(.vertical, 10)
@@ -25,11 +26,11 @@ struct NoticeBanner: View {
         }
     }
 
-    private func icon(_ kind: AppModel.Notice.Kind) -> String {
+    private func icon(_ kind: Notice.Kind) -> String {
         switch kind { case .success: "checkmark.circle.fill"; case .info: "info.circle.fill"; case .error: "exclamationmark.triangle.fill" }
     }
 
-    private func tint(_ kind: AppModel.Notice.Kind) -> Color {
+    private func tint(_ kind: Notice.Kind) -> Color {
         switch kind { case .success: .green; case .info: .accentColor; case .error: .red }
     }
 }

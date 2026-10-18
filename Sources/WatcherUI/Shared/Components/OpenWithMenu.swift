@@ -35,13 +35,16 @@ struct OpenWithMenu: View {
             if let app {
                 NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration()) { _, error in
                     if let error {
-                        Task { @MainActor in model.errorMessage = "Cannot open with \(app.deletingPathExtension().lastPathComponent): \(error.localizedDescription)" }
+                        let name = app.deletingPathExtension().lastPathComponent
+                        Task { @MainActor in
+                            model.notices.notify("Cannot open with \(name): \(error.localizedDescription)", .error)
+                        }
                     }
                 }
             } else if !NSWorkspace.shared.open(url) {
-                model.errorMessage = "No app opens \(url.pathExtension) files. Use Open With to pick one."
+                model.notices.notify("No app opens \(url.pathExtension) files. Use Open With to pick one.", .error)
             }
-        } catch { model.errorMessage = "Cannot prepare the file: \(error.localizedDescription)" }
+        } catch { model.notices.notify("Cannot prepare the file: \(error.localizedDescription)", .error) }
     }
 }
 

@@ -92,7 +92,11 @@ private struct OpenAtLoginToggle: View {
     var body: some View {
         Toggle("Open Watcher at login", isOn: Binding(get: { isOn }, set: { on in
             do { try on ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister() }
-            catch { model.errorMessage = "Cannot change the login item: \(error.localizedDescription). This works only in the packaged Watcher.app." }
+            catch {
+                let message = "Cannot change the login item: \(error.localizedDescription). "
+                    + "This works only in the packaged Watcher.app."
+                model.notices.notify(message, .error)
+            }
             isOn = SMAppService.mainApp.status == .enabled
         }))
     }

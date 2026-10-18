@@ -22,7 +22,7 @@ extension AppModelTests {
             let model = model(with: [starred, plain])
             model.toggleStar([starred.id, plain.id])
             #expect(!model.engine.store.all.contains { !$0.isStarred })
-            #expect(model.notice?.message == "Starred")
+            #expect(model.notices.notice?.message == "Starred")
         }
 
         @Test
@@ -31,22 +31,22 @@ extension AppModelTests {
             let model = model(with: flows)
             model.toggleStar(Set(flows.map(\.id)))
             #expect(model.engine.store.all.allSatisfy { !$0.isStarred })
-            #expect(model.notice?.message == "Star removed")
+            #expect(model.notices.notice?.message == "Star removed")
         }
 
         @Test
         func sendingWhileStoppedAsksToStartTheProxy() {
             let model = AppModel(listening: false)
             model.send(.fixture())
-            #expect(model.notice?.kind == .error)
-            #expect(model.notice?.message == "Start the proxy to send requests.")
+            #expect(model.notices.notice?.kind == .error)
+            #expect(model.notices.notice?.message == "Start the proxy to send requests.")
         }
 
         @Test
         func repeatingWhileStoppedAsksToStartTheProxy() {
             let model = AppModel(listening: false)
             model.repeatRequest(.fixture())
-            #expect(model.notice?.message == "Start the proxy to send requests.")
+            #expect(model.notices.notice?.message == "Start the proxy to send requests.")
         }
 
         @Test
@@ -55,8 +55,8 @@ extension AppModelTests {
             let model = try AppModel.test(clipboard: clipboard)
             model.copy("curl https://x.test", "Copied as cURL")
             #expect(clipboard.text == "curl https://x.test")
-            #expect(model.notice?.kind == .success)
-            #expect(model.notice?.message == "Copied as cURL")
+            #expect(model.notices.notice?.kind == .success)
+            #expect(model.notices.notice?.message == "Copied as cURL")
         }
 
         @Test
@@ -65,7 +65,7 @@ extension AppModelTests {
             let model = try AppModel.test(clipboard: clipboard)
             model.copy(image: NSImage(size: NSSize(width: 1, height: 1)))
             #expect(clipboard.images.count == 1)
-            #expect(model.notice?.message == "Image copied")
+            #expect(model.notices.notice?.message == "Image copied")
         }
 
         @Test(arguments: [nil, "", "hello world"])
@@ -73,7 +73,7 @@ extension AppModelTests {
             let model = try AppModel.test(clipboard: ClipboardSpy(text: clipboard))
             model.composeFromClipboardCurl()
             #expect(model.sheet == nil)
-            #expect(model.notice?.message == "Copy a curl command first, then choose New Request from cURL.")
+            #expect(model.notices.notice?.message == "Copy a curl command first, then choose New Request from cURL.")
         }
 
         @Test
@@ -81,7 +81,7 @@ extension AppModelTests {
             let model = try AppModel.test(clipboard: ClipboardSpy(text: "curl 'https://x.test"))
             model.composeFromClipboardCurl()
             #expect(model.sheet == nil)
-            #expect(model.notice?.message.hasPrefix("Cannot read the cURL command") == true)
+            #expect(model.notices.notice?.message.hasPrefix("Cannot read the cURL command") == true)
         }
 
         @Test
@@ -121,15 +121,6 @@ extension AppModelTests {
             model.requestSearchFocus()
             model.requestSearchFocus()
             #expect(model.searchFocusRequest == 2)
-        }
-
-        @Test
-        func errorMessageBecomesAnErrorNoticeAndResets() {
-            let model = AppModel(listening: false)
-            model.errorMessage = "broken"
-            #expect(model.errorMessage == nil)
-            #expect(model.notice?.kind == .error)
-            #expect(model.notice?.message == "broken")
         }
     }
 }

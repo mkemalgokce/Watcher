@@ -145,7 +145,7 @@ extension AppModel {
 
     #Preview("Notices", traits: .fixedLayout(width: 1100, height: 500)) {
         let model = AppModel.preview()
-        model.notify("Cannot start the proxy: port 9090 is in use. Pick a different port in Settings.", .error)
+        model.notices.notify("Cannot start the proxy: port 9090 is in use. Pick a different port in Settings.", .error)
         return ContentView().environment(model)
     }
 

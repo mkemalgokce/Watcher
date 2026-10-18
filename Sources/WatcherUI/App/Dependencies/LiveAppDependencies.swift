@@ -4,7 +4,12 @@ import WatcherCore
 extension AppDependencies {
     /// The real app: ~/.watcher and the general pasteboard.
     static func live() -> AppDependencies {
-        AppDependencies(engine: makeEngine(in: WatcherPaths.supportDirectory), clipboard: LiveClipboard(.general))
+        AppDependencies(
+            engine: makeEngine(in: WatcherPaths.supportDirectory),
+            clipboard: LiveClipboard(.general),
+            sleep: liveSleep,
+            announce: LiveAnnouncer.announce
+        )
     }
 
     /// Previews: a throwaway directory and a private pasteboard, so nothing reaches the user's settings or clipboard.
@@ -12,7 +17,7 @@ extension AppDependencies {
         let name = "watcher-preview-\(UUID().uuidString)"
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(name)
         let clipboard = LiveClipboard(NSPasteboard(name: .init(name)))
-        return AppDependencies(engine: makeEngine(in: directory), clipboard: clipboard)
+        return AppDependencies(engine: makeEngine(in: directory), clipboard: clipboard, sleep: liveSleep) { _ in }
     }
 
     private static func makeEngine(in directory: URL) -> WatcherEngine {

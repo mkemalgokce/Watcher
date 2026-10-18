@@ -288,7 +288,9 @@ struct BodyViewer: View {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = fileName
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do { try decoded.write(to: url); model.notify("Saved \(url.lastPathComponent)", .success) }
-        catch { model.errorMessage = "Cannot save \(url.lastPathComponent): \(error)" }
+        do {
+            try decoded.write(to: url)
+            model.notices.notify("Saved \(url.lastPathComponent)", .success)
+        } catch { model.notices.notify("Cannot save \(url.lastPathComponent): \(error)", .error) }
     }
 }

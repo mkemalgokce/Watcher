@@ -79,7 +79,7 @@ struct StatusBar: View {
                 if model.isRunning {
                     model.setSystemProxy(!model.systemProxyOn)
                 } else {
-                    model.notify("Start the proxy first.", .error)
+                    model.notices.notify("Start the proxy first.", .error)
                 }
             }
             let decryptsAll = model.settings.sslProxying.include.contains("*") && model.settings.sslProxying.exclude.isEmpty

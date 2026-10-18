@@ -28,7 +28,7 @@ extension InteractionTests {
                 try await window.press("Record")
                 #expect(await eventually { model.isRunning && !model.isSwitchingProxy })
                 #expect(model.isRunning)
-                #expect(model.notice?.kind == .success)
+                #expect(model.notices.notice?.kind == .success)
                 await settle()
                 let address = "127.0.0.1:\(model.engine.boundPort ?? 0)"
                 #expect(model.statusLine.hasPrefix("Recording on \(address)"), "the status bar shows the address")
@@ -36,7 +36,7 @@ extension InteractionTests {
                 try await window.press("Pause")
                 #expect(await eventually { !model.isRunning && !model.isSwitchingProxy })
                 #expect(!model.isRunning, "pausing stops the proxy")
-                #expect(model.notice?.message == "Recording paused; the proxy is off")
+                #expect(model.notices.notice?.message == "Recording paused; the proxy is off")
                 #expect(model.statusLine.hasPrefix("Not recording"))
             }
         }

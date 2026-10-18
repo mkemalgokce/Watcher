@@ -60,7 +60,10 @@ struct ImagePreview: View {
         let ext = (mime ?? Base64Finder.imageMime(data) ?? "image/png").replacingOccurrences(of: "image/", with: "").replacingOccurrences(of: "jpeg", with: "jpg").replacingOccurrences(of: "svg+xml", with: "svg")
         panel.nameFieldStringValue = "image.\(ext)"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do { try data.write(to: url); model.notify("Saved \(url.lastPathComponent)", .success) } catch { model.errorMessage = "Cannot save the image: \(error)" }
+        do {
+            try data.write(to: url)
+            model.notices.notify("Saved \(url.lastPathComponent)", .success)
+        } catch { model.notices.notify("Cannot save the image: \(error)", .error) }
     }
 }
 
