@@ -16,7 +16,11 @@ extension AppDependencies {
             preferences: LivePreferences.standard,
             runner: engine,
             systemProxy: SystemProxy.shared,
-            onTerminate: LiveAppLifecycle.onTerminate
+            onTerminate: LiveAppLifecycle.onTerminate,
+            sender: engine,
+            workspace: LiveWorkspaceOpener(),
+            paths: SupportPaths(directory: WatcherPaths.supportDirectory),
+            focusFilterField: LiveSearchFocus.focusFilterField
         )
     }
 
@@ -37,7 +41,11 @@ extension AppDependencies {
             preferences: LivePreferences.standard,
             runner: engine,
             systemProxy: InertSystemProxy(),
-            onTerminate: { _ in }
+            onTerminate: { _ in },
+            sender: engine,
+            workspace: LiveWorkspaceOpener(),
+            paths: SupportPaths(directory: directory),
+            focusFilterField: {}
         )
     }
 
