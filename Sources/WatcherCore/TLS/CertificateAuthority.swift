@@ -86,7 +86,7 @@ public final class CertificateAuthority: @unchecked Sendable {
     ) throws -> Certificate {
         let keyIdentifier = ArraySlice(Insecure.SHA1.hash(data: key.publicKey.derRepresentation))
         return try Certificate(
-            version: .v3, serialNumber: .init(),
+            version: .v3, serialNumber: randomSerialNumber(),
             publicKey: .init(key.publicKey),
             notValidBefore: now.addingTimeInterval(-3600),
             notValidAfter: now.addingTimeInterval(60 * 60 * 24 * 365 * 10),
@@ -138,6 +138,11 @@ public final class CertificateAuthority: @unchecked Sendable {
         return context
     }
 
+    /// Same 20 random bytes as `SerialNumber()`, whose zero-sized generator passed `inout` crashes ThreadSanitizer.
+    private static func randomSerialNumber() -> Certificate.SerialNumber {
+        Certificate.SerialNumber(bytes: (0 ..< 20).map { _ in UInt8.random(in: .min ... .max) })
+    }
+
     private static func subjectName(for host: String) -> GeneralName {
         if IPv4Address(host) != nil {
             let octets = host.split(separator: ".").compactMap { UInt8($0) }
@@ -159,7 +164,7 @@ public final class CertificateAuthority: @unchecked Sendable {
         let now = now()
         let san = Self.subjectName(for: host)
         return try Certificate(
-            version: .v3, serialNumber: .init(),
+            version: .v3, serialNumber: Self.randomSerialNumber(),
             publicKey: .init(leafKey.publicKey),
             notValidBefore: now.addingTimeInterval(-3600),
             // Apple rejects server certificates valid for more than 825 days.

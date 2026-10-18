@@ -34,6 +34,18 @@ struct CertificateAuthorityTests {
     }
 
     @Test
+    func everyCertificateGetsItsOwnSerialOfAtMostTwentyBytes() throws {
+        let authority = try authority()
+        let serials = try [authority.certificate.serialNumber]
+            + (0 ..< 50).map { try authority.leafCertificate(for: "host\($0).test").serialNumber }
+        #expect(Set(serials).count == serials.count)
+        for serial in serials.map(\.bytes) {
+            #expect((1 ... 20).contains(serial.count))
+            #expect(serial.first != 0, "DER integers carry no redundant leading zero")
+        }
+    }
+
+    @Test
     func aSavedAuthorityIsLoadedBackInsteadOfReplaced() throws {
         let first = try authority()
         let second = try authority()

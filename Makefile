@@ -10,7 +10,7 @@ UNIT_TESTS := ^(WatcherCoreTests|WatcherUITests|WatcherCLITests)\.
 OUTSIDE_COVERAGE := WatcherInteractionTests|WatcherSnapshotTests|WatcherE2ETests
 
 .PHONY: bootstrap tools format format-check lint lint-baseline lint-analyze lint-analyze-baseline test test-unit \
-	test-scripts test-integration test-smoke test-e2e test-snapshot snapshots-record test-interaction changelog coverage dmg
+	test-scripts test-integration test-smoke test-e2e test-snapshot snapshots-record test-interaction test-tsan changelog coverage dmg
 
 bootstrap:
 	brew bundle --no-upgrade
@@ -80,6 +80,10 @@ snapshots-record:
 
 test-interaction:
 	swift test --filter WatcherInteractionTests
+
+# ThreadSanitizer over the same tests the coverage gate measures, in its own build folder.
+test-tsan:
+	swift test --sanitize=thread --no-parallel --scratch-path .build/tsan --skip '$(OUTSIDE_COVERAGE)'
 
 changelog:
 	git cliff -o CHANGELOG.md
