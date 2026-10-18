@@ -83,29 +83,31 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
         let (host, port) = (target.host, target.port)
 
         if server.shouldIntercept(host: host) {
+            // Once the 200 is out a failure can only close the socket, so the certificate is checked first.
             do {
-                acknowledgeConnect(context).flatMap { [self] in
-                    // After CONNECT the decoder switches to raw pass-through; swap in a fresh one for the decrypted stream.
-                    guard let decoder else { return context.eventLoop.makeFailedFuture(ChannelError.ioOnClosedChannel) }
-                    return context.pipeline.removeHandler(decoder)
-                }.flatMap { [self] in
-                    let fresh = ProxyServer.requestDecoder()
-                    decoder = fresh
-                    return context.pipeline.addHandler(fresh, position: .before(self)).map { fresh }
-                }.flatMap { [self] fresh in
-                    do {
-                        let http1: [RemovableChannelHandler] = [codecs[0], fresh, self]
-                        let handlers = try server.tlsHandlers(host: host, port: port, http1: http1, details: details)
-                        return context.pipeline.addHandlers(handlers, position: .first)
-                    } catch { return context.eventLoop.makeFailedFuture(error) }
-                }.whenComplete { [self] result in
-                    switch result {
-                    case .success: tunnel = TunnelTarget(scheme: "https", host: host, port: port)
-                    case .failure: context.close(promise: nil)
-                    }
-                }
+                _ = try server.serverContext(for: host)
             } catch {
-                writer.respond(502, "TLS setup failed: \(error)", to: context.channel, head: head)
+                return writer.respond(502, "TLS setup failed: \(error)", to: context.channel, head: head)
+            }
+            acknowledgeConnect(context).flatMap { [self] in
+                // After CONNECT the decoder switches to raw pass-through; swap in a fresh one for the decrypted stream.
+                guard let decoder else { return context.eventLoop.makeFailedFuture(ChannelError.ioOnClosedChannel) }
+                return context.pipeline.removeHandler(decoder)
+            }.flatMap { [self] in
+                let fresh = ProxyServer.requestDecoder()
+                decoder = fresh
+                return context.pipeline.addHandler(fresh, position: .before(self)).map { fresh }
+            }.flatMap { [self] fresh in
+                do {
+                    let http1: [RemovableChannelHandler] = [codecs[0], fresh, self]
+                    let handlers = try server.tlsHandlers(host: host, port: port, http1: http1, details: details)
+                    return context.pipeline.addHandlers(handlers, position: .first)
+                } catch { return context.eventLoop.makeFailedFuture(error) }
+            }.whenComplete { [self] result in
+                switch result {
+                case .success: tunnel = TunnelTarget(scheme: "https", host: host, port: port)
+                case .failure: context.close(promise: nil)
+                }
             }
         } else {
             blindTunnel(context, host: host, port: port, head: head)

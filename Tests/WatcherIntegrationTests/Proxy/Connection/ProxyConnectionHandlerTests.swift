@@ -25,7 +25,7 @@ struct ProxyConnectionHandlerTests {
         try await upstream.start()
         let trust = try origins.trust
         let engine = try WatcherEngine(directory: URL(fileURLWithPath: "/fake-home/.watcher"), files: files.access) {
-            ProxyServer(store: $0, authority: $1, upstreamTLS: trust, clientApp: { _ in nil })
+            ProxyServer(store: $0, authority: $1, upstreamTLS: trust, clientApp: { _ in nil }, files: files.access)
         }
         do {
             try engine.settings.update {
@@ -121,6 +121,24 @@ struct ProxyConnectionHandlerTests {
             await client.close()
             #expect(reply.hasPrefix("HTTP/1.1 502"))
             #expect(reply.contains("Tunnel to 127.0.0.1:\(closed) failed"))
+        }
+    }
+
+    @Test
+    func aServerCertificateThatCannotBeReadIsAnswered502BeforeTheTunnelOpens() async throws {
+        files.write(Data("not a p12".utf8), to: "/fake-home/bad.p12")
+        let rule = CustomCertificateRule(
+            host: "secure.test", role: .server, p12Path: "/fake-home/bad.p12", passphrase: "x"
+        )
+        let certificates = RuleSet(isEnabled: true, rules: [rule])
+        try await withProxy(configure: { $0.customCertificates = certificates }) { _, proxyPort, originPort in
+            let client = RawClient()
+            let target = "secure.test:\(originPort)"
+            try await client.connect(port: proxyPort)
+            try await client.send("CONNECT \(target) HTTP/1.1\r\nHost: \(target)\r\n\r\n")
+            let reply = await client.received(containing: "TLS setup failed")
+            await client.close()
+            #expect(reply.hasPrefix("HTTP/1.1 502"), "\(reply)")
         }
     }
 
