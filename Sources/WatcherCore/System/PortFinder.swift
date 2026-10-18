@@ -4,7 +4,12 @@ import Foundation
 public enum PortFinder {
     /// First port from `start` that is not in `taken` and can really be bound on localhost.
     public static func firstAvailable(from start: Int = 10000, avoiding taken: Set<Int> = []) -> Int? {
-        (start ... 65535).first { !taken.contains($0) && canBind($0) }
+        firstAvailable(from: start, avoiding: taken, canBind: canBind)
+    }
+
+    static func firstAvailable(from start: Int, avoiding taken: Set<Int> = [], canBind: (Int) -> Bool) -> Int? {
+        guard start <= 65535 else { return nil }
+        return (start ... 65535).first { !taken.contains($0) && canBind($0) }
     }
 
     static func canBind(_ port: Int) -> Bool {
