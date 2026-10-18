@@ -106,9 +106,9 @@ public struct ProtobufSchema: Sendable {
         for (field, value) in try entries(bytes) {
             switch (field, value) {
             case let (1, .bytes(b)): name = String(decoding: b, as: UTF8.self)
-            case let (3, .varint(n)): number = Int(n)
-            case let (4, .varint(n)): label = Int(n)
-            case let (5, .varint(n)): type = Int(n)
+            case let (3, .varint(value)): number = Int(truncatingIfNeeded: value)
+            case let (4, .varint(value)): label = Int(truncatingIfNeeded: value)
+            case let (5, .varint(value)): type = Int(truncatingIfNeeded: value)
             case let (6, .bytes(b)): typeName = String(decoding: b, as: UTF8.self)
             default: break
             }
