@@ -20,8 +20,10 @@ extension InteractionTests {
                 try await window.press("Delete Breakpoint")
                 #expect(model.settings.breakpoints.rules.map(\.name) == ["Users"])
                 #expect(model.notices.notice?.message == "Breakpoint “Login” removed")
-                await settle()
-                #expect(window.elements("Delete Breakpoint").count == 1, "the list redraws without the deleted rule")
+                #expect(
+                    await eventually { window.elements("Delete Breakpoint").count == 1 },
+                    "the list redraws without the deleted rule"
+                )
             }
         }
 

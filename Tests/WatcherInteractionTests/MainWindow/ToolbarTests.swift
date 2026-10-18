@@ -23,16 +23,17 @@ extension InteractionTests {
             model.onboardingDone = true
             try model.useFreePort(searchingFrom: 20000, fallback: 29999)
             try await withWindow(showing: ContentView().environment(model), width: 1320, height: 780) { window in
-                await settle(1)
-                #expect(!model.proxy.isRunning, "the proxy waits for Record")
+                #expect(await !eventually(timeout: 0.5) { model.proxy.isRunning }, "the proxy waits for Record")
 
                 try await window.press("Record")
                 #expect(await eventually { model.proxy.isRunning && !model.proxy.isSwitchingProxy })
                 #expect(model.proxy.isRunning)
                 #expect(model.notices.notice?.kind == .success)
-                await settle()
                 let address = "127.0.0.1:\(model.engine.boundPort ?? 0)"
-                #expect(model.statusLine.hasPrefix("Recording on \(address)"), "the status bar shows the address")
+                #expect(
+                    await eventually { model.statusLine.hasPrefix("Recording on \(address)") },
+                    "the status bar shows the address"
+                )
 
                 try await window.press("Pause")
                 #expect(await eventually { !model.proxy.isRunning && !model.proxy.isSwitchingProxy })
@@ -51,7 +52,7 @@ extension InteractionTests {
             let model = try mainWindowModel()
             try await withWindow(showing: ContentView().environment(model), width: 1320, height: 780) { window in
                 model.router.sheet = nil
-                await settle(0.3)
+                #expect(await eventually { !window.elements(label).isEmpty }, "\(label) is in the toolbar")
                 try await window.press(label)
                 #expect(model.router.sheet == sheet, "\(label)")
             }
@@ -62,9 +63,8 @@ extension InteractionTests {
             let model = try mainWindowModel()
             await withWindow(showing: ContentView().environment(model), width: 1320, height: 780) { window in
                 model.router.sheet = nil
-                await settle(0.3)
                 #expect(
-                    !window.elements("More").isEmpty,
+                    await eventually { !window.elements("More").isEmpty },
                     "Start/Stop, converter, devices and shortcuts sit in the More menu"
                 )
             }

@@ -17,8 +17,10 @@ extension InteractionTests {
                 try await window.press("Start")
                 #expect(!model.proxy.isRunning, "an invalid port is refused")
                 #expect(model.proxy.proxyError?.contains("not valid") == true)
-                await settle()
-                #expect(!window.elements("Failed to start").isEmpty, "the status row says it failed")
+                #expect(
+                    await eventually { !window.elements("Failed to start").isEmpty },
+                    "the status row says it failed"
+                )
             }
         }
 
