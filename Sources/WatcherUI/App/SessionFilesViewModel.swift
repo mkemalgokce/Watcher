@@ -45,7 +45,7 @@ final class SessionFilesViewModel {
     }
 
     func importFile(at url: URL) async {
-        guard busyMessage == nil else { return notices.notify("Wait for the current file to finish.", .error) }
+        guard isFree else { return }
         let name = url.lastPathComponent
         busyMessage = "Opening \(name)…"
         defer { busyMessage = nil }
@@ -96,8 +96,15 @@ final class SessionFilesViewModel {
         }
     }
 
+    /// One session file at a time: a second would clear the first one's progress message while it still runs.
+    private var isFree: Bool {
+        guard busyMessage != nil else { return true }
+        notices.notify("Wait for the current file to finish.", .error)
+        return false
+    }
+
     private func save(name: String, type: UTType, encode: @escaping @Sendable ([Flow]) throws -> Data) {
-        guard let url = panels.chooseSaveLocation(suggestedName: name, contentTypes: [type]) else { return }
+        guard isFree, let url = panels.chooseSaveLocation(suggestedName: name, contentTypes: [type]) else { return }
         let flows = store.all
         busyMessage = "Saving \(url.lastPathComponent)…"
         Task { await write(flows, to: url, encode) }

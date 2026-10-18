@@ -156,6 +156,18 @@ struct SessionFilesViewModelTests {
     }
 
     @Test
+    func savingWhileBusyIsRefusedBeforeThePanelOpens() async {
+        let panels = FilePanelsStub(save: Self.saved)
+        let model = viewModel(panels)
+        model.saveSession()
+        model.exportHAR()
+        #expect(panels.saveRequests.map(\.suggestedName) == ["session.watcher"])
+        #expect(notices.notice?.message == "Wait for the current file to finish.")
+        #expect(model.busyMessage == "Saving session.watcher…", "the first save keeps its progress message")
+        #expect(await eventually { model.busyMessage == nil })
+    }
+
+    @Test
     func savingDataWritesItAndSaysHowBig() async {
         let target = URL(fileURLWithPath: "/fake-home/out/users.json")
         let panels = FilePanelsStub(save: target)
