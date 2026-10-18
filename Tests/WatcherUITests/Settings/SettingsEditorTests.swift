@@ -76,4 +76,13 @@ struct SettingsEditorTests {
         #expect(seen.first?.1 == !before)
         gate.releaseAll()
     }
+
+    @Test(arguments: [10000, nil] as [Int?])
+    func aReverseProxyPortSuggestionComesFromTheEngine(port: Int?) {
+        let editor = SettingsEditor(
+            initial: WatcherSettings(), sleep: gate.sleep, notices: notices,
+            persist: { _ in }, apply: { _ in }, suggestReversePort: { port }
+        )
+        #expect(editor.suggestReversePort() == port)
+    }
 }

@@ -234,7 +234,7 @@ struct ToolsView: View {
                     HStack {
                         Stepper("Local port: \(String(rule.wrappedValue.localPort))", value: rule.localPort, in: 1024 ... 65535)
                         Button("Suggest Free Port") {
-                            if let port = model.engine.suggestReversePort() {
+                            if let port = model.settings.suggestReversePort() {
                                 rule.wrappedValue.localPort = port
                             }
                         }

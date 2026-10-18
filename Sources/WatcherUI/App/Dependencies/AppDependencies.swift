@@ -17,6 +17,8 @@ public struct AppDependencies {
     var systemProxy: any SystemProxying
     var onTerminate: OnTerminate
     var sender: any RequestSending
+    /// What the user's previewer scripts make of a request.
+    var previews: @Sendable (Flow) async -> [PreviewOutput]
     var workspace: any WorkspaceOpener
     var paths: SupportPaths
     var focusFilterField: @MainActor () -> Void
@@ -25,6 +27,8 @@ public struct AppDependencies {
     var now: @Sendable () -> Date
 
     var requestServices: RequestActions.Services {
-        RequestActions.Services(sender: sender, clipboard: clipboard, workspace: workspace, paths: paths, files: files)
+        RequestActions.Services(
+            sender: sender, previews: previews, clipboard: clipboard, workspace: workspace, paths: paths, files: files
+        )
     }
 }
