@@ -41,12 +41,9 @@ struct CustomCertificatesTests {
     }
 
     private func openssl(_ arguments: [String]) throws {
-        let process = Process()
-        process.executableURL = try ExternalTool.openssl.require()
-        process.arguments = arguments
-        process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
-        try process.run(); process.waitUntilExit()
-        guard process.terminationStatus == 0 else { throw TestSupportError("openssl \(arguments[0]) failed") }
+        guard try ExternalTool.openssl.run(arguments).status == 0 else {
+            throw TestSupportError("openssl \(arguments[0]) failed")
+        }
     }
 
     /// Handshakes through the proxy for two hosts and prints each host with the certificate that came back.
@@ -64,13 +61,6 @@ struct CustomCertificatesTests {
 
     private func subjectAndIssuer(_ line: String) throws -> String {
         let pem = line.split(separator: " ", maxSplits: 1)[1].replacingOccurrences(of: "|", with: "\n")
-        let tool = Process()
-        tool.executableURL = try ExternalTool.openssl.require()
-        tool.arguments = ["x509", "-noout", "-subject", "-issuer"]
-        let input = Pipe(), out = Pipe(); tool.standardInput = input; tool.standardOutput = out
-        try tool.run()
-        input.fileHandleForWriting.write(Data(pem.utf8)); input.fileHandleForWriting.closeFile()
-        tool.waitUntilExit()
-        return String(bytes: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        return try ExternalTool.openssl.run(["x509", "-noout", "-subject", "-issuer"], input: Data(pem.utf8)).text
     }
 }

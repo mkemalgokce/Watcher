@@ -23,13 +23,8 @@ struct ClientAppAttributionTests {
     }
 
     private func curl(through harness: Harness) throws -> String {
-        let process = Process()
-        process.executableURL = try ExternalTool.curl.require()
-        process.arguments = [
+        try ExternalTool.curl.run([
             "-s", "-m", "10", "-x", "http://127.0.0.1:\(harness.proxyPort)", "\(harness.originURL)/by-app",
-        ]
-        let pipe = Pipe(); process.standardOutput = pipe
-        try process.run(); process.waitUntilExit()
-        return String(bytes: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        ]).text
     }
 }

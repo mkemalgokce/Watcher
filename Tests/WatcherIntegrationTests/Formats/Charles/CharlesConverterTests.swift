@@ -90,11 +90,7 @@ struct CharlesConverterTests {
     }
 
     private func convert(_ input: URL, to output: URL) throws {
-        let process = Process()
-        process.executableURL = CharlesConverter.defaultExecutable
-        process.arguments = ["convert", input.path, output.path]
-        process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
-        try process.run(); process.waitUntilExit()
-        #expect(process.terminationStatus == 0)
+        let charles = ExternalTool(name: "Charles", candidates: [CharlesConverter.defaultExecutable.path])
+        #expect(try charles.run(["convert", input.path, output.path]).status == 0)
     }
 }

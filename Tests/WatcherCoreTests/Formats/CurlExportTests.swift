@@ -122,16 +122,7 @@ struct CurlExportTests {
         #expect(!binary.contains("\"strings\""))
     }
 
-    /// Runs `script` in /bin/sh and returns what it printed.
     private func shell(_ script: String) throws -> Data {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/sh")
-        process.arguments = ["-c", script]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        try process.run()
-        let output = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        return output
+        try ExternalTool.shell.run(["-c", script]).data
     }
 }

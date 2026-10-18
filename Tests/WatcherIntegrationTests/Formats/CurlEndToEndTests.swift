@@ -15,15 +15,8 @@ struct CurlEndToEndTests {
         let proxy = "http://127.0.0.1:\(harness.proxyPort)"
         func run(_ request: RequestRecord) throws -> String {
             // upstream.test only resolves inside Watcher (DNS spoofing), so the request must go through the proxy to succeed.
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/sh")
             let command = CodeGenerator.generate(request, as: .curl, proxy: proxy)
-            process.arguments = ["-c", command + " --silent --max-time 10"]
-            let pipe = Pipe(); process.standardOutput = pipe
-            try process.run()
-            let output = pipe.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-            return String(bytes: output, encoding: .utf8) ?? ""
+            return try ExternalTool.shell.run(["-c", command + " --silent --max-time 10"]).text
         }
         let port = harness.upstream.port
         func request(_ method: String, _ body: Data = Data()) -> RequestRecord {

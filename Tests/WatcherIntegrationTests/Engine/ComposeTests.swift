@@ -48,7 +48,7 @@ struct ComposeTests {
     @Test(.enabled(if: ExternalTool.python3.isAvailable, "needs python3"), .tags(.externalTool))
     func multipartWithAFileReachesARealServerIntact() async throws {
         try await withHarness { harness in
-            let (server, port) = try startParsingServer()
+            let server = try PythonServer(script: Self.parsingServer)
             let png = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A])
             let boundary = RequestBodyBuilder.newBoundary()
             let body = RequestBodyBuilder.multipart([
@@ -61,7 +61,7 @@ struct ComposeTests {
                 method: "POST",
                 scheme: "http",
                 host: "127.0.0.1",
-                port: port,
+                port: server.port,
                 path: "/upload",
                 headers: [Header("Content-Type", contentType)],
                 body: body
@@ -75,12 +75,12 @@ struct ComposeTests {
     @Test(.enabled(if: ExternalTool.python3.isAvailable, "needs python3"), .tags(.externalTool))
     func aURLEncodedFormReachesARealServerIntact() async throws {
         try await withHarness { harness in
-            let (server, port) = try startParsingServer()
+            let server = try PythonServer(script: Self.parsingServer)
             let response = await harness.engine.send(.fixture(
                 method: "POST",
                 scheme: "http",
                 host: "127.0.0.1",
-                port: port,
+                port: server.port,
                 path: "/form",
                 headers: [Header("Content-Type", "application/x-www-form-urlencoded")],
                 body: RequestBodyBuilder.urlEncoded([KeyValue("q", "a b&c"), KeyValue("lang", "tr")])
@@ -92,43 +92,31 @@ struct ComposeTests {
 
     /// A one-shot Python server: prints its port, parses one POST (multipart or urlencoded) and answers with what it
     /// understood.
-    private func startParsingServer() throws -> (Process, Int) {
-        let script = #"""
-        import sys, http.server, email.parser, email.policy, urllib.parse
-        class H(http.server.BaseHTTPRequestHandler):
-            def do_POST(self):
-                body = self.rfile.read(int(self.headers['Content-Length']))
-                ctype = self.headers['Content-Type']
-                out = []
-                if ctype.startswith('multipart/form-data'):
-                    msg = email.parser.BytesParser(policy=email.policy.default).parsebytes(
-                        b'Content-Type: ' + ctype.encode() + b'\r\n\r\n' + body)
-                    for part in msg.iter_parts():
-                        name = part.get_param('name', header='content-disposition')
-                        filename = part.get_filename()
-                        data = part.get_payload(decode=True)
-                        out.append(
-                            f"{name}={filename}:{len(data)}:{part.get_content_type()}" if filename
-                            else f"{name}={data.decode()}")
-                else:
-                    out = [f"{k}={v[0]}" for k, v in urllib.parse.parse_qs(body.decode()).items()]
-                reply = ";".join(out).encode()
-                self.send_response(200); self.send_header('Content-Length', str(len(reply)))
-                self.end_headers(); self.wfile.write(reply)
-            def log_message(self, *a): pass
-        s = http.server.HTTPServer(('127.0.0.1', 0), H)
-        print(s.server_address[1], flush=True)
-        s.handle_request()
-        """#
-        let process = Process()
-        process.executableURL = try ExternalTool.python3.require(); process.arguments = ["-c", script]
-        let pipe = Pipe(); process.standardOutput = pipe; process.standardError = FileHandle.nullDevice
-        try process.run()
-        var line = Data()
-        while let byte = try pipe.fileHandleForReading.read(upToCount: 1), !byte.isEmpty, byte != Data("\n".utf8) {
-            line.append(byte)
-        }
-        let port = try #require(Int(String(bytes: line, encoding: .utf8) ?? ""), "python server did not start")
-        return (process, port)
-    }
+    private static let parsingServer = #"""
+    import sys, http.server, email.parser, email.policy, urllib.parse
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = self.rfile.read(int(self.headers['Content-Length']))
+            ctype = self.headers['Content-Type']
+            out = []
+            if ctype.startswith('multipart/form-data'):
+                msg = email.parser.BytesParser(policy=email.policy.default).parsebytes(
+                    b'Content-Type: ' + ctype.encode() + b'\r\n\r\n' + body)
+                for part in msg.iter_parts():
+                    name = part.get_param('name', header='content-disposition')
+                    filename = part.get_filename()
+                    data = part.get_payload(decode=True)
+                    out.append(
+                        f"{name}={filename}:{len(data)}:{part.get_content_type()}" if filename
+                        else f"{name}={data.decode()}")
+            else:
+                out = [f"{k}={v[0]}" for k, v in urllib.parse.parse_qs(body.decode()).items()]
+            reply = ";".join(out).encode()
+            self.send_response(200); self.send_header('Content-Length', str(len(reply)))
+            self.end_headers(); self.wfile.write(reply)
+        def log_message(self, *a): pass
+    s = http.server.HTTPServer(('127.0.0.1', 0), H)
+    print(s.server_address[1], flush=True)
+    s.handle_request()
+    """#
 }

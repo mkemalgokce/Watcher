@@ -3,13 +3,7 @@ import Foundation
 /// Runs a short Python script (the system `python3` has `ssl`) and returns what it printed.
 /// Throws `TestSupportError` when python3 cannot be started; check `ExternalTool.python3.isAvailable` to skip instead.
 public func runPython(_ script: String) throws -> String {
-    let process = Process()
-    process.executableURL = try ExternalTool.python3.require(); process.arguments = ["-c", script]
-    let pipe = Pipe(); process.standardOutput = pipe; process.standardError = FileHandle.nullDevice
-    do { try process.run() } catch { throw TestSupportError("python3 could not start: \(error)") }
-    process.waitUntilExit()
-    // swiftlint:disable:next optional_data_string_conversion
-    return String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+    try ExternalTool.python3.run(["-c", script]).text
 }
 
 /// Python source for "CONNECT host:443 through the proxy, then a TLS handshake"; the caller appends statements that use `t` or `err`.

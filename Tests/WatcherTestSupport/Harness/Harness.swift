@@ -1,12 +1,10 @@
-import AsyncHTTPClient
 import Foundation
 @testable import WatcherCore
 
-/// Engine + echo origin + a client that talks through the proxy. `upstream.test` resolves to the echo origin.
+/// Engine + echo origin, with requests sent through the proxy. `upstream.test` resolves to the echo origin.
 public final class Harness {
     public let upstream = TestUpstream()
     public let engine: WatcherEngine
-    public let client: HTTPClient
     public var proxyPort = 0
     public var originURL: String {
         "http://upstream.test:\(upstream.port)"
@@ -18,7 +16,6 @@ public final class Harness {
     public init() throws {
         directory = try TemporaryDirectory()
         engine = try WatcherEngine(directory: directory.url)
-        client = HTTPClient(eventLoopGroupProvider: .singleton)
     }
 
     public func start(configure: (inout WatcherSettings) -> Void = { _ in }) async throws {
@@ -77,7 +74,7 @@ public final class Harness {
     }
 
     public func stop() async {
-        try? await engine.stop(); await upstream.stop(); try? await client.shutdown()
+        try? await engine.stop(); await upstream.stop()
     }
 
     private func proxiedSession(timeout: TimeInterval?) -> URLSession {
