@@ -23,7 +23,7 @@ public struct WatcherCommands: Commands {
                 Button("New Request…") { model.show(.compose) }.keyboardShortcut("n")
                 Button("New Request from cURL in Clipboard") { model.composeFromClipboardCurl() }.keyboardShortcut("n", modifiers: [.command, .option])
                 Divider()
-                Button("Open…") { model.importFile() }.keyboardShortcut("o")
+                Button("Open…") { model.sessionFiles.importFile() }.keyboardShortcut("o")
                 Menu("Workspaces") {
                     ForEach(model.workspaces, id: \.self) { name in Button(name) { model.openWorkspace(name) } }
                     if !model.workspaces.isEmpty {
@@ -33,9 +33,10 @@ public struct WatcherCommands: Commands {
                 }
             }
             CommandGroup(replacing: .saveItem) {
-                Button("Save Session…") { model.saveSession() }.keyboardShortcut("s")
-                Button("Export HAR…") { model.exportHAR() }.keyboardShortcut("e", modifiers: [.command, .shift])
-                Button("Export CSV…") { model.exportCSV() }
+                Button("Save Session…") { model.sessionFiles.saveSession() }.keyboardShortcut("s")
+                Button("Export HAR…") { model.sessionFiles.exportHAR() }
+                    .keyboardShortcut("e", modifiers: [.command, .shift])
+                Button("Export CSV…") { model.sessionFiles.exportCSV() }
             }
             CommandGroup(replacing: .textEditing) {
                 Button("Find…") { Find.show { model.requestSearchFocus() } }.keyboardShortcut("f")

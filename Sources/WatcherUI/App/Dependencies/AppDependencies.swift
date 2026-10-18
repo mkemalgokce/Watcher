@@ -9,4 +9,7 @@ public struct AppDependencies {
     var clipboard: any Clipboard
     var sleep: Sleep
     var announce: Announce
+    var panels: any FilePanels
+    var files: FileAccess
+    var commands: CommandRunner
 }

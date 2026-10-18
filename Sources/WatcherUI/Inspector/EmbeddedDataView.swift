@@ -53,7 +53,9 @@ struct EmbeddedDataView: View {
         HStack(spacing: 2) {
             // The image preview has its own copy, save and open buttons; repeating them on the card would show each twice.
             if !segment.isImage {
-                IconButton("Save \(segment.kindName)…", symbol: "square.and.arrow.down") { model.saveData(segment.data, suggestedName: segment.suggestedFileName) }
+                IconButton("Save \(segment.kindName)…", symbol: "square.and.arrow.down") {
+                    model.sessionFiles.saveData(segment.data, suggestedName: segment.suggestedFileName)
+                }
                 OpenWithMenu(data: segment.data, name: segment.suggestedFileName, contentType: segment.mimeType)
                     .labelStyle(.iconOnly).menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                     .help("Open the decoded \(segment.kindName.lowercased()) in another app")

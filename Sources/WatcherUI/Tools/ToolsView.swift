@@ -546,6 +546,7 @@ private struct CodeEditorField: View {
 
 private struct MapLocalSourceFields: View {
     @Binding var source: MapLocalRule.Source
+    @Environment(\.filePanels) private var filePanels
 
     private var isDirectory: Bool {
         if case .directory = source {
@@ -576,9 +577,7 @@ private struct MapLocalSourceFields: View {
     }
 
     private func choose() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = !isDirectory; panel.canChooseDirectories = isDirectory
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let url = filePanels.chooseItem(directory: isDirectory) else { return }
         source = isDirectory ? .directory(url.path) : .file(url.path)
     }
 }

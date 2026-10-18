@@ -8,7 +8,10 @@ extension AppDependencies {
             engine: makeEngine(in: WatcherPaths.supportDirectory),
             clipboard: LiveClipboard(.general),
             sleep: liveSleep,
-            announce: LiveAnnouncer.announce
+            announce: LiveAnnouncer.announce,
+            panels: LiveFilePanels(),
+            files: .live,
+            commands: LiveCommandRunner.run
         )
     }
 
@@ -17,7 +20,15 @@ extension AppDependencies {
         let name = "watcher-preview-\(UUID().uuidString)"
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(name)
         let clipboard = LiveClipboard(NSPasteboard(name: .init(name)))
-        return AppDependencies(engine: makeEngine(in: directory), clipboard: clipboard, sleep: liveSleep) { _ in }
+        return AppDependencies(
+            engine: makeEngine(in: directory),
+            clipboard: clipboard,
+            sleep: liveSleep,
+            announce: { _ in },
+            panels: LiveFilePanels(),
+            files: .live,
+            commands: LiveCommandRunner.run
+        )
     }
 
     private static func makeEngine(in directory: URL) -> WatcherEngine {

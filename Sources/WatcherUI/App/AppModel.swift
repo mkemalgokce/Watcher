@@ -10,6 +10,7 @@ public final class AppModel {
     let engine: WatcherEngine
     @ObservationIgnored let clipboard: any Clipboard
     let notices: NoticeCenter
+    let sessionFiles: SessionFilesViewModel
     /// Certificate trust and device setup (DeviceSetupView, the welcome sheet and the first-run list). Previews and tests
     /// get a probe that never asks the keychain, simctl or adb, so what they show is the same on every Mac.
     let devices: DevicesViewModel
@@ -21,8 +22,6 @@ public final class AppModel {
     private(set) var isSwitchingProxy = false
     /// Why the last start failed; shown in the empty list until the next attempt.
     internal(set) var proxyError: String?
-    /// Set while a session file is read or written off the main thread.
-    internal(set) var busyMessage: String?
     private(set) var workspaces: [String] = []
     private(set) var systemProxyOn = false
     /// The system-proxy change still running in the background; the next Record or Pause waits for it.
@@ -126,7 +125,15 @@ public final class AppModel {
     init(dependencies: AppDependencies, listening: Bool = false, systemProxy: SystemProxy? = nil) {
         engine = dependencies.engine
         clipboard = dependencies.clipboard
-        notices = NoticeCenter(sleep: dependencies.sleep, announce: dependencies.announce)
+        let notices = NoticeCenter(sleep: dependencies.sleep, announce: dependencies.announce)
+        self.notices = notices
+        sessionFiles = SessionFilesViewModel(
+            panels: dependencies.panels,
+            files: dependencies.files,
+            commands: dependencies.commands,
+            store: dependencies.engine.store,
+            notices: notices
+        )
         let directory = engine.authority.certificateURL.deletingLastPathComponent()
         devices = DevicesViewModel(probe: listening ? .live : .none, certificateURL: WatcherPaths.supportDirectory.appendingPathComponent("watcher-ca.pem"))
         settings = engine.settings.value
@@ -355,54 +362,6 @@ public final class AppModel {
         notices.notify("Cleared \(removed.count) request\(removed.count == 1 ? "" : "s")", action: undo)
     }
 
-    // MARK: Session files
-
-    func exportHAR() {
-        save(name: "session.har", type: .json) { try HAR.export($0) }
-    }
-
-    func exportCSV() {
-        save(name: "session.csv", type: .commaSeparatedText) { CSVExporter.export($0) }
-    }
-
-    func saveSession() {
-        save(name: "session.watcher", type: .json) { try SessionFile.encode($0) }
-    }
-
-    func importFile() {
-        let panel = NSOpenPanel()
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        Task { await importFile(at: url) }
-    }
-
-    /// Reads and decodes off the main thread: a large HAR used to freeze the window while it parsed.
-    func importFile(at url: URL) async {
-        guard busyMessage == nil else { return notices.notify("Wait for the current file to finish.", .error) }
-        busyMessage = "Opening \(url.lastPathComponent)…"
-        defer { busyMessage = nil }
-        do {
-            let flows: [Flow] = switch url.pathExtension.lowercased() {
-            case "chls", "chlz": try await CharlesConverter.flows(from: url) // binary sessions are converted by an installed Charles
-            case let ext:
-                try await Task.detached(priority: .userInitiated) {
-                    let data = try Data(contentsOf: url)
-                    switch ext {
-                    case "har": return try HAR.flows(from: data)
-                    case "chlsj": return try CharlesSession.flows(from: data)
-                    default: return try SessionFile.decode(data)
-                    }
-                }.value
-            }
-            engine.store.load(flows)
-            let name = url.lastPathComponent
-            if flows.isEmpty {
-                notices.notify("\(name) has no requests")
-            } else {
-                notices.notify("Opened \(flows.count) requests from \(name)", .success)
-            }
-        } catch { notices.notify("Cannot open \(url.lastPathComponent): \(error)", .error) }
-    }
-
     func saveWorkspace(named name: String) {
         do {
             try engine.saveWorkspace(named: name)
@@ -570,37 +529,6 @@ public final class AppModel {
     }
 
     // MARK: Private
-
-    private func save(name: String, type: UTType, data: @escaping @Sendable ([Flow]) throws -> Data) {
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = name
-        panel.allowedContentTypes = [type]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        Task { await write(flows, to: url, data) }
-    }
-
-    /// Save panel for a body or a decoded payload, then writes it off the main thread.
-    func saveData(_ data: Data, suggestedName: String) {
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = suggestedName
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        Task {
-            do {
-                try await Task.detached(priority: .userInitiated) { try data.write(to: url, options: .atomic) }.value
-                notices.notify("Saved \(url.lastPathComponent) (\(Format.bytes(data.count)))", .success)
-            } catch { notices.notify("Cannot save \(url.lastPathComponent): \(error)", .error) }
-        }
-    }
-
-    /// Encodes and writes off the main thread, so a big session does not freeze the window while it is saved.
-    func write(_ flows: [Flow], to url: URL, _ data: @escaping @Sendable ([Flow]) throws -> Data) async {
-        busyMessage = "Saving \(url.lastPathComponent)…"
-        defer { busyMessage = nil }
-        do {
-            try await Task.detached(priority: .userInitiated) { try data(flows).write(to: url, options: .atomic) }.value
-            notices.notify("Saved \(flows.count) requests to \(url.lastPathComponent)", .success)
-        } catch { notices.notify("Cannot save \(url.lastPathComponent): \(error)", .error) }
-    }
 
     /// Store events arrive one per request, header and chunk; applying each on its own re-rendered the whole window
     /// hundreds of times a second under load. They are collected and applied together a few times a second instead.

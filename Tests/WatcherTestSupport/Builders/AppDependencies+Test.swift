@@ -9,13 +9,20 @@ public extension AppDependencies {
         engine: WatcherEngine? = nil,
         clipboard: ClipboardSpy? = nil,
         sleep: Sleep? = nil,
-        announcer: AnnouncerSpy? = nil
+        announcer: AnnouncerSpy? = nil,
+        panels: FilePanelsStub? = nil,
+        files: FileAccessFake? = nil,
+        commands: CommandRunnerSpy? = nil
     ) throws -> AppDependencies {
-        try AppDependencies(
-            engine: engine ?? .inMemory(),
+        let files = files ?? FileAccessFake()
+        return try AppDependencies(
+            engine: engine ?? .inMemory(files: files),
             clipboard: clipboard ?? ClipboardSpy(),
             sleep: sleep ?? liveSleep,
-            announce: (announcer ?? AnnouncerSpy()).announce
+            announce: (announcer ?? AnnouncerSpy()).announce,
+            panels: panels ?? FilePanelsStub(),
+            files: files.access,
+            commands: (commands ?? CommandRunnerSpy()).runner
         )
     }
 }

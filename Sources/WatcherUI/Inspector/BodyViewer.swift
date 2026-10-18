@@ -12,6 +12,7 @@ enum BodyMode: String, CaseIterable {
 /// The body of one side: rendered (image, HTML, PDF, media, events), pretty-printed with colours, raw, or hex.
 struct BodyViewer: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.filePanels) private var filePanels
     let flow: Flow
     let side: MessageSide
     @AppStorage("body.mode") private var mode = BodyMode.preview.rawValue
@@ -285,9 +286,7 @@ struct BodyViewer: View {
     }
 
     private func save() {
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = fileName
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let url = filePanels.chooseSaveLocation(suggestedName: fileName, contentTypes: []) else { return }
         do {
             try decoded.write(to: url)
             model.notices.notify("Saved \(url.lastPathComponent)", .success)

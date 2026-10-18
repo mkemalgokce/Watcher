@@ -6,6 +6,7 @@ import WatcherCore
 /// The shared editor for headers, query parameters, form fields and multipart parts: one row per entry with an on/off box,
 /// add and remove, an optional file per row, suggestions for common names, and a text mode for pasting many at once.
 struct KeyValueEditor: View {
+    @Environment(\.filePanels) private var filePanels
     @Binding var rows: [KeyValue]
     var title: String
     var allowsFiles = false
@@ -56,7 +57,7 @@ struct KeyValueEditor: View {
                                 Menu {
                                     Button("Text") { row.file = nil }
                                     Button("Choose File…") {
-                                        if let file = Self.chooseFile() {
+                                        if let file = Self.chooseFile(with: filePanels) {
                                             row.file = file
                                         }
                                     }
@@ -89,10 +90,8 @@ struct KeyValueEditor: View {
         }
     }
 
-    @MainActor static func chooseFile() -> KeyValue.FilePart? {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = false
-        guard panel.runModal() == .OK, let url = panel.url, let data = try? Data(contentsOf: url) else { return nil }
+    @MainActor static func chooseFile(with panels: any FilePanels) -> KeyValue.FilePart? {
+        guard let url = panels.chooseItem(directory: false), let data = try? Data(contentsOf: url) else { return nil }
         let type = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
         return KeyValue.FilePart(filename: url.lastPathComponent, contentType: type, data: data)
     }

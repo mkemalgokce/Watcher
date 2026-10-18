@@ -24,7 +24,9 @@ struct FlowActions: View {
             Menu("Response Body", systemImage: "doc") {
                 let body = ExchangeText.body(of: flow, side: .response)
                 let name = ExchangeText.suggestedFileName(for: flow, side: .response)
-                Button("Save…", systemImage: "square.and.arrow.down") { model.saveData(body, suggestedName: name) }
+                Button("Save…", systemImage: "square.and.arrow.down") {
+                    model.sessionFiles.saveBody(of: flow, side: .response)
+                }
                 OpenWithMenu(data: body, name: name, contentType: flow.response?.headers.value(for: "content-type"))
                 Button("Copy as Text", systemImage: "doc.on.doc") { model.copy(String(decoding: body, as: UTF8.self), "Response body copied") }
                 Button("Copy as Base64") { model.copy(body.base64EncodedString(), "Response body copied as Base64") }
@@ -41,8 +43,7 @@ struct FlowActions: View {
             }
             if !flow.request.body.isEmpty {
                 Button("Save Request Body…", systemImage: "square.and.arrow.up") {
-                    let name = ExchangeText.suggestedFileName(for: flow, side: .request)
-                    model.saveData(ExchangeText.body(of: flow, side: .request), suggestedName: name)
+                    model.sessionFiles.saveBody(of: flow, side: .request)
                 }
             }
             Button("Set as Compare Base", systemImage: "arrow.left.arrow.right") { model.compare(withBase: flow) }

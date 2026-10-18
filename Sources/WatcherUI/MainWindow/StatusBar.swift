@@ -106,7 +106,7 @@ struct StatusBar: View {
                 ) { model.show(.breakpoints) }
             }
             Spacer(minLength: 8)
-            if let busy = model.busyMessage {
+            if let busy = model.sessionFiles.busyMessage {
                 HStack(spacing: 4) { ProgressView().controlSize(.mini); Text(busy).lineLimit(1) }.accessibilityElement(children: .combine)
             }
             Text(summary).foregroundStyle(.secondary).lineLimit(1).help("Requests shown with the current filters, and their response sizes")

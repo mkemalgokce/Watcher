@@ -5,6 +5,7 @@ import WatcherCore
 /// An image from a response or a Base64 field, on a checkerboard so transparency is visible, with size info and save/copy.
 struct ImagePreview: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.filePanels) private var filePanels
     let data: Data
     var mime: String?
     @State private var actualSize = false
@@ -56,10 +57,8 @@ struct ImagePreview: View {
     }
 
     private func save() {
-        let panel = NSSavePanel()
         let ext = (mime ?? Base64Finder.imageMime(data) ?? "image/png").replacingOccurrences(of: "image/", with: "").replacingOccurrences(of: "jpeg", with: "jpg").replacingOccurrences(of: "svg+xml", with: "svg")
-        panel.nameFieldStringValue = "image.\(ext)"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let url = filePanels.chooseSaveLocation(suggestedName: "image.\(ext)", contentTypes: []) else { return }
         do {
             try data.write(to: url)
             model.notices.notify("Saved \(url.lastPathComponent)", .success)

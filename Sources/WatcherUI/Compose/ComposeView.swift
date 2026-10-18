@@ -6,6 +6,7 @@ import WatcherCore
 struct ComposeView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.filePanels) private var filePanels
     @State private var viewModel = ComposeViewModel()
     @FocusState private var urlFocused: Bool
 
@@ -161,7 +162,7 @@ struct ComposeView: View {
                 }
                 Spacer()
                 Button("Choose File…") {
-                    if let chosen = KeyValueEditor.chooseFile() {
+                    if let chosen = KeyValueEditor.chooseFile(with: filePanels) {
                         viewModel.file = chosen
                     }
                 }
