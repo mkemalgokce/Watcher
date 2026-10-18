@@ -56,7 +56,8 @@ struct NoticeCenterTests {
         center.notify("second")
         #expect(await eventually { gate.waitingCount == 2 })
         gate.releaseOldest()
-        try? await Task.sleep(for: .milliseconds(50))
+        #expect(await eventually { gate.returnedCount == 1 })
+        await Task.yield() // the older timer's check runs on the main actor right after its wait returns
         #expect(center.notice?.message == "second")
         gate.releaseAll()
         #expect(await eventually { center.notice == nil })

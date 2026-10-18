@@ -6,6 +6,7 @@ public final class SleepGate: @unchecked Sendable {
     private let lock = NSLock()
     private var waiting: [CheckedContinuation<Void, Never>] = []
     private var recorded: [Duration] = []
+    private var returned = 0
 
     public init() {}
 
@@ -17,6 +18,11 @@ public final class SleepGate: @unchecked Sendable {
         lock.withLock { waiting.count }
     }
 
+    /// Waits that were let go and have handed control back to their caller.
+    public var returnedCount: Int {
+        lock.withLock { returned }
+    }
+
     public var sleep: Sleep {
         { [self] duration in
             await withCheckedContinuation { continuation in
@@ -25,6 +31,7 @@ public final class SleepGate: @unchecked Sendable {
                     waiting.append(continuation)
                 }
             }
+            lock.withLock { returned += 1 }
         }
     }
 

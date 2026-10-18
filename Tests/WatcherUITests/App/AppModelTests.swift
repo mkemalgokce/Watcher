@@ -41,8 +41,8 @@ struct AppModelTests {
         #expect(await eventually { model.proxy.isRunning && !model.proxy.isSwitchingProxy })
 
         model.finishOnboarding()
-        try? await Task.sleep(for: .milliseconds(50))
-        #expect(runner.calls.count == 1, "an already running proxy is not toggled off")
+        #expect(!model.proxy.isSwitchingProxy, "an already running proxy is not toggled off")
+        #expect(runner.calls.count == 1)
     }
 
     @Test

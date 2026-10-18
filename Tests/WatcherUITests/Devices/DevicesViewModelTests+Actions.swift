@@ -93,17 +93,23 @@ extension DevicesViewModelTests {
         @Test
         func aScanAlreadyRunningIsNotStartedAgain() async {
             let scans = LockedBox(0)
+            let blocked = DispatchSemaphore(value: 0)
             var probe = DevicesViewModel.DeviceProbe.none
             probe.simulators = {
                 scans.mutate { $0 += 1 }
-                Thread.sleep(forTimeInterval: 0.05)
+                if scans.value == 1 {
+                    blocked.wait() // only the first scan is held, so a second one would show up instead of hanging
+                }
                 return []
             }
             let devices = DevicesViewModel(probe: probe, certificateURL: Self.certificate) { 9090 }
-            async let first: Void = devices.refresh()
-            async let second: Void = devices.refresh()
-            _ = await (first, second)
+            let first = Task { await devices.refresh() }
+            #expect(await eventually { scans.value == 1 })
+            await devices.refresh()
+            blocked.signal()
+            await first.value
             #expect(scans.value == 1)
+            #expect(!devices.isScanning)
         }
     }
 }
