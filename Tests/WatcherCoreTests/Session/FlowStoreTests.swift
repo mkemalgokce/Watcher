@@ -3,9 +3,12 @@ import Testing
 @testable import WatcherCore
 import WatcherTestSupport
 
-/// Clearing the session hands back what it removed, so the UI can offer Undo, and restoring puts it back in front.
+/// The session's requests: clearing hands back what it removed so the UI can offer Undo, restoring puts it back in
+/// front, and observers, which rebuild the list from events, get them in the order the store applied the changes.
 @Suite(.tags(.unit))
-struct FlowStoreClearTests {
+struct FlowStoreTests {
+    private let iterations = 500
+
     @Test
     func clearReturnsTheRemovedFlowsInOrder() {
         let store = FlowStore()
@@ -76,5 +79,50 @@ struct FlowStoreClearTests {
             }
         }
         #expect(seen == ["cleared", "/a"])
+    }
+
+    @Test
+    func concurrentBeginsAreObservedInSequenceOrder() async {
+        let store = FlowStore()
+        let events = store.events()
+
+        DispatchQueue.concurrentPerform(iterations: iterations) { _ in
+            _ = store.begin(.fixture(scheme: "http", host: "example.test", port: 80))
+        }
+
+        var added: [Flow] = []
+        for await event in events {
+            if case let .added(flow) = event {
+                added.append(flow)
+            }
+            if added.count == iterations {
+                break
+            }
+        }
+        #expect(added.map(\.sequence) == Array(1 ... iterations))
+        #expect(added.map(\.startedAt) == added.map(\.startedAt).sorted())
+    }
+
+    @Test
+    func concurrentWebSocketMessagesAreObservedInOrder() async {
+        let store = FlowStore()
+        let flow = store.begin(.fixture(scheme: "ws", host: "example.test", port: 80))
+        let events = store.events()
+
+        let message = WebSocketMessage(direction: .serverToClient, kind: .text, payload: Data("x".utf8))
+        DispatchQueue.concurrentPerform(iterations: iterations) { _ in
+            store.appendWebSocketMessage(message, to: flow.id)
+        }
+
+        var counts: [Int] = []
+        for await event in events {
+            if case let .updated(updated) = event {
+                counts.append(updated.webSocketMessages.count)
+            }
+            if counts.count == iterations {
+                break
+            }
+        }
+        #expect(counts == Array(1 ... iterations))
     }
 }

@@ -72,7 +72,10 @@ The DMG window's background is `tools/dmg/background.svg`; after editing it, run
 ## Tests
 
 New tests use Swift Testing (`@Suite`, `@Test`, `#expect`, `#require`), one suite per subject in `<Subject>Tests.swift`,
-with test names that read as behaviour sentences. The kind of test is chosen by its target:
+with test names that read as behaviour sentences. A test file sits at the path of its subject's source:
+`Sources/<Module>/<Folder>/<Subject>.swift` is tested in `Tests/<Target>/<Folder>/<Subject>Tests.swift`. A subject too
+large for one file keeps one top-level suite and splits it into `<Subject>Tests+<Aspect>.swift` files, each holding
+`extension <Subject>Tests { struct <Aspect> { … } }`. The kind of test is chosen by its target:
 
 | Target | Holds |
 |---|---|
@@ -103,6 +106,6 @@ there it fails instead. Commit references only for screens whose change you have
 
 ## Adding a module
 
-1. Write its first test in `Tests/<Module>Tests/<Type>Tests.swift`.
+1. Write its first test in `Tests/<Module>Tests/<Folder>/<Type>Tests.swift`, mirroring `Sources/<Module>/<Folder>/<Type>.swift`.
 2. Add the target and its test target to `Package.swift`.
 3. Add `Sources/<Module> <percent>` to `scripts/coverage-thresholds.txt`.
