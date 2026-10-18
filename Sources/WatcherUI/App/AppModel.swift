@@ -273,15 +273,20 @@ public final class AppModel {
             return "Failed to start · see Settings"
         }
         if isRunning {
-            return "Recording on 127.0.0.1:\(String(engine.boundPort ?? settings.port)) · \(count)"
+            return "Recording on 127.0.0.1:\(String(proxyPort)) · \(count)"
         }
         return "Not recording · \(count)"
     }
 
     /// Code for a request; with "Add the proxy to copied cURL commands" on, cURL goes through Watcher again and trusts its certificate.
     func code(for request: RequestRecord, as language: CodeGenerator.Language = .curl, multiline: Bool = false) -> String {
-        let proxy = settings.includeProxyInCURL ? "http://127.0.0.1:\(engine.boundPort ?? settings.port)" : nil
+        let proxy = settings.includeProxyInCURL ? "http://127.0.0.1:\(proxyPort)" : nil
         return CodeGenerator.generate(request, as: language, proxy: proxy, certificate: engine.authority.certificateURL.path, multiline: multiline)
+    }
+
+    /// The port the proxy listens on: the one it bound while running, otherwise the configured one.
+    var proxyPort: Int {
+        engine.boundPort ?? settings.port
     }
 
     var selectedFlow: Flow? {
@@ -319,7 +324,7 @@ public final class AppModel {
             if settings.autoSystemProxy {
                 systemProxySwitch = Task { await switchSystemProxy(true) }
             }
-            notify("Recording on 127.0.0.1:\(engine.boundPort ?? settings.port)", .success)
+            notify("Recording on 127.0.0.1:\(proxyPort)", .success)
         } catch {
             isRunning = engine.isRunning
             proxyError = "Cannot start the proxy: \(error). Another app may be using port \(settings.port); "
@@ -358,7 +363,7 @@ public final class AppModel {
 
     /// networksetup runs once per setting and service, so it runs off the main thread to keep the window responsive.
     private func switchSystemProxy(_ enable: Bool) async {
-        let proxy = systemProxy, port = engine.boundPort ?? settings.port
+        let proxy = systemProxy, port = proxyPort
         do {
             try await Task.detached {
                 if enable {
@@ -562,12 +567,13 @@ public final class AppModel {
 
     /// Address a phone on the same network should use as its proxy.
     var lanProxyAddress: String? {
-        LocalNetwork.ipv4Addresses().first.map { "\($0.ip):\(engine.boundPort ?? settings.port)" }
+        LocalNetwork.ipv4Addresses().first.map { "\($0.ip):\(proxyPort)" }
     }
 
     /// The proxy endpoint Android devices should use.
     func setAndroidProxy(_ device: AndroidDevice, enabled: Bool) {
-        Task { await devices.setProxy(on: device, enabled: enabled, port: engine.boundPort ?? settings.port, lanAddress: LocalNetwork.ipv4Addresses().first?.ip) }
+        let lanAddress = LocalNetwork.ipv4Addresses().first?.ip
+        Task { await devices.setProxy(on: device, enabled: enabled, port: proxyPort, lanAddress: lanAddress) }
     }
 
     // MARK: Private

@@ -151,6 +151,13 @@ struct AppModelTests {
     }
 
     @Test
+    func theProxyPortIsTheConfiguredOneUntilAPortIsBound() {
+        let model = AppModel(listening: false)
+        model.settings.port = 9123
+        #expect(model.proxyPort == 9123)
+    }
+
+    @Test
     func statusLineUnderTheTitle() {
         let model = AppModel(listening: false)
         [Flow.fixture(sequence: 1, status: 200), .fixture(sequence: 2, status: 500)]

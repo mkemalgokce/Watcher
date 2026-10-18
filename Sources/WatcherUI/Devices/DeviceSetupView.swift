@@ -142,7 +142,8 @@ private struct IPhonePane: View {
         HStack(alignment: .top, spacing: 20) {
             VStack(alignment: .leading, spacing: 10) {
                 Step(number: 1, text: "Settings → Wi-Fi → (i) → Configure Proxy → Manual")
-                Step(number: 2, text: "Server \(model.lanProxyAddress?.split(separator: ":").first.map(String.init) ?? "—"), Port \(model.engine.boundPort ?? model.settings.port)")
+                let server = model.lanProxyAddress?.split(separator: ":").first.map(String.init) ?? "—"
+                Step(number: 2, text: "Server \(server), Port \(model.proxyPort)")
                 Step(number: 3, text: "Open \(pageURL) in Safari and tap the profile button")
                 Step(number: 4, text: "Settings → Profile Downloaded → Install")
                 Step(number: 5, text: "Settings → General → About → Certificate Trust Settings → enable Watcher Root CA")

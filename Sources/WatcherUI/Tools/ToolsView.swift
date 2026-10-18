@@ -224,7 +224,7 @@ struct ToolsView: View {
                 problems: { rule in
                     ToolValidation.problems(
                         rule,
-                        proxyPort: model.engine.boundPort ?? model.settings.port,
+                        proxyPort: model.proxyPort,
                         others: model.settings.reverseProxy.rules.filter { $0.localPort != rule.localPort || $0.remoteHost != rule.remoteHost }
                     )
                 }

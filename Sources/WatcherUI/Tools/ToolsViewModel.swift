@@ -38,7 +38,7 @@ final class ToolsViewModel {
         case .protobuf: return matching(s.protobuf) { $0.matching }
         case .dns: return s.dnsSpoofing.rules.filter(\.isEnabled).flatMap { ToolValidation.problems($0) }
         case .reverse:
-            let port = model.engine.boundPort ?? s.port
+            let port = model.proxyPort
             return s.reverseProxy.rules.enumerated().filter(\.element.isEnabled).flatMap { index, rule in
                 ToolValidation.problems(rule, proxyPort: port, others: s.reverseProxy.rules.enumerated().filter { $0.offset != index }.map(\.element))
             }

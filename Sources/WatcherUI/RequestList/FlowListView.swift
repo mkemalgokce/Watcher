@@ -167,7 +167,7 @@ private struct NoMatches: View {
 private struct GettingStarted: View {
     @Environment(AppModel.self) private var model
     private var port: Int {
-        model.engine.boundPort ?? model.settings.port
+        model.proxyPort
     }
 
     var body: some View {

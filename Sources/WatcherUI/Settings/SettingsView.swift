@@ -28,7 +28,9 @@ private struct GeneralSettings: View {
                             ProgressView().controlSize(.small)
                         }
                         Label(
-                            model.isRunning ? "Listening on 127.0.0.1:\(String(model.engine.boundPort ?? model.settings.port))" : model.proxyError == nil ? "Stopped" : "Failed to start",
+                            model.isRunning
+                                ? "Listening on 127.0.0.1:\(String(model.proxyPort))"
+                                : model.proxyError == nil ? "Stopped" : "Failed to start",
                             systemImage: "circle.fill"
                         )
                         .labelStyle(.titleAndIcon).imageScale(.small)
