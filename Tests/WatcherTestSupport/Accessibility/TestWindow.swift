@@ -30,10 +30,35 @@ public final class TestWindow {
         AccessibilityAPI.find(label)
     }
 
-    /// Presses the control labelled `label`; a label's text matches too, but only something pressable is pressed.
+    /// Whether an element labelled `label` shows up within the default wait.
+    public func shows(_ label: String) async -> Bool {
+        await eventually { exposeToAccessibility(); return !elements(label).isEmpty }
+    }
+
+    /// The first non-nil `find()` within the default wait, or nil when the element never shows up.
+    public func appearing(_ find: () -> AXUIElement?) async -> AXUIElement? {
+        var element: AXUIElement?
+        _ = await eventually { exposeToAccessibility(); element = find(); return element != nil }
+        return element
+    }
+
+    /// The service now and then hands out no window at all for seconds on end; ordering the window front again brings it back.
+    private func exposeToAccessibility() {
+        if AccessibilityAPI.firstWindowRole() != "AXWindow" {
+            window.orderFront(nil)
+        }
+    }
+
+    /// Presses the control labelled `label`, waiting for it to appear; a label's text matches too, but only something
+    /// pressable is pressed.
     public func press(_ label: String) async throws {
-        guard let control = elements(label).first(where: AccessibilityAPI.canPress) else {
-            throw TestSupportError("no control labelled “\(label)”")
+        let control = await appearing { elements(label).first(where: AccessibilityAPI.canPress) }
+        guard let control else {
+            let window = AccessibilityAPI.firstWindowRole() ?? "none"
+            let found = elements(label).isEmpty
+                ? "no control labelled “\(label)”"
+                : "“\(label)” shows but cannot be pressed"
+            throw TestSupportError("\(found) (first window role: \(window))")
         }
         let result = AccessibilityAPI.press(control)
         await settle()
@@ -42,7 +67,8 @@ public final class TestWindow {
 
     /// Types into the first editable element with `role` whose value starts with `prefix` (empty matches an empty field).
     public func type(_ text: String, intoFieldWithValue prefix: String = "", role: String) async -> Bool {
-        guard let field = AccessibilityAPI.firstElement(withRole: role, valuePrefix: prefix) else { return false }
+        let field = await appearing { AccessibilityAPI.firstElement(withRole: role, valuePrefix: prefix) }
+        guard let field else { return false }
         let typed = AccessibilityAPI.setValue(text, of: field)
         await settle()
         return typed

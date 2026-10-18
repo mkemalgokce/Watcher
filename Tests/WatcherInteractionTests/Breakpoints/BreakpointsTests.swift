@@ -15,7 +15,7 @@ extension InteractionTests {
                 BreakpointRule(name: "Users", matching: MatchingRule(pattern: "*/v1/users*")),
             ])
             try await withWindow(showing: BreakpointsView().environment(model), width: 900, height: 560) { window in
-                #expect(window.elements("Delete Breakpoint").count == 2)
+                #expect(await eventually { window.elements("Delete Breakpoint").count == 2 })
 
                 try await window.press("Delete Breakpoint")
                 #expect(model.settings.breakpoints.rules.map(\.name) == ["Users"])

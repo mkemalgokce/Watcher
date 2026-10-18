@@ -12,7 +12,7 @@ extension InteractionTests {
             let model = try AppModel.test(clipboard: clipboard)
             try await withWindow(showing: AboutView().environment(model), width: 480, height: 640) { window in
                 #expect(
-                    !window.elements("Development build").isEmpty,
+                    await window.shows("Development build"),
                     "an unbundled run says so instead of borrowing another version"
                 )
                 try await window.press("Copy Version Info")

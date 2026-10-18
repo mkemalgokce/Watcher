@@ -10,8 +10,8 @@ extension InteractionTests {
         func devicesOffersToTrustWhenNotTrusted() async throws {
             let model = try AppModel.test() // the test probe reports "not trusted" and no devices
             await withWindow(showing: DeviceSetupView().environment(model), width: 760, height: 560) { window in
-                #expect(!window.elements("Not trusted yet").isEmpty)
-                #expect(!window.elements("Install & Trust…").isEmpty, "the action that fixes it is right there")
+                #expect(await window.shows("Not trusted yet"))
+                #expect(await window.shows("Install & Trust…"), "the action that fixes it is right there")
                 #expect(window.elements("Remove").isEmpty, "nothing to remove while not trusted")
             }
         }

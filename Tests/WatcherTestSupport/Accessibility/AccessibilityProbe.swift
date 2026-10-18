@@ -26,7 +26,6 @@ public enum AccessibilityProbe {
         MainRunLoopKeeper.install()
         let probe = TestWindow(showing: Text("Accessibility check"), width: 200, height: 100)
         defer { probe.close() }
-        await settle()
-        return AccessibilityAPI.firstWindowRole() == "AXWindow"
+        return await eventually(timeout: 2) { AccessibilityAPI.firstWindowRole() == "AXWindow" }
     }
 }

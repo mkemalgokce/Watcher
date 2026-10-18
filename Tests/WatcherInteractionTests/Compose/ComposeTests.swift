@@ -11,10 +11,10 @@ extension InteractionTests {
             let model = try AppModel.test()
             let compose = ComposeView(now: model.now).environment(model)
             try await withWindow(showing: compose, width: 900, height: 640) { window in
-                #expect(!window.elements("Start Proxy").isEmpty, "the empty response pane offers to start the proxy")
+                #expect(await window.shows("Start Proxy"), "the empty response pane offers to start the proxy")
                 try await window.press("Send")
                 #expect(
-                    await eventually { !window.elements("Not Sent").isEmpty },
+                    await window.shows("Not Sent"),
                     "a send with the proxy stopped shows why"
                 )
             }

@@ -12,12 +12,13 @@ extension InteractionTests {
             let model = try AppModel.demo()
             try await withWindow(showing: FlowListView().environment(model)) { window in
                 #expect(model.list.visibleFlows.count == 5)
+                #expect(await window.shows("Method"), "the list has drawn")
                 #expect(window.elements("Clear Filters").isEmpty, "no summary row while nothing is filtered")
 
                 FilterToken.apply([.status(4)], to: &model.list.query)
                 #expect(await eventually { model.list.visibleFlows.map(\.response?.status) == [401, 403] })
                 #expect(
-                    await eventually { !window.elements("2 of 5 requests").isEmpty },
+                    await window.shows("2 of 5 requests"),
                     "the summary says how many are left"
                 )
 
