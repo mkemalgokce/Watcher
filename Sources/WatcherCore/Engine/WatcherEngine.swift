@@ -11,7 +11,7 @@ public final class WatcherEngine: @unchecked Sendable {
     /// Receives script `console.log` output and non-fatal problems (e.g. a busy reverse-proxy port).
     public var onLog: @Sendable (String) -> Void = { _ in }
 
-    /// Guards `server`, `bound` and `protobufSchema`, which callers read from any thread.
+    /// Guards `server`, `bound`, `protobufSchema` and `loadedPAC`, which callers reach from any thread.
     private let lock = NSLock()
     private var server: ProxyServer?
     private var bound: Int?
@@ -53,15 +53,16 @@ public final class WatcherEngine: @unchecked Sendable {
     /// Starts listening on the configured port (or `port`) and returns the bound port; a running proxy is stopped first.
     @discardableResult
     public func start(port: Int? = nil) async throws -> Int {
-        try await inOrder { [self] in
+        let pac = await pacEvaluator(for: settings.value.externalProxy)
+        return try await inOrder { [self] in
             if lock.withLock({ server != nil }) {
                 try await stopNow()
             }
-            return try await startNow(port: port)
+            return try await startNow(port: port, pac: pac)
         }
     }
 
-    private func startNow(port: Int?) async throws -> Int {
+    private func startNow(port: Int?, pac: PACEvaluator?) async throws -> Int {
         // A stopped ProxyServer cannot be restarted, so every start gets a fresh one.
         let server = makeServer(store, authority)
         let current = settings.value
@@ -90,7 +91,7 @@ public final class WatcherEngine: @unchecked Sendable {
             }
         }
         appliedReverseProxies = nil; appliedSocks = nil
-        await applyNow(settings.value)
+        await applyNow(settings.value, pac: pac)
         watcher = Task { [weak self, sleep] in
             while !Task.isCancelled {
                 try? await sleep(.seconds(1))
@@ -145,11 +146,13 @@ public final class WatcherEngine: @unchecked Sendable {
     }
 
     /// Pushes settings into the live proxy; does nothing while stopped (start applies them).
+    /// The PAC script loads before queueing, so a slow download never holds up a stop or a start.
     public func apply(_ settings: WatcherSettings) async {
-        _ = try? await inOrder { [self] in await applyNow(settings) }
+        let pac = isRunning ? await pacEvaluator(for: settings.externalProxy) : nil
+        _ = try? await inOrder { [self] in await applyNow(settings, pac: pac) }
     }
 
-    private func applyNow(_ settings: WatcherSettings) async {
+    private func applyNow(_ settings: WatcherSettings, pac: PACEvaluator?) async {
         guard let server = lock.withLock({ server }) else { return }
         let log = onLog
         loadProtobufSchemas(settings.protobufSchemas, log: log)
@@ -160,9 +163,9 @@ public final class WatcherEngine: @unchecked Sendable {
         server.updatePolicies(settings)
         store.maxFlows = settings.maxFlows
         server.sslProxying = HostFilter(include: settings.sslProxying.include, exclude: settings.sslProxying.exclude)
-        await server.updateUpstream(
+        server.updateUpstream(
             external: settings.externalProxy,
-            pac: pacEvaluator(for: settings.externalProxy, log: log),
+            pac: pac,
             dnsRules: settings.dnsSpoofing.active,
             certificates: settings.customCertificates.active
         )
@@ -277,17 +280,17 @@ public final class WatcherEngine: @unchecked Sendable {
         return BodyPreview.text(data, contentType: contentType)
     }
 
-    private func pacEvaluator(for external: ExternalProxySettings, log: @Sendable (String) -> Void) async -> PACEvaluator? {
+    private func pacEvaluator(for external: ExternalProxySettings) async -> PACEvaluator? {
         guard external.isEnabled, external.kind == .pac, !external.pacURL.isEmpty else { return nil }
-        if let loaded = loadedPAC, loaded.location == external.pacURL {
+        if let loaded = lock.withLock({ loadedPAC }), loaded.location == external.pacURL {
             return loaded.evaluator
         }
         do {
             let evaluator = try await pacLoader(external.pacURL)
-            loadedPAC = (external.pacURL, evaluator)
+            lock.withLock { loadedPAC = (external.pacURL, evaluator) }
             return evaluator
         } catch {
-            log("PAC: \(error)")
+            onLog("PAC: \(error)")
             return nil
         }
     }
