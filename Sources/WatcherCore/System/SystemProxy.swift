@@ -21,19 +21,21 @@ public struct SystemProxy: Sendable {
 
     private let run: Runner
     private let backupURL: URL
+    private let files: FileAccess
 
     public init(
         run: @escaping Runner = SystemProxy.networksetup,
-        backupURL: URL = WatcherPaths.supportDirectory.appendingPathComponent("system-proxy-backup.json")
+        backupURL: URL = WatcherPaths.supportDirectory.appendingPathComponent("system-proxy-backup.json"),
+        files: FileAccess = .live
     ) {
-        self.run = run; self.backupURL = backupURL
+        self.run = run; self.backupURL = backupURL; self.files = files
     }
 
     public static let shared = SystemProxy()
 
     /// True when an earlier run turned the system proxy on and never put the original back (crash, force quit).
     public var hasPendingRestore: Bool {
-        FileManager.default.fileExists(atPath: backupURL.path)
+        files.fileExists(backupURL.path)
     }
 
     public static func enable(host: String = "127.0.0.1", port: Int) throws {
@@ -47,7 +49,7 @@ public struct SystemProxy: Sendable {
     public func enable(host: String = "127.0.0.1", port: Int) throws {
         let serviceNames = try services()
         // Enabling twice must not replace the real original with Watcher's own settings.
-        if !FileManager.default.fileExists(atPath: backupURL.path) {
+        if !hasPendingRestore {
             try saveBackup(for: serviceNames)
         }
         for service in serviceNames {
@@ -62,7 +64,7 @@ public struct SystemProxy: Sendable {
             try restore(backup[service]?.web, for: service, set: "-setwebproxy", state: "-setwebproxystate")
             try restore(backup[service]?.secure, for: service, set: "-setsecurewebproxy", state: "-setsecurewebproxystate")
         }
-        try? FileManager.default.removeItem(at: backupURL)
+        try? files.remove(backupURL)
     }
 
     /// Enabled network services; the first output line is an explanatory note and disabled services start with `*`.
@@ -77,12 +79,12 @@ public struct SystemProxy: Sendable {
         for service in services {
             backup[service] = try Original(web: Self.parse(run(["-getwebproxy", service])), secure: Self.parse(run(["-getsecurewebproxy", service])))
         }
-        try FileManager.default.createDirectory(at: backupURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try JSONEncoder().encode(backup).write(to: backupURL, options: .atomic)
+        try files.createDirectory(backupURL.deletingLastPathComponent())
+        try files.writeAtomically(JSONEncoder().encode(backup), backupURL)
     }
 
     private func loadBackup() -> [String: Original] {
-        (try? Data(contentsOf: backupURL)).flatMap { try? JSONDecoder().decode([String: Original].self, from: $0) } ?? [:]
+        (try? files.read(backupURL)).flatMap { try? JSONDecoder().decode([String: Original].self, from: $0) } ?? [:]
     }
 
     /// Writes the saved host and port back; with no backup entry the proxy is simply switched off.
