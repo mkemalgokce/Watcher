@@ -5,13 +5,11 @@ import WatcherTestSupport
 
 @Suite(.tags(.unit))
 struct MockMakerTests {
-    private let directory: TemporaryDirectory
-    private var folder: URL {
-        directory.appending("mocks")
-    }
+    private let folder = URL(fileURLWithPath: "/fake-home/.watcher/mocks")
+    private let files = FileAccessFake()
 
-    init() throws {
-        directory = try TemporaryDirectory(prefix: "watcher-mocks")
+    private func make(_ flow: Flow) throws -> MockMaker.Mock {
+        try MockMaker.make(from: flow, in: folder, files: files.access)
     }
 
     private func flow(status: Int = 200, body: String = #"{"a":1}"#) -> Flow {
@@ -28,9 +26,10 @@ struct MockMakerTests {
 
     @Test
     func plainJSONFileAndRuleThatMatchesTheSamePathWithAnyQuery() throws {
-        let mock = try MockMaker.make(from: flow(), in: folder)
+        let mock = try make(flow())
         #expect(mock.file.pathExtension == "json")
-        #expect(try Data(contentsOf: mock.file) == Data(#"{"a":1}"#.utf8))
+        #expect(mock.file.path == "/fake-home/.watcher/mocks/api.example.com/get-v1_users.json")
+        #expect(files.contents(of: mock.file.path) == Data(#"{"a":1}"#.utf8))
         let matcher = mock.rule.matching.compile()
         #expect(matcher.matches(.fixture(method: "GET", path: "/v1/users")))
         #expect(matcher.matches(.fixture(method: "GET", path: "/v1/users?page=2")))
@@ -42,10 +41,10 @@ struct MockMakerTests {
     /// A 404 keeps its status: the file is a raw HTTP message that Map Local serves as it is.
     @Test
     func non200KeepsStatusAndHeadersButDropsStaleLengths() throws {
-        let mock = try MockMaker.make(from: flow(status: 404, body: #"{"error":"missing"}"#), in: folder)
+        let mock = try make(flow(status: 404, body: #"{"error":"missing"}"#))
         #expect(mock.file.pathExtension == "txt")
         let served = try HTTPMessageFile.response(
-            from: Data(contentsOf: mock.file),
+            from: #require(files.contents(of: mock.file.path)),
             fileName: mock.file.lastPathComponent
         )
         #expect(served.status == 404)
@@ -56,9 +55,23 @@ struct MockMakerTests {
 
     @Test
     func filesDoNotOverwriteEachOtherAndNoResponseIsAnError() throws {
-        let first = try MockMaker.make(from: flow(), in: folder), second = try MockMaker.make(from: flow(), in: folder)
+        let first = try make(flow()), second = try make(flow())
         #expect(first.file != second.file)
         var pending = flow(); pending.response = nil
-        #expect(throws: (any Error).self) { try MockMaker.make(from: pending, in: folder) }
+        #expect(throws: (any Error).self) { try make(pending) }
+    }
+
+    @Test
+    func aTakenNameGetsTheNextFreeNumber() throws {
+        let directory = "/fake-home/.watcher/mocks/api.example.com"
+        files.write(Data(), to: "\(directory)/get-v1_users.json")
+        files.write(Data(), to: "\(directory)/get-v1_users-2.json")
+        #expect(try make(flow()).file.lastPathComponent == "get-v1_users-3.json")
+    }
+
+    @Test(arguments: [FileAccessFake.Operation.createDirectory, .writeAtomically])
+    func aFolderOrFileThatCannotBeWrittenIsReported(_ operation: FileAccessFake.Operation) {
+        files.fail(operation)
+        #expect(throws: FileAccessFake.Failure(operation: operation)) { try make(flow()) }
     }
 }

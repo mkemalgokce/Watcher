@@ -10,7 +10,7 @@ public enum MockMaker {
 
     public struct Failure: Error, CustomStringConvertible { public let description: String }
 
-    public static func make(from flow: Flow, in folder: URL) throws -> Mock {
+    public static func make(from flow: Flow, in folder: URL, files: FileAccess = .live) throws -> Mock {
         guard let response = flow.response else { throw Failure(description: "This request has no response to mock yet.") }
         let decoded = BodyDecoder.decode(response.body, contentEncoding: response.headers.value(for: "content-encoding")).data
         let type = response.headers.value(for: "content-type")
@@ -33,11 +33,12 @@ public enum MockMaker {
         }
 
         let directory = folder.appendingPathComponent(safe(flow.request.host), isDirectory: true)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try files.createDirectory(directory)
         let path = flow.request.path.split(separator: "?").first.map(String.init) ?? "/"
         let base = "\(flow.request.method.lowercased())-\(safe(path == "/" ? "root" : path))"
-        let file = unique(directory.appendingPathComponent(base).appendingPathExtension(plain ? ext! : "txt"))
-        try data.write(to: file)
+        let named = directory.appendingPathComponent(base).appendingPathExtension((plain ? ext : nil) ?? "txt")
+        let file = unique(named, files: files)
+        try files.writeAtomically(data, file)
 
         let pattern = "^(https?://)?" + NSRegularExpression.escapedPattern(for: flow.request.host) + "(:\\d+)?" + NSRegularExpression.escapedPattern(for: path) + "(\\?.*)?$"
         let rule = MapLocalRule(
@@ -91,10 +92,10 @@ public enum MockMaker {
         return String(String(cleaned).trimmingCharacters(in: CharacterSet(charactersIn: "_")).prefix(80))
     }
 
-    private static func unique(_ url: URL) -> URL {
+    private static func unique(_ url: URL, files: FileAccess) -> URL {
         var candidate = url, n = 2
         let ext = url.pathExtension, stem = url.deletingPathExtension().lastPathComponent
-        while FileManager.default.fileExists(atPath: candidate.path) {
+        while files.fileExists(candidate.path) {
             candidate = url.deletingLastPathComponent().appendingPathComponent("\(stem)-\(n)").appendingPathExtension(ext); n += 1
         }
         return candidate
