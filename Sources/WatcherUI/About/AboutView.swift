@@ -7,6 +7,7 @@ import WatcherCore
 public struct AboutView: View {
     @Environment(RequestActions.self) private var actions
     @Environment(DevicesViewModel.self) private var devices
+    @Environment(ExternalApps.self) private var externalApps
     public init() {}
 
     static let libraries: [(name: String, use: String)] = [
@@ -64,7 +65,7 @@ public struct AboutView: View {
                     }
                     // Only a packaged app carries the notices (tools/build-app.sh writes them).
                     if let notices = ProjectLinks.thirdPartyNotices {
-                        Button("Licences and Notices…") { NSWorkspace.shared.open(notices) }
+                        Button("Licences and Notices…") { Task { await externalApps.open(notices, with: nil) } }
                             .buttonStyle(.link).font(.callout).padding(.top, 4)
                             .help("The licences of the open-source packages Watcher includes")
                     }
@@ -94,7 +95,7 @@ public struct AboutView: View {
                     .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
             }
             Spacer()
-            IconButton("Show in Finder", symbol: "magnifyingglass") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+            IconButton("Show in Finder", symbol: "magnifyingglass") { externalApps.reveal(url) }
         }
     }
 

@@ -18,6 +18,7 @@ public final class AppModel {
     let list: FlowListViewModel
     let proxy: ProxyController
     let actions: RequestActions
+    let externalApps: ExternalApps
     let sessionFiles: SessionFilesViewModel
     let workspaces: WorkspacesViewModel
     let breakpoints: BreakpointsViewModel
@@ -62,6 +63,7 @@ public final class AppModel {
             services: dependencies.requestServices,
             store: engine.store, settings: settings, notices: notices, router: router, list: list, proxy: proxy
         )
+        externalApps = ExternalApps(workspace: dependencies.workspace, notices: notices)
         sessionFiles = SessionFilesViewModel(
             panels: dependencies.panels, files: dependencies.files, commands: dependencies.commands,
             store: engine.store, notices: notices

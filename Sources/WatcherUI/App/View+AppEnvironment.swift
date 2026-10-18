@@ -11,6 +11,7 @@ public extension View {
             .environment(model.notices)
             .environment(model.breakpoints)
             .environment(model.actions)
+            .environment(model.externalApps)
             .environment(model.sessionFiles)
             .environment(model.workspaces)
             .environment(model.devices)
