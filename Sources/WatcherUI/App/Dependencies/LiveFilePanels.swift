@@ -1,5 +1,4 @@
 import AppKit
-import SwiftUI
 import UniformTypeIdentifiers
 
 struct LiveFilePanels: FilePanels {
@@ -18,9 +17,4 @@ struct LiveFilePanels: FilePanels {
         }
         return panel.runModal() == .OK ? panel.url : nil
     }
-}
-
-extension EnvironmentValues {
-    /// For shared components that pick a file without a view model of their own.
-    @Entry var filePanels: any FilePanels = LiveFilePanels()
 }

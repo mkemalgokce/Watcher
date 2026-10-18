@@ -94,9 +94,7 @@ private struct WatcherToolbar: ToolbarContent {
                 .help("Remove every request from the list; Undo brings them back (⌘K)")
         }
         ToolbarItemGroup(placement: .primaryAction) {
-            let settings = model.settings.value
-            let activeTools = ToolsView.Tool.allCases
-                .reduce(0) { $0 + ($1 == .sslProxying ? 0 : $1.activeCount(in: settings)) }
+            let activeTools = ToolsView.Tool.activeRuleCount(in: model.settings.value)
             Button { router.show(.breakpoints) } label: {
                 Label("Breakpoints", systemImage: breakpoints.hits.isEmpty ? "pause.circle" : "pause.circle.fill")
             }

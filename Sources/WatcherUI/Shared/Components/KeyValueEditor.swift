@@ -5,7 +5,7 @@ import WatcherCore
 /// The shared editor for headers, query parameters, form fields and multipart parts: one row per entry with an on/off box,
 /// add and remove, an optional file per row, suggestions for common names, and a text mode for pasting many at once.
 struct KeyValueEditor: View {
-    @Environment(SessionFilesViewModel.self) private var sessionFiles
+    @Environment(AppModel.self) private var model
     @Binding var rows: [KeyValue]
     var title: String
     var allowsFiles = false
@@ -57,7 +57,7 @@ struct KeyValueEditor: View {
                                     Button("Text") { row.file = nil }
                                     Button("Choose File…") {
                                         Task {
-                                            if let file = await sessionFiles.chooseFilePart() {
+                                            if let file = await model.filePicker.choosePart() {
                                                 row.file = file
                                             }
                                         }

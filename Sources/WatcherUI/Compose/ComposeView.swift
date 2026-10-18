@@ -8,7 +8,7 @@ struct ComposeView: View {
     @Environment(ProxyController.self) private var proxy
     @Environment(RequestActions.self) private var actions
     @Environment(\.dismiss) private var dismiss
-    @Environment(SessionFilesViewModel.self) private var sessionFiles
+    @Environment(AppModel.self) private var model
     @State private var viewModel = ComposeViewModel()
     @FocusState private var urlFocused: Bool
 
@@ -167,7 +167,7 @@ struct ComposeView: View {
                 Spacer()
                 Button("Choose File…") {
                     Task {
-                        if let chosen = await sessionFiles.chooseFilePart() {
+                        if let chosen = await model.filePicker.choosePart() {
                             viewModel.file = chosen
                         }
                     }

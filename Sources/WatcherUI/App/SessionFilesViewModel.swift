@@ -78,16 +78,6 @@ final class SessionFilesViewModel {
         saveData(ExchangeText.body(of: flow, side: side), suggestedName: name)
     }
 
-    /// Open panel for a multipart file field; the file is read off the main thread, and nil means cancelled or unreadable.
-    func chooseFilePart() async -> KeyValue.FilePart? {
-        guard let url = panels.chooseItem(directory: false) else { return nil }
-        let files = files
-        let read = Task.detached(priority: .userInitiated) { try files.read(url) }
-        guard let data = try? await read.value else { return nil }
-        let type = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
-        return KeyValue.FilePart(filename: url.lastPathComponent, contentType: type, data: data)
-    }
-
     private func read(_ url: URL) async throws -> [Flow] {
         let files = files
         switch url.pathExtension.lowercased() {

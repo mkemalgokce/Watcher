@@ -26,14 +26,20 @@ extension RuleSet {
 }
 
 extension ToolsView.Tool {
-    private static let statusBarOrder: [Self] = [
+    /// The tools that change traffic, in the order the status bar names them; the others only inspect it.
+    private static let changingTraffic: [Self] = [
         .mapLocal, .mapRemote, .block, .allow, .breakpoint, .scripting, .dns, .reverse, .throttling, .externalProxy,
     ]
 
     /// The tools changing traffic now, by name, as the status bar lists them; No Caching is a setting of its own.
     static func activeNames(in settings: WatcherSettings) -> [String] {
-        let tools = statusBarOrder.filter { $0.activeCount(in: settings) > 0 }.map(\.rawValue)
+        let tools = changingTraffic.filter { $0.activeCount(in: settings) > 0 }.map(\.rawValue)
         return tools + (settings.noCaching ? ["No Caching"] : [])
+    }
+
+    /// The toolbar badge: rules of the tools `activeNames` lists.
+    static func activeRuleCount(in settings: WatcherSettings) -> Int {
+        changingTraffic.reduce(0) { $0 + $1.activeCount(in: settings) }
     }
 
     /// Rules that take effect now, shown as a badge in the Tools sidebar; 0 hides the badge.
