@@ -58,6 +58,19 @@ struct SmokeTests {
         #expect(!model.proxy.isRunning)
     }
 
+    @Test @MainActor
+    func appModelOnTheShippedWiringKeepsToItsFolderAndDoesNotListen() throws {
+        try withTemporaryDirectory(prefix: "watcher-smoke") { directory in
+            let commands = CommandRunnerSpy()
+            let model = try AppModel(dependencies: .preview(in: directory.url, commands: commands.runner))
+
+            #expect(!model.proxy.isRunning)
+            #expect(model.list.flows.isEmpty)
+            #expect(commands.commands.isEmpty, "no networksetup or other program runs: \(commands.calls)")
+            #expect(FileManager.default.fileExists(atPath: directory.appending("watcher-ca.pem").path))
+        }
+    }
+
     @Test(.tags(.network)) @MainActor
     func appModelOnALiveEngineListsWhatPassesThroughTheProxy() async throws {
         try await withHarness { harness in

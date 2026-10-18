@@ -1,0 +1,9 @@
+USAGE: watcher-cli rules import <path> [--mode <mode>]
+
+ARGUMENTS:
+  <path>                  JSON file produced by `rules export`.
+
+OPTIONS:
+  --mode <mode>           append (add to existing rules) or override (replace everything).
+                          (default: override)
+  -h, --help              Show help information.

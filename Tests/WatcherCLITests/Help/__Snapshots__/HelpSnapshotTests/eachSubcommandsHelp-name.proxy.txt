@@ -1,0 +1,10 @@
+OVERVIEW: Turn the macOS system HTTP(S) proxy on or off.
+
+USAGE: watcher-cli proxy <state> [--port <port>]
+
+ARGUMENTS:
+  <state>
+
+OPTIONS:
+  --port <port>           Watcher port to point at (default: from settings, 9090).
+  -h, --help              Show help information.

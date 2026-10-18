@@ -1,0 +1,8 @@
+USAGE: watcher-cli rules export <path> [--mode <mode>]
+
+ARGUMENTS:
+  <path>                  Destination file.
+
+OPTIONS:
+  --mode <mode>           all (every rule) or enabledRules (only enabled ones). (default: all)
+  -h, --help              Show help information.

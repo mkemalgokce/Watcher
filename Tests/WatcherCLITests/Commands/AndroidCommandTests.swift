@@ -168,4 +168,14 @@ struct AndroidCommandTests {
         let command = try AndroidCommand.parse(arguments)
         return #expect(throws: ValidationError.self) { try command.run(in: cli.environment) }
     }
+
+    @Test
+    func certNeverPushesWhenTheRootCertificateCannotBeCreated() throws {
+        let cli = Self.harness(devices: [Self.phone])
+        cli.files.fail(.createDirectory)
+        let command = try AndroidCommand.parse(["cert"])
+        #expect(throws: FileAccessFake.Failure(operation: .createDirectory)) { try command.run(in: cli.environment) }
+        #expect(!cli.commands.calls.contains { $0.contains(" push ") })
+        #expect(cli.printed.isEmpty)
+    }
 }

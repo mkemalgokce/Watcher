@@ -60,6 +60,7 @@ jobs:
           bash scripts/tests/check-commit-msg-test.sh
           bash scripts/tests/coverage-gate-test.sh
           bash scripts/tests/package-release-test.sh
+          bash scripts/tests/third-party-notices-test.sh
 
   swift:
     needs: changes

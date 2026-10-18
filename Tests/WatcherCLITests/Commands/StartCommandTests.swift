@@ -41,8 +41,8 @@ struct StartCommandTests {
         #expect(throws: (any Error).self) { try Start.parse(["--port=\(port)"]) }
     }
 
-    /// Runs `start` until it waits for Ctrl-C, then runs `whileRunning`, waits for `until`, and presses Ctrl-C.
-    /// Runs `start` until it waits for Ctrl-C (or ends by itself), then presses Ctrl-C `ctrlC` times.
+    /// Runs `start` until it waits for Ctrl-C (or ends by itself), runs `whileRunning`, waits for `until`, and then
+    /// presses Ctrl-C `ctrlC` times.
     static func run(
         _ arguments: [String],
         in cli: CLIHarness,

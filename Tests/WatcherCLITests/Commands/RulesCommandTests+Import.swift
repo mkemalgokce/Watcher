@@ -61,5 +61,15 @@ extension RulesCommandTests {
             #expect(!cli.files.paths.contains(cli.supportFile("settings.json")))
             #expect(cli.printed.count == 1)
         }
+
+        @Test
+        func aSettingsFileThatCannotBeWrittenPrintsNoImportedLine() throws {
+            let cli = CLIHarness()
+            try cli.files.write(RulesCommandTests.pretty(WatcherSettings()), to: "/tmp/rules.json")
+            cli.files.fail(.writePrivately)
+            let command = try Rules.Import.parse(["/tmp/rules.json"])
+            #expect(throws: FileAccessFake.Failure(operation: .writePrivately)) { try command.run(in: cli.environment) }
+            #expect(!cli.printed.contains("Imported"))
+        }
     }
 }

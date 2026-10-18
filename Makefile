@@ -10,7 +10,7 @@ UNIT_TESTS := ^(WatcherCoreTests|WatcherUITests|WatcherCLITests)\.
 OUTSIDE_COVERAGE := WatcherInteractionTests|WatcherSnapshotTests|WatcherE2ETests
 
 .PHONY: bootstrap tools format format-check lint lint-baseline lint-analyze lint-analyze-baseline test test-unit \
-	test-integration test-smoke test-e2e test-snapshot snapshots-record test-interaction changelog coverage dmg
+	test-scripts test-integration test-smoke test-e2e test-snapshot snapshots-record test-interaction changelog coverage dmg
 
 bootstrap:
 	brew bundle --no-upgrade
@@ -53,6 +53,10 @@ test:
 
 test-unit:
 	swift test --filter '$(UNIT_TESTS)'
+
+# The script tests CI runs in its "Test scripts" step.
+test-scripts:
+	for script in scripts/tests/*-test.sh; do bash "$$script" || exit 1; done
 
 test-integration:
 	swift test --no-parallel --filter WatcherIntegrationTests

@@ -6,11 +6,29 @@ struct FinishedFlowLines {
 
     /// Flows update several times (streamed headers, WebSocket messages), so only the first finished update gets a line.
     mutating func line(for event: FlowEvent) -> String? {
-        guard case let .updated(flow) = event, flow.state != .pending, let response = flow.response,
-              printed.insert(flow.id).inserted else { return nil }
+        switch event {
+        case let .updated(flow):
+            guard flow.state != .pending, printed.insert(flow.id).inserted else { return nil }
+            return line(for: flow)
+        case let .removed(id):
+            printed.remove(id)
+        case .cleared:
+            printed.removeAll()
+        case .added:
+            break
+        }
+        return nil
+    }
+
+    private func line(for flow: Flow) -> String {
         let milliseconds = Int((flow.duration ?? 0) * 1000)
         let tools = flow.appliedTools.isEmpty ? "" : "  [\(flow.appliedTools.joined(separator: ", "))]"
         let request = flow.request
-        return "\(flow.sequence)  \(response.status)  \(request.method)  \(request.url)  \(milliseconds)ms\(tools)"
+        return "\(flow.sequence)  \(outcome(of: flow))  \(request.method)  \(request.url)  \(milliseconds)ms\(tools)"
+    }
+
+    /// The status, or ERR when the flow ended without a response.
+    private func outcome(of flow: Flow) -> String {
+        flow.response.map { String($0.status) } ?? "ERR"
     }
 }

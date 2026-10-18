@@ -1,0 +1,12 @@
+OVERVIEW: List Android devices, copy the root certificate to one, or point its proxy at Watcher.
+
+USAGE: watcher-cli android [<action>] [--serial <serial>] [--port <port>]
+
+ARGUMENTS:
+  <action>                list | cert (copy to Downloads) | proxy (set) | unproxy (clear) (default:
+                          list)
+
+OPTIONS:
+  --serial <serial>       adb serial; defaults to the only connected device.
+  --port <port>           Watcher port the device should use (default: from settings, 9090).
+  -h, --help              Show help information.

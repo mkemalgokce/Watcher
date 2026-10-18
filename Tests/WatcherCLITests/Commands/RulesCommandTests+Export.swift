@@ -55,6 +55,16 @@ extension RulesCommandTests {
             #expect(throws: FileAccessFake.Failure(operation: .writeAtomically)) {
                 try command.run(in: cli.environment)
             }
+            #expect(cli.printed == [
+                "[Export] Prepare for exporting Watcher Rules. Mode = all, output = /tmp/rules.json",
+            ])
+        }
+
+        @Test
+        func exportingPrintsOnlyWhereItPreparesToWrite() throws {
+            let cli = CLIHarness()
+            try Rules.Export.parse(["/tmp/rules.json"]).run(in: cli.environment)
+            #expect(cli.printed.count == 1)
         }
     }
 }

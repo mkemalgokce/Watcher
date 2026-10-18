@@ -46,4 +46,14 @@ struct SimulatorCertCommandTests {
         #expect(cli.commands.commands.isEmpty)
         #expect(cli.printed.isEmpty)
     }
+
+    @Test
+    func neverRunsSimctlWhenTheRootCertificateCannotBeCreated() throws {
+        let cli = CLIHarness()
+        cli.files.fail(.createDirectory)
+        let command = try SimulatorCert.parse([])
+        #expect(throws: FileAccessFake.Failure(operation: .createDirectory)) { try command.run(in: cli.environment) }
+        #expect(cli.commands.commands.isEmpty)
+        #expect(cli.printed.isEmpty)
+    }
 }

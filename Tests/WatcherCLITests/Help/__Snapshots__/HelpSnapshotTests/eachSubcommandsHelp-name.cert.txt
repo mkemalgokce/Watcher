@@ -1,0 +1,6 @@
+OVERVIEW: Print the root certificate path; trust it to decrypt HTTPS.
+
+USAGE: watcher-cli cert
+
+OPTIONS:
+  -h, --help              Show help information.

@@ -64,35 +64,44 @@ struct Start: AsyncParsableCommand {
         }
     }
 
-    /// Headless sessions cannot edit a held message, so breakpoints just continue unchanged.
+    /// Headless sessions cannot edit a held message, so breakpoints just continue unchanged. Hits held before the
+    /// subscription (the proxy was already taking traffic) are continued first, as `changes()` does not replay.
     private static func continueBreakpoints(
         of engine: any EngineControlling,
         output: @escaping Output
     ) -> Task<Void, Never> {
         let changes = engine.breakpoints.changes()
         return Task {
+            continuePending(of: engine, output: output)
             for await _ in changes {
-                for hit in engine.breakpoints.pending {
-                    let request = hit.request
-                    let held = "\(hit.phase.rawValue) \(request.method) \(request.url)"
-                    output("[breakpoint] \(held) (continued; use the app to edit)")
-                    engine.breakpoints.resolve(hit.id, with: .proceed(request: request, response: hit.response))
-                }
+                continuePending(of: engine, output: output)
             }
         }
     }
 
+    private static func continuePending(of engine: any EngineControlling, output: Output) {
+        for hit in engine.breakpoints.pending {
+            let request = hit.request
+            let held = "\(hit.phase.rawValue) \(request.method) \(request.url)"
+            output("[breakpoint] \(held) (continued; use the app to edit)")
+            engine.breakpoints.resolve(hit.id, with: .proceed(request: request, response: hit.response))
+        }
+    }
+
+    /// Flows that finished before the subscription are printed first, as `events()` does not replay.
     private static func printFinishedFlows(
         of engine: any EngineControlling,
         output: @escaping Output
     ) -> Task<Void, Never> {
         let events = engine.store.events()
+        let finishedEarly = engine.store.all
         return Task {
             var lines = FinishedFlowLines()
+            for flow in finishedEarly {
+                lines.line(for: .updated(flow)).map(output)
+            }
             for await event in events {
-                if let line = lines.line(for: event) {
-                    output(line)
-                }
+                lines.line(for: event).map(output)
             }
         }
     }
