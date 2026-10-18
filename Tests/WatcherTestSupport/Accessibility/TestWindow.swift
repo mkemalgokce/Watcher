@@ -58,7 +58,6 @@ public final class TestWindow {
             throw TestSupportError("\(found) (first window role: \(window))")
         }
         let result = AccessibilityAPI.press(control)
-        await settle()
         guard result == .success else { throw TestSupportError("“\(label)” did not respond to a press (\(result))") }
     }
 
@@ -66,9 +65,7 @@ public final class TestWindow {
     public func type(_ text: String, intoFieldWithValue prefix: String = "", role: String) async -> Bool {
         let field = await appearing { AccessibilityAPI.firstElement(withRole: role, valuePrefix: prefix) }
         guard let field else { return false }
-        let typed = AccessibilityAPI.setValue(text, of: field)
-        await settle()
-        return typed
+        return AccessibilityAPI.setValue(text, of: field)
     }
 }
 
