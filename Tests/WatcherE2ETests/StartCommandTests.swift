@@ -7,11 +7,20 @@ import WatcherTestSupport
 struct StartCommandTests {
     @Test(.enabled(if: ExternalTool.curl.isAvailable, "needs curl"))
     func proxiesACurlRequestAndWritesItToTheHARFileOnCtrlC() async throws {
-        let home = try TemporaryDirectory(prefix: "watcher-e2e")
-        let har = home.appending("session.har")
         let origin = TestUpstream()
         try await origin.start()
-        defer { Task { await origin.stop() } }
+        do {
+            try await proxyACurlRequest(to: origin)
+        } catch {
+            await origin.stop()
+            throw error
+        }
+        await origin.stop()
+    }
+
+    private func proxyACurlRequest(to origin: TestUpstream) async throws {
+        let home = try TemporaryDirectory(prefix: "watcher-e2e")
+        let har = home.appending("session.har")
         let cli = try WatcherCLIProcess(
             binary: WatcherCLIBinary.locate(),
             arguments: ["start", "--port", "0", "--har", har.path],
