@@ -16,8 +16,7 @@ public final class AppModel {
     /// get a probe that never asks the keychain, simctl or adb, so what they show is the same on every Mac.
     let devices: DevicesViewModel
     let list: FlowListViewModel
-    /// Settable inside the module so previews can show paused traffic.
-    internal(set) var hits: [BreakpointCenter.Hit] = []
+    let breakpoints: BreakpointsViewModel
     let proxy: ProxyController
     let workspaces: WorkspacesViewModel
     /// The dialog currently shown over the main window; menus and toolbar both open it through here.
@@ -88,6 +87,7 @@ public final class AppModel {
         devices = DevicesViewModel(probe: listening ? .live : .none, certificateURL: WatcherPaths.supportDirectory.appendingPathComponent("watcher-ca.pem"))
         let settings = SettingsEditor(engine: engine, sleep: dependencies.sleep, notices: notices)
         self.settings = settings
+        breakpoints = BreakpointsViewModel(center: engine.breakpoints, settings: settings, notices: notices)
         workspaces = WorkspacesViewModel(engine: engine, settings: settings, notices: notices)
         proxy = ProxyController(runner: dependencies.runner, systemProxy: dependencies.systemProxy, notices: notices) {
             settings.value
@@ -107,10 +107,7 @@ public final class AppModel {
     /// Follows the store and paused breakpoints; separate from init so tests can watch a model that has no system side effects.
     func observeEngine() {
         list.observeStore()
-        let breakpointChanges = engine.breakpoints.changes()
-        Task { for await _ in breakpointChanges {
-            self.breakpointsChanged(self.engine.breakpoints.pending)
-        } }
+        breakpoints.observe()
     }
 
     enum Sheet: Identifiable {
@@ -339,38 +336,20 @@ public final class AppModel {
         notices.notify("Image copied", .success)
     }
 
-    /// New pauses are announced, never pushed into a window: opening Breakpoints on every hit took over the screen
-    /// again right after an abort. The toolbar badge and status bar stay as the way in.
-    func breakpointsChanged(_ pending: [BreakpointCenter.Hit]) {
-        let added = pending.count - hits.count
-        hits = pending
-        if added > 0 {
-            notices.notify("\(pending.count) paused at a breakpoint. Review with ⌘B, or remove the breakpoint there.")
-        }
+    var hits: [BreakpointCenter.Hit] {
+        breakpoints.hits
     }
 
-    /// The breakpoint rules that stop this request.
     func breakpointRules(matching request: RequestRecord) -> [BreakpointRule] {
-        settings.breakpoints.rules.filter { $0.isEnabled && RequestMatcher($0.matching).matches(request) }
+        breakpoints.rules(matching: request)
     }
 
-    /// Deletes the rules that stop `hit`'s request and lets it, and everything else they paused, continue.
     func removeBreakpoints(for hit: BreakpointCenter.Hit) {
-        let doomed = breakpointRules(matching: hit.request)
-        guard !doomed.isEmpty else { return resolve(hit, with: .proceed(request: hit.request, response: hit.response)) }
-        settings.breakpoints.rules.removeAll { rule in doomed.contains { $0.matching == rule.matching && $0.name == rule.name } }
-        // Whatever no remaining rule would stop is let through, so removing a breakpoint never leaves requests hanging.
-        for paused in hits where breakpointRules(matching: paused.request).isEmpty {
-            resolve(paused, with: .proceed(request: paused.request, response: paused.response))
-        }
-        let removed = doomed.count == 1
-            ? "Breakpoint “\(doomed[0].displayName)” removed"
-            : "\(doomed.count) breakpoints removed"
-        notices.notify(removed, .success)
+        breakpoints.removeBreakpoints(for: hit)
     }
 
     func resolve(_ hit: BreakpointCenter.Hit, with resolution: BreakpointCenter.Resolution) {
-        engine.breakpoints.resolve(hit.id, with: resolution)
+        breakpoints.resolve(hit, with: resolution)
     }
 
     // MARK: Devices

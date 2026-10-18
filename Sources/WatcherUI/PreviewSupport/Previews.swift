@@ -96,7 +96,7 @@ extension AppModel {
 
     #Preview("Breakpoints paused") {
         let model = AppModel.preview()
-        model.hits = [
+        model.breakpoints.hits = [
             .init(phase: .request, request: RequestRecord(
                 method: "POST",
                 scheme: "https",

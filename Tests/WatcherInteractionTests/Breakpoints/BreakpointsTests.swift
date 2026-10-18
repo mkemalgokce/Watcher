@@ -32,7 +32,7 @@ extension InteractionTests {
             model.settings.breakpoints = RuleSet(isEnabled: true, rules: [
                 BreakpointRule(name: "Login", matching: MatchingRule(pattern: "api.example.com/v1/login")),
             ])
-            model.hits = [.init(phase: .request, request: request)]
+            model.breakpoints.hits = [.init(phase: .request, request: request)]
             try await withWindow(showing: BreakpointsView().environment(model), width: 900, height: 600) { window in
                 try await window.press("Remove Breakpoint")
                 #expect(model.settings.breakpoints.rules.isEmpty, "the rule that kept pausing is gone")

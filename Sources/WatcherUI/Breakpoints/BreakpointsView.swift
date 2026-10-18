@@ -45,13 +45,10 @@ struct BreakpointsView: View {
                 .help("Turn every breakpoint off without deleting the rules")
             GlassGroup {
                 HStack(spacing: 2) {
-                    IconButton("Continue All", symbol: "play.fill") {
-                        model.engine.breakpoints.releaseAll()
-                        model.notices.notify("All paused traffic continued", .success)
-                    }
-                    .disabled(model.hits.isEmpty)
+                    IconButton("Continue All", symbol: "play.fill") { model.breakpoints.continueAll() }
+                        .disabled(model.hits.isEmpty)
                     IconButton("Abort All", symbol: "xmark.octagon", tint: model.hits.isEmpty ? nil : Palette.error) {
-                        model.engine.breakpoints.abortAll(); model.notices.notify("All paused traffic aborted")
+                        model.breakpoints.abortAll()
                     }
                     .disabled(model.hits.isEmpty)
                 }
