@@ -110,7 +110,6 @@ extension ProxyServer {
         } else if !request.body.isEmpty {
             upstreamRequest.body = .bytes(request.body)
         }
-        let client = upstream.client(for: request)
-        return try await client.execute(upstreamRequest, timeout: .seconds(Int64(max(1, timeout))))
+        return try await sender.execute(upstreamRequest, for: request, timeout: .seconds(Int64(max(1, timeout))))
     }
 }

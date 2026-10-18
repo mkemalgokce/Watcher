@@ -4,7 +4,7 @@ import NIO
 import NIOSSL
 
 /// Hands out HTTP clients for upstream requests, honouring the external proxy (static or PAC) and DNS spoofing settings.
-final class UpstreamClients: @unchecked Sendable {
+final class UpstreamClients: UpstreamSending, @unchecked Sendable {
     private let group: EventLoopGroup
     let tls: TLSConfiguration
     private let lock = NSLock()
@@ -80,6 +80,14 @@ final class UpstreamClients: @unchecked Sendable {
             cache[key] = client
             return client
         }
+    }
+
+    func execute(
+        _ request: HTTPClientRequest,
+        for record: RequestRecord,
+        timeout: TimeAmount
+    ) async throws -> HTTPClientResponse {
+        try await client(for: record).execute(request, timeout: timeout)
     }
 
     func shutdown() async {

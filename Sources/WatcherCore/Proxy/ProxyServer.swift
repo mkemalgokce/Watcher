@@ -18,6 +18,8 @@ public final class ProxyServer: @unchecked Sendable {
     let now: @Sendable () -> Date
 
     let upstream: UpstreamClients
+    /// Where forwarded requests go; the upstream clients unless a test answers in their place.
+    let sender: any UpstreamSending
     private let lock = NSLock()
     private var filter: HostFilter
     private let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
@@ -57,6 +59,7 @@ public final class ProxyServer: @unchecked Sendable {
         authority: CertificateAuthority?,
         sslProxying: HostFilter = HostFilter(),
         upstreamTLS: TLSConfiguration = .makeClientConfiguration(),
+        upstream sender: (any UpstreamSending)? = nil,
         clientApp: @escaping @Sendable (Int) -> String? = ClientProcess.name(forLocalPort:),
         localAddresses: @escaping @Sendable () -> Set<String> = { Set(LocalNetwork.ipv4Addresses().map(\.ip)) },
         now: @escaping @Sendable () -> Date = { Date() }
@@ -65,6 +68,7 @@ public final class ProxyServer: @unchecked Sendable {
         certificatePage = authority.map(CertificatePage.init)
         self.clientApp = clientApp; self.localAddresses = localAddresses; self.now = now
         upstream = UpstreamClients(group: group, tls: upstreamTLS)
+        self.sender = sender ?? upstream
     }
 
     public var sslProxying: HostFilter {
