@@ -31,7 +31,7 @@ struct ComposeView: View {
             footer.padding(.horizontal, Metrics.gutter).padding(.vertical, 10)
         }
         .frame(minWidth: 820, idealWidth: 920, minHeight: 600, idealHeight: 720)
-        .onAppear { loadDraft(); urlFocused = true }
+        .onAppear { viewModel.loadDraft(from: router); urlFocused = true }
     }
 
     // MARK: Sections
@@ -43,7 +43,7 @@ struct ComposeView: View {
             Image(systemName: "square.and.pencil").foregroundStyle(Color.accentColor)
             VStack(alignment: .leading, spacing: 1) {
                 Text("Editing #\(source.sequence) \(source.request.method) \(source.request.path)").font(.callout.weight(.medium)).lineLimit(1).truncationMode(.middle)
-                Text(changes.isEmpty ? "No changes yet: sending repeats it as captured." : "Changed: \(changes.joined(separator: ", "))")
+                Text(viewModel.changesSummary)
                     .font(.caption).foregroundStyle(changes.isEmpty ? Color.secondary : Palette.modified)
             }
             Spacer()
@@ -218,17 +218,9 @@ struct ComposeView: View {
                 Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Palette.error).font(.callout).lineLimit(2)
             }
             Spacer()
-            Button("Copy as cURL", systemImage: "terminal") {
-                do { try actions.copy(actions.code(for: viewModel.build(), as: .curl), "cURL copied") } catch { viewModel.problem = "\(error)" }
-            }
+            Button("Copy as cURL", systemImage: "terminal") { viewModel.copyAsCURL(using: actions) }
             Button("Close") { router.composeSource = nil; dismiss() }.keyboardShortcut(.cancelAction)
         }
-    }
-
-    private func loadDraft() {
-        guard let draft = router.composeDraft else { return }
-        router.composeDraft = nil
-        viewModel.load(draft, asOriginal: router.composeSource != nil)
     }
 
     private func send() {
