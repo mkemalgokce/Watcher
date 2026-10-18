@@ -105,7 +105,7 @@ private struct OpenAtLoginToggle: View {
 }
 
 private struct AppearanceSettings: View {
-    @AppStorage("body.mode") private var mode = "Pretty"
+    @AppStorage("body.mode") private var mode = BodyMode.preview.rawValue
     @AppStorage("body.wrap") private var wraps = true
     @AppStorage("body.sortKeys") private var sortKeys = false
     @AppStorage("body.fontSize") private var fontSize = 12.0
@@ -115,7 +115,9 @@ private struct AppearanceSettings: View {
     var body: some View {
         Form {
             Section("Bodies") {
-                Picker("Show bodies as", selection: $mode) { Text("Pretty").tag("Pretty"); Text("Raw").tag("Raw"); Text("Hex").tag("Hex") }.pickerStyle(.segmented)
+                Picker("Show bodies as", selection: $mode) {
+                    ForEach(BodyMode.allCases, id: \.self) { Text($0.rawValue).tag($0.rawValue) }
+                }.pickerStyle(.segmented)
                 Toggle("Wrap long lines", isOn: $wraps)
                 Toggle("Sort JSON keys", isOn: $sortKeys)
                 Slider(value: $fontSize, in: 9 ... 20, step: 1) { Text("Font size \(Int(fontSize))") }
