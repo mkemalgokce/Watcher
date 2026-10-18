@@ -126,7 +126,7 @@ struct ProtobufTab: View {
             RuleListEditor(
                 tool: tool,
                 set: $settings.protobuf,
-                title: { $0.name.orElse($0.matching.pattern) },
+                title: \.displayName,
                 make: { ProtobufRule(matching: MatchingRule(pattern: "*")) },
                 problems: problems
             ) { rule in
@@ -151,12 +151,5 @@ struct ProtobufTab: View {
             }
             .formStyle(.grouped).frame(height: 170)
         }
-    }
-}
-
-extension String {
-    /// The string itself, or `fallback` when it is empty.
-    func orElse(_ fallback: String) -> String {
-        isEmpty ? fallback : self
     }
 }
