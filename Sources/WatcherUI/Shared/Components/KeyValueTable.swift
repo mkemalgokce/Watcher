@@ -12,17 +12,19 @@ struct KeyValueTable: View {
     @State private var previewing: FormField?
 
     private var shown: [KeyValueRow] {
-        filter.isEmpty ? rows : rows.filter { $0.name.localizedCaseInsensitiveContains(filter) || $0.value.localizedCaseInsensitiveContains(filter) }
+        KeyValueFilter.apply(filter, to: rows)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if rows.count > 8 {
+            if KeyValueFilter.isOffered(forRowCount: rows.count) {
                 TextField("Filter \(rows.count) entries", text: $filter).textFieldStyle(.roundedBorder).controlSize(.small)
                     .accessibilityLabel("Filter entries")
             }
             if rows.isEmpty {
                 Text(emptyText).font(.callout).foregroundStyle(.secondary).padding(.vertical, 6)
+            } else if shown.isEmpty {
+                Text("No entries match “\(filter)”.").font(.callout).foregroundStyle(.secondary).padding(.vertical, 6)
             } else {
                 ScrollView {
                     Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 0) {
