@@ -85,4 +85,32 @@ struct SettingsEditorTests {
         )
         #expect(editor.suggestReversePort() == port)
     }
+
+    @Test
+    func assigningTheValueItAlreadyHasCommitsAndAnnouncesNothing() async {
+        let editor = editor()
+        let changes = LockedBox(0)
+        editor.onChange = { _, _ in changes.mutate { $0 += 1 } }
+        editor.value = WatcherSettings()
+        editor.port = editor.port
+        await settle(0.05)
+        #expect(gate.waitingCount == 0)
+        #expect(changes.value == 0)
+        #expect(saved.value.isEmpty)
+    }
+
+    @Test
+    func anActualChangeAnnouncesTheOldAndNewValue() {
+        let editor = editor()
+        let seen = LockedBox<[(Int, Int)]>([])
+        editor.onChange = { old, new in seen.mutate { $0.append((old.port, new.port)) } }
+        editor.port = 4242
+        #expect(seen.value.map(\.0) == [WatcherSettings().port])
+        #expect(seen.value.map(\.1) == [4242])
+    }
+
+    @Test
+    func withoutAPortSourceNoReversePortIsSuggested() {
+        #expect(editor().suggestReversePort() == nil)
+    }
 }

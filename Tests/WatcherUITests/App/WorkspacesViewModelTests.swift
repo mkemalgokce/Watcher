@@ -57,4 +57,35 @@ struct WorkspacesViewModelTests {
         workspaces.open("nope")
         #expect(await eventually { notices.notice?.kind == .error })
     }
+
+    @Test
+    func aNameIsTrimmedBeforeItBecomesAFileName() throws {
+        let (workspaces, _, _) = try make()
+        workspaces.save(named: "  Checkout bug \n")
+        #expect(workspaces.names == ["Checkout bug"])
+        #expect(notices.notice == nil)
+    }
+
+    @Test(arguments: ["", "   ", "\n"])
+    func aBlankNameAsksForOneInsteadOfFailingOnTheFile(name: String) throws {
+        let (workspaces, _, _) = try make()
+        workspaces.save(named: name)
+        #expect(workspaces.names.isEmpty)
+        #expect(notices.notice?.kind == .error)
+        #expect(notices.notice?.message == "Give the workspace a name.")
+    }
+
+    @Test
+    func savingUnderAnExistingNameReplacesItAndKeepsOneEntry() async throws {
+        let (workspaces, engine, settings) = try make()
+        engine.store.load([.fixture(sequence: 1, status: 200)])
+        workspaces.save(named: "w")
+        engine.store.load([.fixture(sequence: 1, status: 200), .fixture(sequence: 2, status: 200)])
+        workspaces.save(named: "w")
+        #expect(workspaces.names == ["w"])
+        engine.store.load([])
+        workspaces.open("w")
+        #expect(await eventually { engine.store.all.count == 2 })
+        #expect(settings.value == engine.settings.value)
+    }
 }

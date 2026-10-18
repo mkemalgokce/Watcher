@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import WatcherCore
 
@@ -14,7 +15,9 @@ final class WorkspacesViewModel {
         names = engine.workspaces.list()
     }
 
-    func save(named name: String) {
+    func save(named rawName: String) {
+        let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return notices.notify("Give the workspace a name.", .error) }
         do {
             try engine.saveWorkspace(named: name)
             names = engine.workspaces.list()
