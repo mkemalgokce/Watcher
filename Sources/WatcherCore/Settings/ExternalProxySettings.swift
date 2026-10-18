@@ -31,16 +31,15 @@ public struct ExternalProxySettings: Codable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey { case isEnabled, kind, host, port, username, password, pacURL, bypass }
 
     public init(from decoder: Decoder) throws {
+        self.init()
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        try self.init(
-            isEnabled: c.decode(.isEnabled, default: false),
-            kind: c.decode(.kind, default: .http),
-            host: c.decode(.host, default: "127.0.0.1"),
-            port: c.decode(.port, default: 8080),
-            username: c.decode(.username, default: ""),
-            password: c.decode(.password, default: ""),
-            pacURL: c.decode(.pacURL, default: ""),
-            bypass: c.decode(.bypass, default: [])
-        )
+        isEnabled = try c.decode(.isEnabled, default: isEnabled)
+        kind = try c.decode(.kind, default: kind)
+        host = try c.decode(.host, default: host)
+        port = try c.decode(.port, default: port)
+        username = try c.decode(.username, default: username)
+        password = try c.decode(.password, default: password)
+        pacURL = try c.decode(.pacURL, default: pacURL)
+        bypass = try c.decode(.bypass, default: bypass)
     }
 }

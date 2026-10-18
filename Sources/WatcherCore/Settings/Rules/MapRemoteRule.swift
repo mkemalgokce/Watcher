@@ -31,12 +31,12 @@ public struct MapRemoteRule: ToolRule {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         try self.init(
-            name: c.decode(.name, default: ""),
-            isEnabled: c.decode(.isEnabled, default: true),
             matching: c.decode(MatchingRule.self, forKey: .matching),
-            destination: c.decode(Destination.self, forKey: .destination),
-            preserveHostHeader: c.decode(.preserveHostHeader, default: false)
+            destination: c.decode(Destination.self, forKey: .destination)
         )
+        name = try c.decode(.name, default: name)
+        isEnabled = try c.decode(.isEnabled, default: isEnabled)
+        preserveHostHeader = try c.decode(.preserveHostHeader, default: preserveHostHeader)
         folder = try c.decodeIfPresent(String.self, forKey: .folder)
     }
 }
