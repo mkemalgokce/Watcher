@@ -18,6 +18,25 @@ struct StartCommandTests {
         await origin.stop()
     }
 
+    @Test(arguments: [SIGINT, SIGTERM, SIGHUP])
+    func everyStopSignalSavesTheSessionAndExitsCleanly(signal: Int32) async throws {
+        let home = try TemporaryDirectory(prefix: "watcher-e2e")
+        let csv = home.appending("session.csv")
+        let cli = try WatcherCLIProcess(
+            binary: WatcherCLIBinary.locate(),
+            arguments: ["start", "--port", "0", "--csv", csv.path],
+            home: home.url
+        )
+        try cli.run()
+        _ = try await cli.listeningPort()
+
+        try await cli.stop(with: signal)
+
+        #expect(cli.terminationStatus == 0)
+        #expect(cli.printed.hasSuffix("Saved \(csv.path)\n"))
+        #expect(FileManager.default.fileExists(atPath: csv.path))
+    }
+
     private func proxyACurlRequest(to origin: TestUpstream) async throws {
         let home = try TemporaryDirectory(prefix: "watcher-e2e")
         let har = home.appending("session.har")

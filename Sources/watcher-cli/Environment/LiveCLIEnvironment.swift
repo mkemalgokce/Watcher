@@ -13,7 +13,7 @@ extension CLIEnvironment {
         commands: LiveCommandRunner.run,
         lanAddresses: { LocalNetwork.ipv4Addresses() },
         makeEngine: { try WatcherEngine(directory: $0) },
-        shutdownSignal: LiveShutdownSignal.interrupt,
+        shutdownSignal: LiveShutdownSignal.stopRequest,
         now: { Date() }
     )
 }
