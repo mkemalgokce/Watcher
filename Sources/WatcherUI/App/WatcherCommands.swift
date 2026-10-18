@@ -75,7 +75,7 @@ public struct WatcherCommands: Commands {
                 Button("Toggle Line Wrapping") { model.preferences.toggleLineWrapping() }
                     .keyboardShortcut("l", modifiers: [.command, .option])
                 Divider()
-                Button("Clear Filters") { model.list.query.reset(); model.list.sidebar = .all }
+                Button("Clear Filters") { model.list.clearFilters() }
                     .keyboardShortcut("l", modifiers: [.command, .shift])
                 Toggle("Hide Apple Traffic", isOn: Binding(get: { model.settings.hideAppleTraffic }, set: { model.settings.hideAppleTraffic = $0 }))
             }

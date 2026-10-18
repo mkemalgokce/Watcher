@@ -65,6 +65,11 @@ final class FlowListViewModel {
         return filter
     }
 
+    func clearFilters() {
+        query.reset()
+        sidebar = .all
+    }
+
     func observeStore() {
         let events = store.events()
         Task { [weak self] in

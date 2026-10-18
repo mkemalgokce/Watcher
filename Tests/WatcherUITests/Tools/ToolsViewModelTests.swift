@@ -10,7 +10,7 @@ struct ToolsViewModelTests {
     @Test
     func summariesCountRulesAndFlagTheOnesThatNeedAttention() throws {
         let model = try AppModel.test()
-        let tools = ToolsViewModel(model: model)
+        let tools = ToolsViewModel(settings: model.settings, router: model.router, proxy: model.proxy)
         #expect(tools.summary(.block) == "Off")
 
         let ads = BlockRule(name: "ads", matching: MatchingRule(pattern: "ads.example.com/*"))

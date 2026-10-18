@@ -219,6 +219,16 @@ struct FlowListViewModelTests {
     }
 
     @Test
+    func clearingFiltersShowsEverythingAgain() {
+        let list = list()
+        list.query.text = "/1"
+        list.sidebar = .errors
+        list.clearFilters()
+        #expect(list.query == FlowFilter())
+        #expect(list.sidebar == .all)
+    }
+
+    @Test
     func theCountSaysHowManyAreShownOfAll() {
         let list = list()
         let flows = [Flow.fixture(sequence: 1, status: 200), .fixture(sequence: 2, status: 500)]

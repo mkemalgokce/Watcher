@@ -76,7 +76,7 @@ struct ToolsView: View {
     var body: some View {
         @Bindable var model = model
         // Holds no state of its own (it reads the model), so a fresh one per update is free and always current.
-        let viewModel = ToolsViewModel(model: model)
+        let viewModel = ToolsViewModel(settings: model.settings, router: model.router, proxy: model.proxy)
         NavigationSplitView {
             List(selection: Binding(get: { viewModel.selection }, set: { viewModel.selection = $0 })) {
                 ForEach(Tool.groups, id: \.0) { title, tools in

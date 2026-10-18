@@ -6,43 +6,45 @@ import WatcherCore
 /// rule that cannot work. Rule edits still go into `AppModel.settings`, which saves and applies them.
 @MainActor @Observable
 final class ToolsViewModel {
-    @ObservationIgnored private let model: AppModel
+    @ObservationIgnored private let settings: SettingsEditor
+    @ObservationIgnored private let router: WindowRouter
+    @ObservationIgnored private let proxy: ProxyController
 
-    init(model: AppModel) {
-        self.model = model
+    init(settings: SettingsEditor, router: WindowRouter, proxy: ProxyController) {
+        self.settings = settings; self.router = router; self.proxy = proxy
     }
 
     var selection: ToolsView.Tool {
-        get { model.router.toolsSelection }
-        set { model.router.toolsSelection = newValue }
+        get { router.toolsSelection }
+        set { router.toolsSelection = newValue }
     }
 
     func activeCount(_ tool: ToolsView.Tool) -> Int {
-        tool.activeCount(in: model.settings.value)
+        tool.activeCount(in: settings.value)
     }
 
     /// Every problem in the tool's enabled rules (see ToolValidation).
     func problems(_ tool: ToolsView.Tool) -> [String] {
-        let s = model.settings
+        let current = settings.value
         func matching<R: ToolRule>(_ set: RuleSet<R>, _ pattern: (R) -> MatchingRule) -> [String] {
             set.rules.filter(\.isEnabled).flatMap { ToolValidation.problems(pattern($0)) }
         }
         switch tool {
-        case .block: return matching(s.blockList) { $0.matching }
-        case .allow: return matching(s.allowList) { $0.matching }
-        case .mapLocal: return matching(s.mapLocal) { $0.matching }
-        case .mapRemote: return matching(s.mapRemote) { $0.matching }
-        case .breakpoint: return matching(s.breakpoints) { $0.matching }
-        case .scripting: return matching(s.scripting) { $0.matching }
-        case .previewers: return matching(s.previewers) { $0.matching }
-        case .protobuf: return matching(s.protobuf) { $0.matching }
-        case .dns: return s.dnsSpoofing.rules.filter(\.isEnabled).flatMap { ToolValidation.problems($0) }
+        case .block: return matching(current.blockList) { $0.matching }
+        case .allow: return matching(current.allowList) { $0.matching }
+        case .mapLocal: return matching(current.mapLocal) { $0.matching }
+        case .mapRemote: return matching(current.mapRemote) { $0.matching }
+        case .breakpoint: return matching(current.breakpoints) { $0.matching }
+        case .scripting: return matching(current.scripting) { $0.matching }
+        case .previewers: return matching(current.previewers) { $0.matching }
+        case .protobuf: return matching(current.protobuf) { $0.matching }
+        case .dns: return current.dnsSpoofing.rules.filter(\.isEnabled).flatMap { ToolValidation.problems($0) }
         case .reverse:
-            let port = model.proxy.port
-            return s.reverseProxy.rules.enumerated().filter(\.element.isEnabled).flatMap { index, rule in
-                ToolValidation.problems(rule, proxyPort: port, others: s.reverseProxy.rules.enumerated().filter { $0.offset != index }.map(\.element))
+            let port = proxy.port
+            return current.reverseProxy.rules.enumerated().filter(\.element.isEnabled).flatMap { index, rule in
+                ToolValidation.problems(rule, proxyPort: port, others: current.reverseProxy.rules.enumerated().filter { $0.offset != index }.map(\.element))
             }
-        case .certificates: return s.customCertificates.rules.filter(\.isEnabled).flatMap { ToolValidation.problems($0) }
+        case .certificates: return current.customCertificates.rules.filter(\.isEnabled).flatMap { ToolValidation.problems($0) }
         case .sslProxying, .throttling, .externalProxy: return []
         }
     }

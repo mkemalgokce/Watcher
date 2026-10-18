@@ -160,7 +160,7 @@ private struct NoMatches: View {
         } description: {
             Text("\(list.flows.count) requests are hidden by the current filters.")
         } actions: {
-            Button("Clear Filters") { list.query.reset(); list.sidebar = .all }
+            Button("Clear Filters") { list.clearFilters() }
         }
     }
 }
@@ -245,7 +245,7 @@ private struct FilterSummary: View {
                 Text("\(list.visibleFlows.count) of \(list.flows.count) requests").font(.callout.monospacedDigit())
                 Spacer(minLength: 8)
                 Button("Clear Filters") {
-                    withAnimation(.easeOut(duration: 0.15)) { list.query.reset(); list.sidebar = .all }
+                    withAnimation(.easeOut(duration: 0.15)) { list.clearFilters() }
                 }
                 .buttonStyle(.link).help("Show every request (⇧⌘L)")
             }
