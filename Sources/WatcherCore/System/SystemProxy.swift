@@ -25,7 +25,7 @@ public struct SystemProxy: Sendable {
 
     public init(
         run: @escaping Runner = SystemProxy.networksetup,
-        backupURL: URL = WatcherPaths.supportDirectory.appendingPathComponent("system-proxy-backup.json"),
+        backupURL: URL = WatcherPaths.systemProxyBackupFile(in: WatcherPaths.supportDirectory),
         files: FileAccess = .live
     ) {
         self.run = run; self.backupURL = backupURL; self.files = files

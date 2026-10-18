@@ -44,7 +44,7 @@ public final class WatcherEngine: @unchecked Sendable {
         self.files = files; self.sleep = sleep; self.now = now; self.makeServer = makeServer
         self.pacLoader = pacLoader ?? { try await PACEvaluator.load(from: $0) }
         authority = try CertificateAuthority(directory: directory, files: files)
-        settings = SettingsStore(url: directory.appendingPathComponent("settings.json"), files: files)
+        settings = SettingsStore(url: WatcherPaths.settingsFile(in: directory), files: files)
         workspaces = WorkspaceStore(
             directory: directory.appendingPathComponent("workspaces", isDirectory: true),
             files: files
