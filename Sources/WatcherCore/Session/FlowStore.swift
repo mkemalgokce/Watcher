@@ -15,9 +15,14 @@ public final class FlowStore: @unchecked Sendable {
     private var counter = 0
     private var _isRecording = true
     private var _maxFlows = 0
-    private var observers: [UUID: AsyncStream<FlowEvent>.Continuation] = [:]
+    private var observers: [Int: AsyncStream<FlowEvent>.Continuation] = [:]
+    private var nextObserver = 0
+    private let now: @Sendable () -> Date
+    private let makeID: @Sendable () -> UUID
 
-    public init() {}
+    public init(now: @escaping @Sendable () -> Date = Date.init, makeID: @escaping @Sendable () -> UUID = UUID.init) {
+        self.now = now; self.makeID = makeID
+    }
 
     /// While paused, requests still go through the proxy but are neither listed nor kept.
     public var isRecording: Bool {
@@ -37,8 +42,11 @@ public final class FlowStore: @unchecked Sendable {
 
     public func events() -> AsyncStream<FlowEvent> {
         AsyncStream { continuation in
-            let token = UUID()
-            lock.withLock { observers[token] = continuation }
+            let token = lock.withLock {
+                nextObserver += 1
+                observers[nextObserver] = continuation
+                return nextObserver
+            }
             continuation.onTermination = { [weak self] _ in
                 self?.lock.withLock { _ = self?.observers.removeValue(forKey: token) }
             }
@@ -49,7 +57,7 @@ public final class FlowStore: @unchecked Sendable {
     func begin(_ request: RequestRecord) -> Flow {
         lock.withLock {
             counter += 1
-            let flow = Flow(sequence: counter, request: request)
+            let flow = Flow(sequence: counter, request: request, id: makeID(), startedAt: now())
             guard _isRecording else { return flow }
             flows[flow.id] = flow; order.append(flow.id)
             trimLocked().forEach { publishLocked(.removed($0)) }
