@@ -31,14 +31,22 @@ extension StartCommandTests {
             #expect(cli.printed.contains("[log] busy port"))
         }
 
-        @Test(arguments: [true, false])
-        func listeningOnAllInterfacesPrintsWhereDevicesReachIt(allInterfaces: Bool) async throws {
-            let addresses = [LocalNetwork.Address(interface: "en0", ip: "192.168.1.20")]
+        @Test(arguments: [
+            (true, [LocalNetwork.Address(interface: "en0", ip: "192.168.1.20")]),
+            (true, [LocalNetwork.Address(interface: "en0", ip: "10.0.0.2"), .init(interface: "en1", ip: "10.0.0.7")]),
+            (true, []),
+            (false, [LocalNetwork.Address(interface: "en0", ip: "192.168.1.20")]),
+        ])
+        func listeningOnAllInterfacesPrintsWhereDevicesReachIt(
+            allInterfaces: Bool,
+            addresses: [LocalNetwork.Address]
+        ) async throws {
             let cli = CLIHarness(lanAddresses: addresses)
             try cli.engine.settings.update { $0.listenOnAllInterfaces = allInterfaces }
             try await StartCommandTests.run([], in: cli)
             let reachable = cli.printed.filter { $0.contains("reachable from devices") }
-            #expect(reachable == (allInterfaces ? ["  reachable from devices at 192.168.1.20:9123  (en0)"] : []))
+            let expected = addresses.map { "  reachable from devices at \($0.ip):9123  (\($0.interface))" }
+            #expect(reachable == (allInterfaces ? expected : []))
         }
 
         @Test(arguments: [(["--no-decrypt"], false), ([], true)])
@@ -97,6 +105,91 @@ extension StartCommandTests {
             #expect(cli.printed.contains(
                 "[breakpoint] request GET https://api.example.com/held (continued; use the app to edit)"
             ))
+        }
+
+        @Test
+        func trafficThatArrivesWhileTheProxyComesUpIsContinuedAndPrinted() async throws {
+            let resolution = LockedBox<BreakpointCenter.Resolution?>(nil)
+            let cli = CLIHarness(engine: {
+                EngineFake(settings: $0, whileStarting: { engine in
+                    Task {
+                        let answer = await engine.breakpoints.hold(phase: .request, request: .fixture(path: "/early"))
+                        resolution.mutate { $0 = answer }
+                    }
+                    _ = await eventually { !engine.breakpoints.pending.isEmpty }
+                    let flow = engine.store.begin(.fixture(path: "/done-early"))
+                    engine.store.update(flow.id) { $0.response = .fixture(status: 200); $0.state = .completed }
+                })
+            })
+            let url = "https://api.example.com/done-early"
+
+            try await StartCommandTests.run([], in: cli, until: {
+                resolution.value != nil && cli.printed.contains { $0.contains(url) }
+            })
+
+            #expect(resolution.value != nil)
+            #expect(cli.printed.contains { $0.hasPrefix("1  200  GET  \(url)") })
+        }
+
+        @Test
+        func aHeldResponseProceedsWithTheSameRequestAndResponse() async throws {
+            let cli = CLIHarness()
+            let resolution = LockedBox<BreakpointCenter.Resolution?>(nil)
+            try await StartCommandTests.run([], in: cli, until: { resolution.value != nil }) {
+                Task {
+                    let answer = await cli.engine.breakpoints.hold(
+                        phase: .response, request: .fixture(path: "/held"), response: .fixture(status: 418)
+                    )
+                    resolution.mutate { $0 = answer }
+                }
+            }
+            guard case let .proceed(request, response) = try #require(resolution.value) else {
+                Issue.record("the held response was aborted"); return
+            }
+            #expect(request == .fixture(path: "/held"))
+            #expect(response == .fixture(status: 418))
+            #expect(cli.printed.contains {
+                $0 == "[breakpoint] response GET https://api.example.com/held (continued; use the app to edit)"
+            })
+        }
+
+        @Test
+        func twoMessagesHeldAtOnceAreBothContinuedAndPrinted() async throws {
+            let cli = CLIHarness()
+            let resolved = LockedBox(0)
+            try await StartCommandTests.run([], in: cli, until: { resolved.value == 2 }) {
+                for path in ["/one", "/two"] {
+                    Task {
+                        _ = await cli.engine.breakpoints.hold(phase: .request, request: .fixture(path: path))
+                        resolved.mutate { $0 += 1 }
+                    }
+                }
+            }
+            #expect(cli.printed.filter { $0.hasPrefix("[breakpoint]") }.count == 2)
+        }
+
+        @Test
+        func anEngineThatFailsToStopStillSavesTheSessionAndEndsNormally() async throws {
+            let cli = CLIHarness(engine: { EngineFake(settings: $0, failsToStop: true) })
+            try await StartCommandTests.run(["--csv", "/tmp/s.csv"], in: cli)
+            #expect(cli.files.contents(of: "/tmp/s.csv") != nil)
+            #expect(cli.engine.calls == ["start any", "stop"])
+        }
+
+        @Test
+        func theSystemProxyIsPutBackBeforeTheSessionIsSavedAndTheEngineStopped() async throws {
+            let files = FileAccessFake()
+            let log = LockedBox<[String]>([])
+            let commands = CommandRunnerSpy.networkSetup(onRun: { command in
+                guard command.arguments.first == "-setwebproxystate", command.arguments.contains("off") else { return }
+                log.mutate { $0.append(files.paths.contains("/tmp/s.har") ? "disable after save" : "disable") }
+            })
+            let cli = CLIHarness(files: files, commands: commands, engine: { EngineFake(settings: $0, log: log) })
+
+            try await StartCommandTests.run(["--system-proxy", "--har", "/tmp/s.har"], in: cli)
+
+            #expect(log.value.filter { $0.hasPrefix("disable") || $0 == "stop" } == ["disable", "stop"])
+            #expect(files.paths.contains("/tmp/s.har"))
         }
     }
 }
