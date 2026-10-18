@@ -26,6 +26,31 @@ extension StartCommandTests {
             #expect(!cli.files.paths.contains(cli.supportFile("system-proxy-backup.json")))
         }
 
+        /// A crashed run leaves its backup behind; the next `--system-proxy` session must restore the user's proxy from
+        /// it, not the one that crashed run pointed at Watcher.
+        @Test
+        func aBackupLeftByACrashedRunIsWhatTheSessionRestores() async throws {
+            let networkSetup = NetworkSetupSpy()
+            let commands = CommandRunnerSpy(respond: { command in
+                CommandResult(status: 0, output: Data(networkSetup.run(command.arguments).utf8))
+            })
+            let cli = CLIHarness(commands: commands)
+            let original = #"{"enabled":true,"server":"10.0.0.1","port":3128}"#
+            let backup = #"{"Wi-Fi":{"web":\#(original),"secure":\#(original)}}"#
+            cli.files.write(Data(backup.utf8), to: cli.supportFile("system-proxy-backup.json"))
+
+            try await StartCommandTests.run(["--system-proxy"], in: cli)
+
+            #expect(!cli.commands.calls.contains { $0.contains("-getwebproxy") })
+            #expect(cli.commands.calls.suffix(4) == [
+                "networksetup -setwebproxy Wi-Fi 10.0.0.1 3128",
+                "networksetup -setwebproxystate Wi-Fi on",
+                "networksetup -setsecurewebproxy Wi-Fi 10.0.0.1 3128",
+                "networksetup -setsecurewebproxystate Wi-Fi on",
+            ])
+            #expect(!cli.files.paths.contains(cli.supportFile("system-proxy-backup.json")))
+        }
+
         @Test
         func withoutTheFlagTheSystemProxyIsLeftAlone() async throws {
             let cli = CLIHarness()
@@ -61,6 +86,19 @@ extension StartCommandTests {
             #expect(cli.printedToErrorOutput.count == 2)
             #expect(cli.printedToErrorOutput.allSatisfy { $0.hasPrefix("Could not save /tmp/s.") })
             #expect(cli.engine.calls.last == "stop")
+        }
+
+        @Test
+        func aSecondCtrlCDuringShutdownDoesNotShutDownAgain() async throws {
+            let cli = CLIHarness()
+            let command = try Start.parse(["--csv", "/tmp/s.csv"])
+            let running = Task { [environment = cli.environment] in try await command.run(in: environment) }
+            #expect(await eventually(timeout: 30) { cli.shutdown.isAwaited })
+            cli.shutdown.fire()
+            cli.shutdown.fire()
+            try await running.value
+            #expect(cli.engine.calls == ["start any", "stop"])
+            #expect(cli.printed.filter { $0.hasPrefix("Saved") } == ["Saved /tmp/s.csv"])
         }
 
         @Test
