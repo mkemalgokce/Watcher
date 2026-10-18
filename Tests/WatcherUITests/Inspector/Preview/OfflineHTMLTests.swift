@@ -1,5 +1,6 @@
 import Testing
 @testable import WatcherUI
+import WebKit
 
 @MainActor
 @Suite(.tags(.unit))
@@ -35,5 +36,13 @@ struct OfflineHTMLTests {
         #expect(pages.isEmpty)
         finish?(true)
         #expect(pages == ["<p>x</p>"])
+    }
+
+    @Test
+    func aRuleListThatCannotBeCompiledReportsNotBlocked() {
+        let controller = WKUserContentController()
+        var reported: [Bool] = []
+        OfflineHTML.blockNetwork(in: controller, compile: { $0(nil) }, done: { reported.append($0) })
+        #expect(reported == [false])
     }
 }
