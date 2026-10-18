@@ -1,4 +1,3 @@
-import Foundation
 import WatcherCore
 
 public extension WatcherSettings {

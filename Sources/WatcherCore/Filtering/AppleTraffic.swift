@@ -1,5 +1,3 @@
-import Foundation
-
 /// Apple's own background traffic, which most debugging sessions would rather not see.
 public enum AppleTraffic {
     private static let hosts = HostList([

@@ -1,4 +1,3 @@
-import Foundation
 @testable import WatcherUI
 
 /// Keeps the handler the app would run on quit, so a test can quit on demand.

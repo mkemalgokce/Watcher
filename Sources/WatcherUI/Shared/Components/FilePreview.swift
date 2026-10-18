@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 import WatcherCore
 
 struct FilePreview: View {

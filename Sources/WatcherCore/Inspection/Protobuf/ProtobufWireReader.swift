@@ -1,5 +1,3 @@
-import Foundation
-
 /// Splits protobuf wire data into (field number, value) pairs, the step both the schema and the schema-less decoder share.
 enum ProtobufWireReader {
     enum Value: Equatable { case varint(UInt64), fixed64(UInt64), fixed32(UInt32), bytes([UInt8]) }

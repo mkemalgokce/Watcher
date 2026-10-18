@@ -1,4 +1,3 @@
-import Foundation
 import NIO
 
 /// Copies bytes one way between two channels; closes the peer when this side ends.

@@ -1,5 +1,3 @@
-import Foundation
-
 /// One row of the sidebar: a host or an app with how many flows it holds.
 public struct FlowGroup: Equatable, Identifiable, Sendable {
     public let name: String

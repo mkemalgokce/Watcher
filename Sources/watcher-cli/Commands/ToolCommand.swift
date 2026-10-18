@@ -1,5 +1,4 @@
 import ArgumentParser
-import Foundation
 import WatcherCore
 
 struct Tool: ParsableCommand {

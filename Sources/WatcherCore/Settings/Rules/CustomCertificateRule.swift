@@ -1,5 +1,3 @@
-import Foundation
-
 /// Certificates supplied by the user as PKCS#12 files: a server identity Watcher presents for a host
 /// (instead of a generated one) or a client identity it presents to an upstream that demands mutual TLS.
 public struct CustomCertificateRule: ToolRule {

@@ -1,5 +1,3 @@
-import Foundation
-
 /// A tool's master switch plus its rules.
 public struct RuleSet<Rule: ToolRule>: Codable, Equatable, Sendable {
     public var isEnabled: Bool

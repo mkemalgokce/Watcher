@@ -1,7 +1,6 @@
 import Foundation
 import Testing
 @testable import WatcherCore
-import WatcherTestSupport
 
 extension BodyFormatterTests {
     struct HexDump {

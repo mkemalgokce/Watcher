@@ -1,5 +1,3 @@
-import Foundation
-
 public struct MapLocalRule: ToolRule {
     public enum Source: Codable, Equatable, Sendable {
         case file(String)

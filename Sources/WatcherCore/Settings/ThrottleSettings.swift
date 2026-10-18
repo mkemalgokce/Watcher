@@ -1,5 +1,3 @@
-import Foundation
-
 public struct ThrottleSettings: Codable, Equatable, Sendable {
     public var isEnabled: Bool
     public var profile: NetworkProfile

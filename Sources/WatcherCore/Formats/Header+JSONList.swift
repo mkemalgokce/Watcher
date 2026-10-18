@@ -1,5 +1,3 @@
-import Foundation
-
 extension [Header] {
     /// Reads `[{"name": …, "value": …}]`, skipping entries that lack either.
     init(jsonList value: Any?) {

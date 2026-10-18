@@ -1,4 +1,3 @@
-import Foundation
 @testable import WatcherUI
 
 /// Records what would have been read out by VoiceOver.

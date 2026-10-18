@@ -2,7 +2,6 @@ import Foundation
 import SnapshotTesting
 import Testing
 @testable import WatcherCore
-import WatcherTestSupport
 @testable import WatcherUI
 
 extension ViewModelTextSnapshotTests {

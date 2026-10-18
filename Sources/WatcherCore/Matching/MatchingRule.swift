@@ -1,5 +1,3 @@
-import Foundation
-
 /// Which requests a tool applies to: URL pattern, optional methods and optional GraphQL operation.
 public struct MatchingRule: Codable, Equatable, Sendable {
     public enum Mode: String, Codable, Sendable { case wildcard, regex }

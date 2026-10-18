@@ -1,5 +1,3 @@
-import Foundation
-
 public struct DNSSpoofRule: ToolRule {
     public var isEnabled: Bool
     public var folder: String?

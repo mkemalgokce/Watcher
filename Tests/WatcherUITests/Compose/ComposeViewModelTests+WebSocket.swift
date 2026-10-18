@@ -1,7 +1,6 @@
 import Foundation
 import Testing
 import WatcherCore
-import WatcherTestSupport
 @testable import WatcherUI
 
 extension ComposeViewModelTests {

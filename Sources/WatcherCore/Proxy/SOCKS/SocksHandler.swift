@@ -1,6 +1,4 @@
-import Foundation
 import NIO
-import NIOHTTP1
 import NIOSSL
 
 /// SOCKS5 front door (no authentication, CONNECT only). After the handshake the connection is treated like an HTTP CONNECT tunnel.

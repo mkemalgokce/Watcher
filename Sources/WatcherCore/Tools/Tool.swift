@@ -1,5 +1,3 @@
-import Foundation
-
 /// A debugging tool (Block List, Map Local, ...) hooked into the proxy pipeline.
 public protocol Tool: Sendable {
     var name: String { get }

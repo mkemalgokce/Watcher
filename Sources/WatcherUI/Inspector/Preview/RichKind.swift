@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 import WatcherCore
 
 /// What a body can be shown as besides text.

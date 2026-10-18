@@ -1,5 +1,4 @@
 import Foundation
-import NIO
 import Testing
 @testable import WatcherCore
 import WatcherTestSupport

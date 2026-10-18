@@ -1,6 +1,5 @@
 import Foundation
 import WatcherCore
-import WatcherTestSupport
 
 /// One `watcher-cli` run to completion with its own `WATCHER_HOME`, for commands that exit by themselves.
 enum WatcherCLIRun {

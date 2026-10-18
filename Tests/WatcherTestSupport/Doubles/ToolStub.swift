@@ -1,4 +1,3 @@
-import Foundation
 import WatcherCore
 
 /// A tool that decides every request the same way and can stamp responses, so the proxy's handling of each outcome can

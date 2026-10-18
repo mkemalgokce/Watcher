@@ -1,4 +1,3 @@
-import Foundation
 import WatcherTestSupport
 
 /// `curl` sending one request through an HTTP proxy, ignoring any proxy settings in the environment.

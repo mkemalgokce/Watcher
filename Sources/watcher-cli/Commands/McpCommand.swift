@@ -1,6 +1,4 @@
 import ArgumentParser
-import Foundation
-import WatcherCore
 
 struct Mcp: AsyncParsableCommand {
     static let configuration = CommandConfiguration(

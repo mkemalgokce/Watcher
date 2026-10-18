@@ -1,5 +1,4 @@
 import ArgumentParser
-import Foundation
 import WatcherCore
 
 /// Tools a running (or later started) Watcher picks up from the shared settings file.

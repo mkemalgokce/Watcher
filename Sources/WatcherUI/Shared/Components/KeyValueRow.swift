@@ -1,4 +1,3 @@
-import SwiftUI
 import WatcherCore
 
 /// One row of a read-only name/value list (headers, query parameters, form fields, cookies).

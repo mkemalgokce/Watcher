@@ -1,5 +1,3 @@
-import Foundation
-
 /// Which LAN clients may use the proxy. Loopback is always allowed; with the switch on, other addresses must match a pattern (`192.168.1.*`).
 public struct AccessControlSettings: Codable, Equatable, Sendable {
     public var isEnabled: Bool

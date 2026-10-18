@@ -1,5 +1,3 @@
-import Foundation
-
 public struct HostFilter: Sendable {
     public var include: HostList
     public var exclude: HostList

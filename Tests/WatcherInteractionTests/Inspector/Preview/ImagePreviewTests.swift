@@ -1,5 +1,4 @@
 import AppKit
-import SwiftUI
 import Testing
 import WatcherTestSupport
 @testable import WatcherUI

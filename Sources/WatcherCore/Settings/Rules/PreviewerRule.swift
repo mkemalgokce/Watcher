@@ -1,5 +1,3 @@
-import Foundation
-
 public struct PreviewerRule: ToolRule {
     public var name: String
     public var isEnabled: Bool

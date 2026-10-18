@@ -1,5 +1,3 @@
-import Foundation
-
 /// Host patterns such as `*.example.com`, with optional exclusions.
 public struct HostList: Sendable {
     private let wildcards: [Wildcard]
