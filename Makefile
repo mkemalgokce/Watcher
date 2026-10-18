@@ -45,9 +45,10 @@ lint-analyze-baseline:
 	rm -f .build/analyze.log && $(MAKE) .build/analyze.log
 	$(SWIFTLINT) analyze --quiet --write-baseline $(ANALYZE_BASELINE) --compiler-log-path .build/analyze.log || true
 
-# Network, process and window tests measure time, so they run one at a time, as XCTest did.
+# Network, process and window tests measure time, so they run one at a time, as XCTest did. Interaction tests drive
+# every window of the process, so they run alone in test-interaction.
 test:
-	swift test --no-parallel
+	swift test --no-parallel --skip WatcherInteractionTests
 
 test-unit:
 	swift test --filter '$(UNIT_TESTS)'

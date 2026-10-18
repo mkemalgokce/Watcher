@@ -19,11 +19,11 @@ public enum AccessibilityProbe {
     }
 
     private static func probe() async -> Bool {
+        guard AXIsProcessTrusted() else { return false }
         // The test runner is not launched as an app, so it does not answer accessibility requests until it becomes one.
         NSApplication.shared.setActivationPolicy(.accessory)
         NSApp.finishLaunching()
         MainRunLoopKeeper.install()
-        guard AXIsProcessTrusted() else { return false }
         let probe = TestWindow(showing: Text("Accessibility check"), width: 200, height: 100)
         defer { probe.close() }
         await settle()

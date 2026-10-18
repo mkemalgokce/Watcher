@@ -24,8 +24,8 @@ public final class TestWindow {
         window.close()
     }
 
-    /// Every element whose accessibility title, description or value is `label`. Only one test window is open at a
-    /// time, so every window of the process is this one.
+    /// Every element whose accessibility title, description or value is `label`. Interaction suites run alone and one
+    /// at a time (`make test-interaction`), so every window of the process is this one.
     public func elements(_ label: String) -> [AXUIElement] {
         AccessibilityAPI.find(label)
     }

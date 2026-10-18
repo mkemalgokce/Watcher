@@ -23,9 +23,9 @@ code owner (@mkemalgokce, see `.github/CODEOWNERS`) before it can be merged.
 | `make lint` | SwiftLint, strict; violations recorded in `.swiftlint-baseline.json` are tolerated, new ones fail |
 | `make lint-baseline` | Rewrites the baseline; only to drop violations that were fixed, never to accept new ones |
 | `make lint-analyze` / `make lint-analyze-baseline` | SwiftLint's unused-code analyzer (a full build, a few minutes; CI runs it nightly) against `.swiftlint-analyze-baseline.json` / rewrites that baseline |
-| `make test` | Every test target (interaction tests skip without the Accessibility permission) |
+| `make test` | Every test target but `WatcherInteractionTests`, which drive the process's windows and so run alone |
 | `make test-unit` / `make test-integration` / `make test-smoke` | `WatcherCoreTests` + `WatcherUITests` / `WatcherIntegrationTests` / its `SmokeTests` |
-| `make test-e2e` / `make test-snapshot` / `make test-interaction` | `WatcherE2ETests` / `WatcherSnapshotTests` / `WatcherInteractionTests` |
+| `make test-e2e` / `make test-snapshot` / `make test-interaction` | `WatcherE2ETests` / `WatcherSnapshotTests` / `WatcherInteractionTests` (skipped without the Accessibility permission) |
 | `make snapshots-record` | Rewrites the snapshot references for this macOS |
 | `make coverage` | Unit and integration tests with coverage, gated by `scripts/coverage-thresholds.txt`; CI runs it with `test-snapshot` and `test-e2e` |
 | `make changelog` | Regenerates `CHANGELOG.md` with git-cliff |
