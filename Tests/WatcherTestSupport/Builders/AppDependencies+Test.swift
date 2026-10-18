@@ -3,7 +3,8 @@ import WatcherCore
 @testable import WatcherUI
 
 public extension AppDependencies {
-    /// Everything in memory: an engine on a fake file system and doubles for every system service.
+    /// Everything in memory: an engine on a fake file system and doubles for every system service. Delays such as the
+    /// notice timeout and the settings debounce never end unless a test passes `sleep: liveSleep` or a `SleepGate`.
     @MainActor
     static func test(
         engine: WatcherEngine? = nil,
@@ -28,7 +29,7 @@ public extension AppDependencies {
         return AppDependencies(
             engine: engine,
             clipboard: clipboard ?? ClipboardSpy(),
-            sleep: sleep ?? liveSleep,
+            sleep: sleep ?? sleepUntilCancelled,
             announce: (announcer ?? AnnouncerSpy()).announce,
             panels: panels ?? FilePanelsStub(),
             files: files.access,
@@ -52,8 +53,8 @@ public extension AppDependencies {
 public extension AppModel {
     /// A model on `AppDependencies.test`, with the doubles passed in for the test to inspect.
     @MainActor
-    static func test(clipboard: ClipboardSpy? = nil) throws -> AppModel {
-        try AppModel(dependencies: .test(clipboard: clipboard))
+    static func test(clipboard: ClipboardSpy? = nil, sleep: Sleep? = nil) throws -> AppModel {
+        try AppModel(dependencies: .test(clipboard: clipboard, sleep: sleep))
     }
 
     /// A test model showing the preview's demo requests, the first one selected.
