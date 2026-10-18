@@ -6,54 +6,17 @@ struct StatusBar: View {
     @Environment(AppModel.self) private var model
     @State private var showLegend = false
 
-    /// Tools that change traffic right now, by name.
     private var activeTools: [String] {
-        let s = model.settings
-        var names: [String] = []
-        if !s.mapLocal.active.isEmpty {
-            names.append("Map Local")
-        }
-        if !s.mapRemote.active.isEmpty {
-            names.append("Map Remote")
-        }
-        if !s.blockList.active.isEmpty {
-            names.append("Block List")
-        }
-        if !s.allowList.active.isEmpty {
-            names.append("Allow List")
-        }
-        if !s.breakpoints.active.isEmpty {
-            names.append("Breakpoints")
-        }
-        if !s.scripting.active.isEmpty {
-            names.append("Scripting")
-        }
-        if !s.dnsSpoofing.active.isEmpty {
-            names.append("DNS Spoofing")
-        }
-        if !s.reverseProxy.active.isEmpty {
-            names.append("Reverse Proxy")
-        }
-        if s.throttle.isEnabled {
-            names.append("Throttling")
-        }
-        if s.externalProxy.isEnabled {
-            names.append("External Proxy")
-        }
-        if s.noCaching {
-            names.append("No Caching")
-        }
-        return names
+        ToolsView.Tool.activeNames(in: model.settings.value)
     }
 
     private var stateTint: Color {
-        if model.proxyError != nil {
-            return Palette.error
+        switch model.proxy.state {
+        case .failed: Palette.error
+        case .switching: Palette.warning
+        case .running: Palette.done
+        case .stopped: .secondary
         }
-        if model.isSwitchingProxy {
-            return Palette.warning
-        }
-        return model.isRunning ? Palette.done : .secondary
     }
 
     var body: some View {

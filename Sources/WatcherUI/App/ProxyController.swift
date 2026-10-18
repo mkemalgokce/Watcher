@@ -27,6 +27,21 @@ final class ProxyController {
         self.runner = runner; self.systemProxy = systemProxy; self.notices = notices; self.settings = settings
     }
 
+    enum State: Equatable {
+        case stopped, switching, running, failed
+    }
+
+    /// One value for the indicators that tint by what the proxy is doing.
+    var state: State {
+        if proxyError != nil {
+            return .failed
+        }
+        if isSwitchingProxy {
+            return .switching
+        }
+        return isRunning ? .running : .stopped
+    }
+
     /// The port the proxy listens on: the one it bound while running, otherwise the configured one.
     var port: Int {
         runner.boundPort ?? settings().port

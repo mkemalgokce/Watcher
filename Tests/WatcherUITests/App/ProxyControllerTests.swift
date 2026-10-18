@@ -159,6 +159,21 @@ struct ProxyControllerTests {
     }
 
     @Test
+    func theStateFollowsStartingRunningStoppingAndFailing() async {
+        let runner = ProxyRunnerStub(log: log)
+        let (proxy, _, _) = controller(runner: runner)
+        #expect(proxy.state == .stopped)
+        proxy.toggleRunning()
+        #expect(proxy.state == .switching)
+        #expect(await eventually { proxy.state == .running })
+        proxy.toggleRunning()
+        #expect(await eventually { proxy.state == .stopped })
+        runner.failStarting()
+        proxy.toggleRunning()
+        #expect(await eventually { proxy.state == .failed })
+    }
+
+    @Test
     func theConfiguredPortIsShownUntilOneIsBound() {
         let (proxy, _, _) = controller(port: 8888)
         #expect(proxy.port == 8888)
