@@ -128,6 +128,7 @@ private struct RuleRow: View {
                 Text(rule.matching.pattern).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             .opacity(rule.isEnabled ? 1 : 0.5)
+            .help("Stops the \(rule.phaseSummary)")
             Spacer(minLength: 4)
             IconButton("Delete Breakpoint", symbol: "trash", action: delete)
         }

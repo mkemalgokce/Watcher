@@ -45,7 +45,7 @@ struct RequestActionsTests {
 
     private func startProxy() async {
         proxy.toggleRunning()
-        _ = await eventually { proxy.isRunning && !proxy.isSwitchingProxy }
+        #expect(await eventually { proxy.isRunning && !proxy.isSwitchingProxy })
     }
 
     @Test
