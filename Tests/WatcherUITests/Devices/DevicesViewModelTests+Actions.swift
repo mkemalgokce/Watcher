@@ -111,5 +111,57 @@ extension DevicesViewModelTests {
             #expect(scans.value == 1)
             #expect(!devices.isScanning)
         }
+
+        @Test
+        func trustingWhileAScanRunsShowsTheTrustWhenTheScanEnds() async {
+            let trusted = LockedBox(false)
+            let release = DispatchSemaphore(value: 0)
+            let scanning = LockedBox(0)
+            var probe = DevicesViewModel.DeviceProbe.none
+            probe.isMacTrusted = {
+                let value = trusted.value // read before the trust is installed
+                scanning.mutate { $0 += 1 }
+                if scanning.value == 1 {
+                    release.wait()
+                }
+                return value
+            }
+            probe.trustMac = { _ in trusted.mutate { $0 = true } }
+            let devices = DevicesViewModel(probe: probe, certificateURL: Self.certificate) { 9090 }
+            let scan = Task { await devices.refresh() }
+            #expect(await eventually { scanning.value == 1 })
+            let trust = Task { await devices.trustOnMac() }
+            #expect(await eventually { trusted.value })
+            release.signal()
+            await scan.value
+            await trust.value
+            #expect(devices.macTrusted)
+            #expect(devices.status == .done("Certificate trusted on this Mac."))
+        }
+
+        @Test
+        func theNetworkIsAskedOncePerRefreshNotOncePerRead() async {
+            let asked = LockedBox(0)
+            var probe = DevicesViewModel.DeviceProbe.none
+            probe.lanAddresses = { asked.mutate { $0 += 1 }; return ["10.0.0.5"] }
+            let devices = DevicesViewModel(probe: probe, certificateURL: Self.certificate) { 9090 }
+            for _ in 0 ..< 5 {
+                #expect(devices.lanProxyAddress == "10.0.0.5:9090")
+            }
+            #expect(asked.value == 1)
+            await devices.refresh()
+            #expect(devices.lanProxyAddress == "10.0.0.5:9090")
+            #expect(asked.value == 2)
+        }
+
+        @Test(arguments: [
+            (["10.0.0.5"], "10.0.0.5", "http://10.0.0.5:9090"), ([String](), "—", nil),
+        ])
+        func theDevicePageAndServerFollowTheNetworkAddress(lan: [String], server: String, url: String?) {
+            let devices = viewModel(lan: lan)
+            #expect(devices.serverHost == server)
+            #expect(devices.certificateDirectURL == url)
+            #expect(devices.certificatePageURL == (url ?? "http://watcher.cert"))
+        }
     }
 }

@@ -132,14 +132,6 @@ private struct IPhonePane: View {
     @Environment(RequestActions.self) private var actions
     @Environment(DevicesViewModel.self) private var devices
 
-    private var pageURL: String {
-        "http://watcher.cert"
-    }
-
-    private var directURL: String? {
-        devices.lanProxyAddress.map { "http://\($0)" }
-    }
-
     var body: some View {
         Heading(title: "iPhone / iPad", detail: "Join the same Wi-Fi as this Mac, set the proxy, then open the certificate page on the device.")
         if !model.settings.listenOnAllInterfaces {
@@ -150,13 +142,12 @@ private struct IPhonePane: View {
         HStack(alignment: .top, spacing: 20) {
             VStack(alignment: .leading, spacing: 10) {
                 Step(number: 1, text: "Settings → Wi-Fi → (i) → Configure Proxy → Manual")
-                let server = devices.lanProxyAddress?.split(separator: ":").first.map(String.init) ?? "—"
-                Step(number: 2, text: "Server \(server), Port \(proxy.port)")
-                Step(number: 3, text: "Open \(pageURL) in Safari and tap the profile button")
+                Step(number: 2, text: "Server \(devices.serverHost), Port \(proxy.port)")
+                Step(number: 3, text: "Open http://watcher.cert in Safari and tap the profile button")
                 Step(number: 4, text: "Settings → Profile Downloaded → Install")
                 Step(number: 5, text: "Settings → General → About → Certificate Trust Settings → enable Watcher Root CA")
             }
-            if let directURL, let image = QRCode.image(for: directURL) {
+            if let directURL = devices.certificateDirectURL, let image = QRCode.image(for: directURL) {
                 VStack {
                     Image(nsImage: image).interpolation(.none).resizable().frame(width: 140, height: 140).padding(8).background(.white, in: RoundedRectangle(cornerRadius: 8))
                     Text("Scan to open the\ncertificate page").font(.caption).multilineTextAlignment(.center).foregroundStyle(.secondary)

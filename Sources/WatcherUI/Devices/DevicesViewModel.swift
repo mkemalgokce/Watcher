@@ -63,9 +63,38 @@ final class DevicesViewModel {
         self.port = port
     }
 
+    /// Read once per scan: asking the network interfaces on every redraw would be wasted work on the main thread.
+    @ObservationIgnored private var cachedLANAddress: String??
+    @ObservationIgnored private var scan: Task<Void, Never>?
+
+    /// The Mac's address a phone on the same network should use, without the port.
+    private var lanAddress: String? {
+        if let cachedLANAddress {
+            return cachedLANAddress
+        }
+        let address = probe.lanAddresses().first
+        cachedLANAddress = .some(address)
+        return address
+    }
+
     /// Address a phone on the same network should use as its proxy.
     var lanProxyAddress: String? {
-        probe.lanAddresses().first.map { "\($0):\(port())" }
+        lanAddress.map { "\($0):\(port())" }
+    }
+
+    /// The host to type into a phone's proxy settings.
+    var serverHost: String {
+        lanAddress ?? "—"
+    }
+
+    /// The certificate page reached by address, for a phone that is not yet using the proxy.
+    var certificateDirectURL: String? {
+        lanProxyAddress.map { "http://\($0)" }
+    }
+
+    /// Where a phone downloads the certificate: the direct address when known, else Watcher's own host name.
+    var certificatePageURL: String {
+        certificateDirectURL ?? "http://watcher.cert"
     }
 
     /// Only the keychain check, for the first-run list: starting simctl and adb at launch woke the simulator service for nothing.
@@ -76,12 +105,24 @@ final class DevicesViewModel {
 
     /// Runs simctl, adb and the keychain check off the main thread; a scan already running is not started again.
     func refresh() async {
-        guard !isScanning else { return }
+        guard scan == nil else { return }
         isScanning = true
+        cachedLANAddress = nil
         let probe = probe
-        let (simulators, android, trusted) = await Task.detached { (probe.simulators(), probe.androidDevices(), probe.isMacTrusted()) }.value
-        self.simulators = simulators; androidDevices = android; macTrusted = trusted
-        isScanning = false
+        let task = Task {
+            let found = await Task.detached { (probe.simulators(), probe.androidDevices(), probe.isMacTrusted()) }.value
+            (simulators, androidDevices, macTrusted) = found
+            isScanning = false
+            scan = nil
+        }
+        scan = task
+        await task.value
+    }
+
+    /// A scan that began before an action saw the system as it was; wait for it, then look again.
+    private func rescan() async {
+        await scan?.value
+        await refresh()
     }
 
     func trustOnMac() async {
@@ -102,7 +143,7 @@ final class DevicesViewModel {
     }
 
     func setProxy(on device: AndroidDevice, enabled: Bool) async {
-        let endpoint = enabled ? device.proxyEndpoint(port: port(), lanAddress: probe.lanAddresses().first) : nil
+        let endpoint = enabled ? device.proxyEndpoint(port: port(), lanAddress: lanAddress) : nil
         if enabled, endpoint == nil {
             status = .failed("No network address found for this Mac."); return
         }
@@ -125,6 +166,6 @@ final class DevicesViewModel {
         case .success: status = .done(done)
         case let .failure(error): status = .failed("\(error)")
         }
-        await refresh()
+        await rescan()
     }
 }
