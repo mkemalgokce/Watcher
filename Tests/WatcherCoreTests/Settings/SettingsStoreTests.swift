@@ -5,42 +5,51 @@ import WatcherTestSupport
 
 @Suite(.tags(.unit))
 struct SettingsStoreTests {
-    private let temporary: TemporaryDirectory
-    private var directory: URL {
-        temporary.url
-    }
+    private let path = "/home/.watcher/settings.json"
+    private let files = FileAccessFake()
+    /// 2001-01-01 00:00:10 UTC.
+    private let now = Date(timeIntervalSinceReferenceDate: 10)
 
     private var url: URL {
-        directory.appendingPathComponent("settings.json")
+        URL(fileURLWithPath: path)
     }
 
-    init() throws {
-        temporary = try TemporaryDirectory(prefix: "watcher-settings")
+    private func store() -> SettingsStore {
+        SettingsStore(url: url, files: files.access, now: { [now] in now })
+    }
+
+    private var backups: [String] {
+        files.paths.filter { $0.hasPrefix(path + ".unreadable-") }.sorted()
     }
 
     @Test
     func missingOrValidFileHasNoLoadIssue() throws {
-        let fresh = SettingsStore(url: url)
+        let fresh = store()
         #expect(fresh.loadIssue == nil)
         try fresh.update { $0.port = 7777 }
-        #expect(SettingsStore(url: url).loadIssue == nil)
-        #expect(SettingsStore(url: url).value.port == 7777)
+        #expect(store().loadIssue == nil)
+        #expect(store().value.port == 7777)
+    }
+
+    @Test
+    func writesAreReadableOnlyByTheOwnerAndCreateTheFolder() throws {
+        try store().replace(with: WatcherSettings())
+        #expect(files.permissions(of: path) == 0o600)
+        #expect(files.folders == ["/home/.watcher"])
     }
 
     @Test
     func wrongTypedFileIsMovedAsideInsteadOfOverwritten() throws {
         let original = Data(#"{"port":"9090"}"#.utf8)
-        try original.write(to: url)
+        files.write(original, to: path)
 
-        let store = SettingsStore(url: url)
+        let store = store()
         try store.update { $0.maxFlows = 5 }
 
-        let backup = try #require(backups().first, "the unreadable file must be kept")
-        #expect(try Data(contentsOf: backup) == original)
-        #expect(store.loadIssue?.movedTo?.lastPathComponent == backup.lastPathComponent)
-        let pattern = #"^settings\.json\.unreadable-\d{8}-\d{6}$"#
-        #expect(backup.lastPathComponent.range(of: pattern, options: .regularExpression) != nil)
-        #expect(SettingsStore(url: url).value.maxFlows == 5)
+        #expect(backups == [path + ".unreadable-20010101-000010"])
+        #expect(files.contents(of: backups[0]) == original)
+        #expect(store.loadIssue?.movedTo?.path == backups.first)
+        #expect(self.store().value.maxFlows == 5)
     }
 
     @Test
@@ -52,48 +61,92 @@ struct SettingsStoreTests {
         let broken = encoded.replacingOccurrences(of: #","hidesRequest":false"#, with: "")
             .replacingOccurrences(of: #""hidesRequest":false,"#, with: "")
         #expect(!broken.contains("hidesRequest"))
-        try Data(broken.utf8).write(to: url)
+        files.write(Data(broken.utf8), to: path)
 
-        let store = SettingsStore(url: url)
+        let store = store()
         try store.replace(with: WatcherSettings())
 
-        let backup = try #require(backups().first)
-        #expect(try String(contentsOf: backup, encoding: .utf8).contains("keep me"))
+        let backup = try #require(backups.first.flatMap(files.contents))
+        #expect(String(bytes: backup, encoding: .utf8)?.contains("keep me") == true)
         #expect(store.loadIssue?.reason != nil)
     }
 
     @Test
-    func secondUnreadableFileDoesNotReplaceTheFirstBackup() throws {
-        try Data("first".utf8).write(to: url)
-        let store = SettingsStore(url: url)
-        try Data("second".utf8).write(to: url)
+    func laterUnreadableFilesGetNumberedBackupNames() {
+        files.write(Data("first".utf8), to: path)
+        let store = store()
+        files.write(Data("second".utf8), to: path)
+        store.reloadIfChanged()
+        files.write(Data("third".utf8), to: path)
         store.reloadIfChanged()
 
-        let contents = try Set(backups().map { try String(contentsOf: $0, encoding: .utf8) })
-        #expect(contents == ["first", "second"])
+        let stamp = path + ".unreadable-20010101-000010"
+        #expect(backups == [stamp, stamp + "-2", stamp + "-3"])
+        #expect(backups.compactMap(files.contents) == ["first", "second", "third"].map { Data($0.utf8) })
     }
 
     @Test
     func writesAreRefusedWhileAnUnreadableFileCannotBeMovedAside() throws {
         let original = Data("not json".utf8)
-        try original.write(to: url)
-        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: directory.path)
-        let store = SettingsStore(url: url)
-        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+        files.write(original, to: path)
+        files.fail("move")
+        let store = store()
 
         #expect(store.loadIssue != nil)
         #expect(store.loadIssue?.movedTo == nil)
-        #expect(throws: (any Error).self) { try store.update { $0.port = 1 } }
-        #expect(throws: (any Error).self) { try store.replace(with: WatcherSettings()) }
-        #expect(try Data(contentsOf: url) == original)
+        #expect(throws: SettingsStoreError.unreadableFileInPlace(url)) { try store.update { $0.port = 1 } }
+        #expect(throws: SettingsStoreError.unreadableFileInPlace(url)) { try store.replace(with: WatcherSettings()) }
+        #expect(files.contents(of: path) == original)
 
-        try FileManager.default.removeItem(at: url)
+        files.remove(path)
         #expect(throws: Never.self, "once the file is gone nothing can be lost") { try store.update { $0.port = 1 } }
     }
 
     @Test
+    func aFailedWriteThrowsAndKeepsTheOldValue() throws {
+        let store = store()
+        try store.update { $0.port = 1 }
+        files.fail("write")
+        #expect(throws: FileAccessFake.Failure(operation: "write")) { try store.update { $0.port = 2 } }
+        #expect(store.value.port == 1)
+    }
+
+    @Test
+    func reloadReportsWhetherAnotherProcessChangedTheFile() throws {
+        let store = store()
+        try store.update { $0.port = 1 }
+        #expect(!store.reloadIfChanged(), "its own write is not a change")
+
+        var edited = WatcherSettings()
+        edited.port = 2
+        try files.write(JSONEncoder().encode(edited), to: path)
+        #expect(store.reloadIfChanged())
+        #expect(store.value.port == 2)
+        #expect(!store.reloadIfChanged())
+    }
+
+    @Test
+    func aCleanLoadClearsAnEarlierIssue() throws {
+        files.write(Data("broken".utf8), to: path)
+        let store = store()
+        #expect(store.loadIssue != nil)
+        try files.write(JSONEncoder().encode(WatcherSettings()), to: path)
+        #expect(store.reloadIfChanged())
+        #expect(store.loadIssue == nil)
+    }
+
+    @Test
+    func anUnreadableFileIsNotAChange() {
+        files.write(Data("{}".utf8), to: path)
+        files.fail("read")
+        let store = store()
+        #expect(!store.reloadIfChanged())
+        #expect(store.loadIssue == nil)
+    }
+
+    @Test
     func concurrentUpdatesAreNotLost() throws {
-        let store = SettingsStore(url: url)
+        let store = store()
         try store.update { $0.maxFlows = 0 }
         let failures = LockedBox<[any Error]>([])
         DispatchQueue.concurrentPerform(iterations: 100) { _ in
@@ -101,38 +154,18 @@ struct SettingsStoreTests {
         }
         #expect(failures.value.isEmpty)
         #expect(store.value.maxFlows == 100)
-        #expect(SettingsStore(url: url).value.maxFlows == 100)
-        let permissions = try FileManager.default.attributesOfItem(atPath: url.path)[.posixPermissions] as? Int
-        #expect(permissions == 0o600)
+        #expect(self.store().value.maxFlows == 100)
     }
 
     @Test
-    func settingsPersistAndReload() throws {
-        let first = SettingsStore(url: url)
-        try first.update {
-            $0.port = 7777
-            $0.blockList = RuleSet(isEnabled: true, rules: [BlockRule(matching: MatchingRule(pattern: "x"))])
-        }
-        let second = SettingsStore(url: url)
-        #expect(second.value.port == 7777)
-        #expect(second.value.blockList.rules.count == 1)
-    }
-
-    @Test
-    func settingsFromAnOlderVersionStillLoadWithDefaults() throws {
+    func settingsFromAnOlderVersionStillLoadWithDefaults() {
         let old = #"{"port": 1234, "noCaching": true, "externalProxy": {"isEnabled": true, "host": "h", "port": 1}}"#
-        try Data(old.utf8).write(to: url)
-        let settings = SettingsStore(url: url).value
+        files.write(Data(old.utf8), to: path)
+        let settings = store().value
         #expect(settings.port == 1234)
         #expect(settings.noCaching)
         #expect(settings.externalProxy.host == "h")
         #expect(settings.socks == SocksSettings())
         #expect(!settings.listenOnAllInterfaces)
-    }
-
-    private func backups() throws -> [URL] {
-        try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-            .filter { $0.lastPathComponent.hasPrefix("settings.json.unreadable-") }
-            .sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 }

@@ -6,16 +6,18 @@ import Foundation
 /// save cannot destroy it; `loadIssue` reports that. If it cannot be moved, saves throw while it is still there.
 public final class SettingsStore: @unchecked Sendable {
     public let url: URL
-    private let files: FileManager
+    private let files: FileAccess
+    private let now: @Sendable () -> Date
     /// One serial lock around every read and write, so `update` is a single read-change-write step.
     private let lock = NSLock()
     private var current = WatcherSettings()
     private var lastModified: Date?
     private var issue: SettingsLoadIssue?
 
-    public init(url: URL, files: FileManager = .default) {
+    public init(url: URL, files: FileAccess = .live, now: @escaping @Sendable () -> Date = Date.init) {
         self.url = url
         self.files = files
+        self.now = now
         _ = reloadIfChanged()
     }
 
@@ -46,7 +48,7 @@ public final class SettingsStore: @unchecked Sendable {
     public func reloadIfChanged() -> Bool {
         lock.withLock {
             guard let modified = modificationDate, modified != lastModified,
-                  let data = try? Data(contentsOf: url) else { return false }
+                  let data = try? files.read(url) else { return false }
             do {
                 current = try JSONDecoder().decode(WatcherSettings.self, from: data)
                 lastModified = modified
@@ -61,15 +63,15 @@ public final class SettingsStore: @unchecked Sendable {
 
     /// Caller holds `lock`.
     private func write(_ settings: WatcherSettings) throws {
-        if let issue, issue.movedTo == nil, files.fileExists(atPath: url.path) {
+        if let issue, issue.movedTo == nil, files.fileExists(url.path) {
             throw SettingsStoreError.unreadableFileInPlace(url)
         }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try files.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try encoder.encode(settings).write(to: url, options: .atomic)
+        try files.createDirectory(url.deletingLastPathComponent())
+        try files.writeAtomically(encoder.encode(settings), url)
         // May contain proxy credentials.
-        try files.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        try files.setPermissions(0o600, url.path)
         current = settings
         lastModified = modificationDate
     }
@@ -80,18 +82,18 @@ public final class SettingsStore: @unchecked Sendable {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(identifier: "UTC")
         formatter.dateFormat = "yyyyMMdd-HHmmss"
-        let base = "\(url.lastPathComponent).unreadable-\(formatter.string(from: Date()))"
+        let base = "\(url.lastPathComponent).unreadable-\(formatter.string(from: now()))"
         let directory = url.deletingLastPathComponent()
         for attempt in 1 ... 1000 {
             let target = directory.appendingPathComponent(attempt == 1 ? base : "\(base)-\(attempt)")
-            guard !files.fileExists(atPath: target.path) else { continue }
-            return (try? files.moveItem(at: url, to: target)) == nil ? nil : target
+            guard !files.fileExists(target.path) else { continue }
+            return (try? files.move(url, target)) == nil ? nil : target
         }
         return nil
     }
 
     private var modificationDate: Date? {
-        (try? files.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
+        files.modificationDate(url.path)
     }
 }
 
