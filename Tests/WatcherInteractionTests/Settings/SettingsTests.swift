@@ -13,7 +13,7 @@ extension InteractionTests {
             let model = try AppModel.test()
             model.settings.port = 70000
             try await withWindow(showing: SettingsView().environment(model), width: 560, height: 520) { window in
-                #expect(!window.elements("Stopped").isEmpty)
+                #expect(await window.shows("Stopped"))
                 try await window.press("Start")
                 #expect(!model.proxy.isRunning, "an invalid port is refused")
                 #expect(model.proxy.proxyError?.contains("not valid") == true)

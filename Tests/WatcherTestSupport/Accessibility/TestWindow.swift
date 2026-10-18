@@ -30,6 +30,11 @@ public final class TestWindow {
         AccessibilityAPI.find(label)
     }
 
+    /// Whether an element labelled `label` shows up within the default wait.
+    public func shows(_ label: String) async -> Bool {
+        await eventually { !elements(label).isEmpty }
+    }
+
     /// The first non-nil `find()` within the default wait, or nil when the element never shows up.
     public func appearing(_ find: () -> AXUIElement?) async -> AXUIElement? {
         var element: AXUIElement?
