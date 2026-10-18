@@ -18,7 +18,7 @@ final class ToolsViewModel {
     }
 
     func activeCount(_ tool: ToolsView.Tool) -> Int {
-        tool.activeCount(in: model.settings)
+        tool.activeCount(in: model.settings.value)
     }
 
     /// Every problem in the tool's enabled rules (see ToolValidation).

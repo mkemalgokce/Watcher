@@ -86,7 +86,9 @@ private struct WatcherToolbar: ToolbarContent {
                 .help("Remove every request from the list; Undo brings them back (⌘K)")
         }
         ToolbarItemGroup(placement: .primaryAction) {
-            let activeTools = ToolsView.Tool.allCases.reduce(0) { $0 + ($1 == .sslProxying ? 0 : $1.activeCount(in: model.settings)) }
+            let settings = model.settings.value
+            let activeTools = ToolsView.Tool.allCases
+                .reduce(0) { $0 + ($1 == .sslProxying ? 0 : $1.activeCount(in: settings)) }
             Button { model.show(.breakpoints) } label: { Label("Breakpoints", systemImage: model.hits.isEmpty ? "pause.circle" : "pause.circle.fill") }
                 .badge(model.hits.count)
                 .help(model.hits.isEmpty ? "Breakpoints (⌘B)" : "\(model.hits.count) paused at a breakpoint (⌘B)")

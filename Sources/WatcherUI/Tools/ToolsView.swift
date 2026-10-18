@@ -248,7 +248,7 @@ struct ToolsView: View {
         case .externalProxy:
             ExternalProxyTab(proxy: $model.settings.externalProxy, tool: tool)
         case .protobuf:
-            ProtobufTab(settings: $model.settings, tool: tool)
+            ProtobufTab(settings: $model.settings.value, tool: tool)
         case .previewers:
             RuleListEditor(
                 tool: tool,

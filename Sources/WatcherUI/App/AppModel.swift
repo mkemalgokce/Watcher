@@ -97,19 +97,11 @@ public final class AppModel {
         notices.notify("#\(flow.sequence) is the compare base. Select another request to compare.")
     }
 
-    var settings: WatcherSettings {
-        didSet {
-            scheduleCommit()
-            if settings.hideAppleTraffic != oldValue.hideAppleTraffic {
-                refreshDerived()
-            }
-        }
-    }
+    var settings: SettingsEditor
 
     @ObservationIgnored private var indexByID: [Flow.ID: Int] = [:]
     @ObservationIgnored private var pendingEvents: [FlowEvent] = []
     @ObservationIgnored private var flushTask: Task<Void, Never>?
-    @ObservationIgnored private var commitTask: Task<Void, Never>?
 
     public convenience init() {
         self.init(listening: true)
@@ -139,13 +131,18 @@ public final class AppModel {
         )
         let directory = engine.authority.certificateURL.deletingLastPathComponent()
         devices = DevicesViewModel(probe: listening ? .live : .none, certificateURL: WatcherPaths.supportDirectory.appendingPathComponent("watcher-ca.pem"))
-        settings = engine.settings.value
+        settings = SettingsEditor(engine: engine, sleep: dependencies.sleep, notices: notices)
         workspaces = engine.workspaces.list()
         // Never the real one off the app: a preview or test must not change the Mac's network settings.
         let inertBackup = directory.appendingPathComponent("system-proxy-backup.json")
         let inert = SystemProxy(run: { _ in "" }, backupURL: inertBackup)
         self.systemProxy = systemProxy ?? (listening ? .shared : inert)
 
+        settings.onChange = { [weak self] old, new in
+            if old.hideAppleTraffic != new.hideAppleTraffic {
+                self?.refreshDerived()
+            }
+        }
         guard listening else { return }
         observeEngine()
         // A proxy setting left behind by a crashed run would cut the Mac off from the network.
@@ -376,7 +373,7 @@ public final class AppModel {
         Task {
             do {
                 try await engine.openWorkspace(named: name)
-                settings = engine.settings.value
+                settings.value = engine.settings.value
             } catch { notices.notify("\(error)", .error) }
         }
     }
@@ -587,19 +584,6 @@ public final class AppModel {
 
     private func reindex() {
         indexByID = Dictionary(uniqueKeysWithValues: flows.enumerated().map { ($1.id, $0) })
-    }
-
-    /// Saves after a short pause so typing in a field does not restart listeners on every keystroke.
-    private func scheduleCommit() {
-        commitTask?.cancel()
-        commitTask = Task {
-            try? await Task.sleep(for: .milliseconds(400))
-            guard !Task.isCancelled else { return }
-            do {
-                try engine.settings.replace(with: settings)
-                await engine.apply(settings)
-            } catch { notices.notify("\(error)", .error) }
-        }
     }
 }
 

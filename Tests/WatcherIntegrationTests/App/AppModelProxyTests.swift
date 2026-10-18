@@ -59,7 +59,7 @@ struct AppModelProxyTests {
         var settings = model.engine.settings.value
         settings.port = port; settings.autoSelectPort = false
         try model.engine.settings.replace(with: settings)
-        model.settings = settings
+        model.settings.value = settings
         return model
     }
 }
