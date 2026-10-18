@@ -297,16 +297,9 @@ public final class ProxyServer: @unchecked Sendable {
         }
         return try await upstream.client(for: request).execute(upstreamRequest, timeout: .seconds(Int64(max(1, timeout))))
     }
+}
 
-    /// Event streams, bodies of unknown length and very large bodies are relayed instead of buffered.
-    private static func shouldStream(_ response: HTTPClientResponse) -> Bool {
-        if response.headers.first(name: "Content-Type")?.lowercased().contains("text/event-stream") == true {
-            return true
-        }
-        guard let length = response.headers.first(name: "Content-Length") else { return true }
-        return (Int(length) ?? 0) > maxBodyBytes / 8
-    }
-
+extension ProxyServer {
     static let hopByHop: Set<String> = [
         "connection", "keep-alive", "proxy-connection", "proxy-authenticate", "proxy-authorization",
         "te", "trailer", "transfer-encoding", "upgrade", "content-length",
@@ -314,5 +307,19 @@ public final class ProxyServer: @unchecked Sendable {
 
     static func message(_ status: Int, _ text: String) -> ResponseRecord {
         ResponseRecord(status: status, headers: [Header("Content-Type", "text/plain; charset=utf-8")], body: Data(text.utf8))
+    }
+
+    /// Event streams, bodies of unknown length and very large bodies are relayed instead of buffered.
+    static func shouldStream(_ response: HTTPClientResponse) -> Bool {
+        // The client sees these as complete at the head, so a streamed end can race its close and fail the flow.
+        let code = response.status.code
+        if code < 200 || code == 204 || code == 304 {
+            return false
+        }
+        if response.headers.first(name: "Content-Type")?.lowercased().contains("text/event-stream") == true {
+            return true
+        }
+        guard let length = response.headers.first(name: "Content-Length") else { return true }
+        return (Int(length) ?? 0) > maxBodyBytes / 8
     }
 }
