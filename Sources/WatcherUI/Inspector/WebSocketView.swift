@@ -37,8 +37,7 @@ struct WebSocketView: View {
 }
 
 private struct MessageRow: View {
-    @Environment(\.locale) private var locale
-    @Environment(\.timeZone) private var timeZone
+    @Environment(\.timestamp) private var timestamp
     let message: WebSocketMessage
 
     var body: some View {
@@ -50,7 +49,7 @@ private struct MessageRow: View {
             Pill(text: message.kind.rawValue, monospaced: true).frame(width: 64, alignment: .leading)
             Text(preview).font(.system(.callout, design: .monospaced)).lineLimit(4).textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Text(Timestamp(locale: locale, timeZone: timeZone).clock(message.date))
+            Text(timestamp.clock(message.date))
                 .font(.caption.monospacedDigit()).foregroundStyle(.tertiary)
         }
         .padding(.horizontal, Metrics.gutter).padding(.vertical, 6)
