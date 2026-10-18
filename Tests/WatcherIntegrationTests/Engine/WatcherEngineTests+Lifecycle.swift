@@ -62,6 +62,22 @@ extension WatcherEngineTests {
         }
 
         @Test
+        func socksAnswersOverIPv6WhenListeningOnAllInterfacesWithIPv6() async throws {
+            let engine = try engine()
+            let socksPort = try freeLoopbackPort()
+            try engine.settings.update {
+                $0.listenOnAllInterfaces = true; $0.listenOnIPv6 = true
+                $0.socks = SocksSettings(isEnabled: true, port: socksPort)
+            }
+            _ = try await engine.start(port: 0)
+            let channel = try? await ClientBootstrap(group: MultiThreadedEventLoopGroup.singleton)
+                .connect(host: "::1", port: socksPort).get()
+            #expect(channel != nil)
+            try? await channel?.close()
+            try await engine.stop()
+        }
+
+        @Test
         func anEditMadeOutsideTheEngineIsPickedUpWhileRunning() async throws {
             let engine = try engine()
             _ = try await engine.start(port: 0)

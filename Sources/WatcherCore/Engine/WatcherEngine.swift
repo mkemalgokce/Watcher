@@ -51,7 +51,7 @@ public final class WatcherEngine: @unchecked Sendable {
         // A stopped ProxyServer cannot be restarted, so every start gets a fresh one.
         let server = makeServer(store, authority)
         let current = settings.value
-        let host = current.listenOnAllInterfaces ? (current.listenOnIPv6 ? "::" : "0.0.0.0") : "127.0.0.1"
+        let host = Self.listenHost(for: current)
         let wanted = port ?? current.port
         let bound: Int
         do { bound = try await server.start(host: host, port: wanted) }
@@ -126,7 +126,7 @@ public final class WatcherEngine: @unchecked Sendable {
         )
         if settings.socks != appliedSocks {
             appliedSocks = settings.socks
-            if let failure = await server.setSocks(settings.socks, host: settings.listenOnAllInterfaces ? "0.0.0.0" : "127.0.0.1") {
+            if let failure = await server.setSocks(settings.socks, host: Self.listenHost(for: settings)) {
                 log(failure)
             }
         }
@@ -137,6 +137,10 @@ public final class WatcherEngine: @unchecked Sendable {
                 log(failure)
             }
         }
+    }
+
+    private static func listenHost(for settings: WatcherSettings) -> String {
+        settings.listenOnAllInterfaces ? (settings.listenOnIPv6 ? "::" : "0.0.0.0") : "127.0.0.1"
     }
 
     public func saveWorkspace(named name: String) throws {
