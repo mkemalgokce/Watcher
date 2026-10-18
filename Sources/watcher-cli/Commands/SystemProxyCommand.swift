@@ -11,10 +11,14 @@ struct SystemProxyCommand: ParsableCommand {
     @Option var port = 9090
 
     func run() throws {
+        try run(in: .live)
+    }
+
+    func run(in environment: CLIEnvironment) throws {
         switch state {
-        case .on: try SystemProxy.enable(port: port)
-        case .off: try SystemProxy.disable()
+        case .on: try environment.systemProxy.enable(port: port)
+        case .off: try environment.systemProxy.disable()
         }
-        print("System proxy \(state.rawValue)")
+        environment.output("System proxy \(state.rawValue)")
     }
 }
