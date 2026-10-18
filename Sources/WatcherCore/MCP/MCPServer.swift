@@ -49,7 +49,7 @@ public final class MCPServer: @unchecked Sendable {
             guard let name = params["name"] as? String, let tool = tools.first(where: { $0.name == name }) else {
                 return response(id: id, error: (-32602, "Unknown tool"))
             }
-            let arguments = params["arguments"] as? [String: Any] ?? [:]
+            let arguments = Self.stringArguments(params["arguments"] as? [String: Any] ?? [:])
             if let missing = tool.required.first(where: { (arguments[$0] as? String)?.isEmpty != false }) {
                 return response(id: id, result: content("Missing required argument: \(missing)", isError: true))
             }
@@ -57,6 +57,19 @@ public final class MCPServer: @unchecked Sendable {
             catch { return response(id: id, result: content("\(error)", isError: true)) }
         default:
             return response(id: id, error: (-32601, "Method not found"))
+        }
+    }
+
+    /// Agents often send numbers where a string is declared; they are read as their text. Booleans and structures are not
+    /// arguments, so a tool that needs them reports the argument as missing.
+    private static func stringArguments(_ raw: [String: Any]) -> [String: Any] {
+        raw.compactMapValues { value in
+            switch value {
+            case let text as String: text
+            case let number as NSNumber where CFGetTypeID(number) != CFBooleanGetTypeID():
+                Int(exactly: number.doubleValue).map(String.init) ?? number.stringValue
+            default: nil
+            }
         }
     }
 
@@ -68,10 +81,36 @@ public final class MCPServer: @unchecked Sendable {
             + "lan: \(lan.joined(separator: ", "))"
     }
 
+    private static func mapRemoteRule(_ args: [String: Any]) throws -> MapRemoteRule {
+        func given(_ key: String) -> String? {
+            let value = (args[key] as? String)?.trimmingCharacters(in: .whitespaces)
+            return value?.isEmpty == false ? value : nil
+        }
+        guard given("host") != nil || given("path") != nil else {
+            throw Failure(description: "create_map_remote needs a host or a path")
+        }
+        let destination = MapRemoteRule.Destination(host: given("host"), path: given("path"))
+        let matching = MatchingRule(pattern: args["pattern"] as? String ?? "*")
+        return MapRemoteRule(matching: matching, destination: destination)
+    }
+
+    private static func reverseProxyRule(_ args: [String: Any]) throws -> ReverseProxyRule {
+        guard let local = Int(args["local_port"] as? String ?? ""), PortRange.isValid(local) else {
+            throw Failure(description: "local_port must be a number from 1 to 65535")
+        }
+        let remote = Int(args["remote_port"] as? String ?? "") ?? 443
+        guard PortRange.isValid(remote) else {
+            throw Failure(description: "remote_port must be a number from 1 to 65535")
+        }
+        return ReverseProxyRule(localPort: local, remoteHost: args["remote_host"] as? String ?? "", remotePort: remote)
+    }
+
     private func definitions() -> [ToolDefinition] {
         let engine = engine, localAddresses = localAddresses
         func flow(_ args: [String: Any]) throws -> Flow {
-            guard let sequence = Int(args["sequence"] as? String ?? ""), let found = engine.store.all.first(where: { $0.sequence == sequence }) else {
+            guard let sequence = Int(args["sequence"] as? String ?? ""),
+                  let found = engine.store.all.first(where: { $0.sequence == sequence })
+            else {
                 throw Failure(description: "No request with that sequence number")
             }
             return found
@@ -150,10 +189,8 @@ public final class MCPServer: @unchecked Sendable {
                 try await edit { $0.mapLocal.isEnabled = true; $0.mapLocal.rules.append(MapLocalRule(matching: matching(args), source: .file(args["file_path"] as? String ?? ""))) }
             },
             ToolDefinition(name: "create_map_remote", description: "Redirect matching requests to another host/path.", properties: ["pattern": "URL pattern", "host": "New host", "path": "New path"], required: ["pattern"]) { args in
-                try await edit {
-                    $0.mapRemote.isEnabled = true
-                    $0.mapRemote.rules.append(MapRemoteRule(matching: matching(args), destination: .init(host: args["host"] as? String, path: args["path"] as? String)))
-                }
+                let rule = try Self.mapRemoteRule(args)
+                return try await edit { $0.mapRemote.isEnabled = true; $0.mapRemote.rules.append(rule) }
             },
             ToolDefinition(name: "create_breakpoint", description: "Pause matching requests and responses for editing in the app.", properties: ["pattern": "URL pattern"], required: ["pattern"]) { args in
                 try await edit { $0.breakpoints.isEnabled = true; $0.breakpoints.rules.append(BreakpointRule(matching: matching(args))) }
@@ -166,9 +203,8 @@ public final class MCPServer: @unchecked Sendable {
                 return try await edit { $0.throttle.isEnabled = true; $0.throttle.profile = preset }
             },
             ToolDefinition(name: "create_reverse_proxy", description: "Listen on a local port and forward to a remote host.", properties: ["local_port": "Local port", "remote_host": "Remote host", "remote_port": "Remote port, default 443"], required: ["local_port", "remote_host"]) { args in
-                guard let local = Int(args["local_port"] as? String ?? "") else { throw Failure(description: "local_port must be a number") }
-                let remote = Int(args["remote_port"] as? String ?? "") ?? 443
-                return try await edit { $0.reverseProxy.isEnabled = true; $0.reverseProxy.rules.append(ReverseProxyRule(localPort: local, remoteHost: args["remote_host"] as? String ?? "", remotePort: remote)) }
+                let rule = try Self.reverseProxyRule(args)
+                return try await edit { $0.reverseProxy.isEnabled = true; $0.reverseProxy.rules.append(rule) }
             },
             ToolDefinition(name: "create_scripting_rule", description: "Run JavaScript (onRequest/onResponse) on matching traffic.", properties: ["pattern": "URL pattern", "source": "JavaScript source"], required: ["pattern", "source"]) { args in
                 try await edit { $0.scripting.isEnabled = true; $0.scripting.rules.append(ScriptRule(matching: matching(args), source: args["source"] as? String ?? "")) }
