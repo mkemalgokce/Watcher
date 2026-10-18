@@ -106,7 +106,7 @@ public enum CurlImport {
         var body = Data(data.joined(separator: "&").utf8)
         if asQuery, !data.isEmpty {
             let existing = components.percentEncodedQuery.map { $0 + "&" } ?? ""
-            components.percentEncodedQuery = existing + data.joined(separator: "&")
+            components.percentEncodedQuery = existing + queryEncoded(data.joined(separator: "&"))
             body = Data()
         }
         let resolvedMethod = method ?? (head ? "HEAD" : (body.isEmpty ? "GET" : "POST"))
@@ -131,6 +131,13 @@ public enum CurlImport {
         guard let equals = part.firstIndex(of: "=") else { return part.addingPercentEncoding(withAllowedCharacters: allowed) ?? part }
         let name = part[..<equals], value = part[part.index(after: equals)...]
         return name + "=" + (String(value).addingPercentEncoding(withAllowedCharacters: allowed) ?? String(value))
+    }
+
+    /// Encodes what a query may not hold literally, keeping valid `%XX` escapes; `URLComponents` traps on the rest.
+    private static func queryEncoded(_ text: String) -> String {
+        var allowed = CharacterSet.urlQueryAllowed; allowed.insert("%")
+        let encoded = text.addingPercentEncoding(withAllowedCharacters: allowed) ?? text
+        return encoded.replacing(#/%(?![0-9A-Fa-f]{2})/#, with: "%25")
     }
 
     /// Splits like a POSIX shell (plus bash's `$'…'`): quotes group words, `\` escapes, a backslash-newline continues the line.

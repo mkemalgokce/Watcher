@@ -60,4 +60,21 @@ struct FormFieldsTests {
         #expect(fields[1].value == "image/png, 3 bytes")
         #expect(FormFields.parse(RequestRecord.fixture(host: "a")).isEmpty)
     }
+
+    @Test(arguments: [
+        ("q=hello world", ["q=hello world"]),
+        ("q=100%", ["q=100%"]),
+        ("q=caf\u{E9}", ["q=caf\u{E9}"]),
+        ("a=%41&&b", ["a=A", "=", "b="]),
+        ("a=b=c&", ["a=b=c", "="]),
+        ("", []),
+    ])
+    func aUrlencodedBodyThatIsNotAValidQueryStillListsItsFields(body: String, fields: [String]) {
+        let request = RequestRecord.fixture(
+            method: "POST",
+            headers: [Header("Content-Type", "application/x-www-form-urlencoded")],
+            body: Data(body.utf8)
+        )
+        #expect(FormFields.parse(request).map { "\($0.name)=\($0.value)" } == fields)
+    }
 }
