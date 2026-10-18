@@ -50,10 +50,15 @@ public final class WatcherEngine: @unchecked Sendable {
         )
     }
 
-    /// Starts listening on the configured port (or `port`) and returns the bound port.
+    /// Starts listening on the configured port (or `port`) and returns the bound port; a running proxy is stopped first.
     @discardableResult
     public func start(port: Int? = nil) async throws -> Int {
-        try await inOrder { [self] in try await startNow(port: port) }
+        try await inOrder { [self] in
+            if lock.withLock({ server != nil }) {
+                try await stopNow()
+            }
+            return try await startNow(port: port)
+        }
     }
 
     private func startNow(port: Int?) async throws -> Int {
@@ -64,9 +69,14 @@ public final class WatcherEngine: @unchecked Sendable {
         let wanted = port ?? current.port
         let bound: Int
         do {
-            bound = try await server.start(host: host, port: wanted)
-        } catch where current.autoSelectPort && wanted != 0 {
-            bound = try await server.start(host: host, port: 0)
+            do {
+                bound = try await server.start(host: host, port: wanted)
+            } catch where current.autoSelectPort && wanted != 0 {
+                bound = try await server.start(host: host, port: 0)
+            }
+        } catch {
+            try? await server.stop()
+            throw error
         }
         lock.withLock { self.server = server; self.bound = bound }
         server.onPinningSuspected = { [weak self] host in

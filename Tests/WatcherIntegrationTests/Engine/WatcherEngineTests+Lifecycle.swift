@@ -69,6 +69,16 @@ extension WatcherEngineTests {
         }
 
         @Test
+        func startingARunningEngineStopsTheServerItReplaces() async throws {
+            let engine = try engine()
+            let first = try await engine.start(port: 0)
+            let second = try await engine.start(port: 0)
+            #expect(await !accepts(port: first))
+            #expect(await accepts(port: second))
+            try await engine.stop()
+        }
+
+        @Test
         func concurrentAppliesDoNotInterleave() async throws {
             let engine = try engine()
             _ = try await engine.start(port: 0)
