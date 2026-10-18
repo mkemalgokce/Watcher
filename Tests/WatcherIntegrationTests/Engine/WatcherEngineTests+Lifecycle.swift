@@ -61,6 +61,34 @@ extension WatcherEngineTests {
             try await other.stop()
         }
 
+        private func accepts(port: Int) async -> Bool {
+            let channel = try? await ClientBootstrap(group: MultiThreadedEventLoopGroup.singleton)
+                .connect(host: "127.0.0.1", port: port).get()
+            try? await channel?.close()
+            return channel != nil
+        }
+
+        @Test
+        func concurrentAppliesDoNotInterleave() async throws {
+            let engine = try engine()
+            _ = try await engine.start(port: 0)
+            let ports = try [freeLoopbackPort(), freeLoopbackPort()]
+            await withTaskGroup(of: Void.self) { group in
+                for port in ports {
+                    var settings = engine.settings.value
+                    settings.socks = SocksSettings(isEnabled: true, port: port)
+                    group.addTask { await engine.apply(settings) }
+                }
+            }
+            var listening = 0
+            for port in ports where await accepts(port: port) {
+                listening += 1
+            }
+            #expect(listening == 1, "only the SOCKS listener applied last stays open")
+            #expect(logged.value.isEmpty, "\(logged.value)")
+            try await engine.stop()
+        }
+
         @Test
         func socksAnswersOverIPv6WhenListeningOnAllInterfacesWithIPv6() async throws {
             let engine = try engine()
