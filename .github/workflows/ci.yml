@@ -59,6 +59,7 @@ jobs:
         run: |
           bash scripts/tests/check-commit-msg-test.sh
           bash scripts/tests/coverage-gate-test.sh
+          bash scripts/tests/package-release-test.sh
 
   swift:
     needs: changes
