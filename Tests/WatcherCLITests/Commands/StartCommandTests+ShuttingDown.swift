@@ -1,3 +1,4 @@
+import ArgumentParser
 import Foundation
 import Testing
 @testable import watcher_cli
@@ -45,6 +46,21 @@ extension StartCommandTests {
             #expect(try HAR.flows(from: har).map(\.request.url) == ["https://api.example.com/saved"])
             #expect(cli.files.contents(of: "/tmp/s.csv") == CSVExporter.export(flows))
             #expect(cli.printed.suffix(2) == ["Saved ~/s.har", "Saved /tmp/s.csv"])
+        }
+
+        @Test
+        func aSessionThatCannotBeSavedIsReportedAndFailsTheCommand() async throws {
+            let cli = CLIHarness()
+            cli.files.fail(.writeAtomically)
+            let command = try Start.parse(["--har", "/tmp/s.har", "--csv", "/tmp/s.csv"])
+            let running = Task { [environment = cli.environment] in try await command.run(in: environment) }
+            #expect(await eventually(timeout: 30) { cli.shutdown.isAwaited })
+            cli.shutdown.fire()
+            await #expect(throws: ExitCode.failure) { try await running.value }
+            #expect(!cli.printed.contains { $0.hasPrefix("Saved") })
+            #expect(cli.printedToErrorOutput.count == 2)
+            #expect(cli.printedToErrorOutput.allSatisfy { $0.hasPrefix("Could not save /tmp/s.") })
+            #expect(cli.engine.calls.last == "stop")
         }
 
         @Test

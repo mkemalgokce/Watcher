@@ -42,7 +42,7 @@ struct Start: AsyncParsableCommand {
             break
         }
         tasks.forEach { $0.cancel() }
-        await shutDown(engine, in: environment)
+        try await shutDown(engine, in: environment)
     }
 
     /// Headless sessions cannot edit a held message, so breakpoints just continue unchanged.
@@ -78,19 +78,31 @@ struct Start: AsyncParsableCommand {
         }
     }
 
-    private func shutDown(_ engine: any EngineControlling, in environment: CLIEnvironment) async {
+    private func shutDown(_ engine: any EngineControlling, in environment: CLIEnvironment) async throws {
         if systemProxy {
             try? environment.systemProxy.disable()
         }
         let flows = engine.store.all
-        save(try HAR.export(flows), to: har, in: environment)
-        save(CSVExporter.export(flows), to: csv, in: environment)
+        let savedHAR = save(try HAR.export(flows), to: har, in: environment)
+        let savedCSV = save(CSVExporter.export(flows), to: csv, in: environment)
         try? await engine.stop()
+        guard savedHAR, savedCSV else { throw ExitCode.failure }
     }
 
-    private func save(_ data: @autoclosure () throws -> Data, to path: String?, in environment: CLIEnvironment) {
-        guard let path else { return }
-        try? environment.files.writeAtomically(data(), environment.url(forPath: path))
-        environment.output("Saved \(path)")
+    /// False when `path` was given but could not be written.
+    private func save(
+        _ data: @autoclosure () throws -> Data,
+        to path: String?,
+        in environment: CLIEnvironment
+    ) -> Bool {
+        guard let path else { return true }
+        do {
+            try environment.files.writeAtomically(data(), environment.url(forPath: path))
+            environment.output("Saved \(path)")
+            return true
+        } catch {
+            environment.errorOutput("Could not save \(path): \(error.localizedDescription)")
+            return false
+        }
     }
 }
