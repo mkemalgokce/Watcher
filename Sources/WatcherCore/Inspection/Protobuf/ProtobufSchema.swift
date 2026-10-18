@@ -118,47 +118,14 @@ public struct ProtobufSchema: Sendable {
 
     // MARK: Wire decoding
 
-    private enum Value { case varint(UInt64), fixed64(UInt64), fixed32(UInt32), bytes([UInt8]) }
+    private typealias Value = ProtobufWireReader.Value
 
-    /// Splits a message into (field number, value) pairs; throws on truncated or malformed wire data.
-    private static func entries(_ bytes: [UInt8]) throws -> [(Int, Value)] {
-        var result: [(Int, Value)] = []
-        var position = 0
-        func varint() throws -> UInt64 {
-            var value: UInt64 = 0
-            for shift in stride(from: 0, to: 64, by: 7) {
-                guard position < bytes.count else { throw LoadError(description: "truncated varint") }
-                let byte = bytes[position]; position += 1
-                value |= UInt64(byte & 0x7F) << UInt64(shift)
-                if byte & 0x80 == 0 {
-                    return value
-                }
-            }
-            throw LoadError(description: "varint too long")
+    private static func entries(_ bytes: [UInt8]) throws -> [(field: Int, value: Value)] {
+        do {
+            return try ProtobufWireReader.entries(bytes)
+        } catch let malformed as ProtobufWireReader.Malformed {
+            throw LoadError(description: malformed.description)
         }
-        while position < bytes.count {
-            let key = try varint()
-            let field = Int(key >> 3)
-            guard field > 0 else { throw LoadError(description: "bad field number") }
-            switch key & 7 {
-            case 0: try result.append((field, .varint(varint())))
-            case 1:
-                guard position + 8 <= bytes.count else { throw LoadError(description: "truncated fixed64") }
-                result.append((field, .fixed64(bytes[position ..< position + 8].enumerated().reduce(UInt64(0)) { $0 | UInt64($1.element) << UInt64($1.offset * 8) })))
-                position += 8
-            case 2:
-                let length = try varint()
-                guard length <= UInt64(bytes.count - position) else { throw LoadError(description: "truncated bytes") }
-                result.append((field, .bytes(Array(bytes[position ..< position + Int(length)]))))
-                position += Int(length)
-            case 5:
-                guard position + 4 <= bytes.count else { throw LoadError(description: "truncated fixed32") }
-                result.append((field, .fixed32(bytes[position ..< position + 4].enumerated().reduce(UInt32(0)) { $0 | UInt32($1.element) << UInt32($1.offset * 8) })))
-                position += 4
-            default: throw LoadError(description: "unsupported wire type")
-            }
-        }
-        return result
     }
 
     private func decode(_ bytes: [UInt8], type: String, indent: Int, into lines: inout [String]) -> Bool {
