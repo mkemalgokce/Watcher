@@ -139,36 +139,13 @@ private struct InspectorHeader: View {
 
     /// Sizes, time and where it came from. Wraps onto a second line in a narrow inspector instead of cutting facts off.
     private var meta: some View {
-        let timing = TimingBreakdown(flow)
-        return WrappingHStack(spacing: 12, lineSpacing: 6) {
-            if timing.isComplete {
-                MetaItem(symbol: "clock", text: Format.duration(timing.total), help: "Total time. \(timing.verdict)")
-                if flow.timeToFirstByte != nil {
-                    MetaItem(symbol: "hourglass", text: "TTFB \(Format.duration(timing.phases[0].seconds))", help: "Waiting for the server: from sending the request to the first byte back")
-                    MetaItem(symbol: "arrow.down.to.line", text: Format.duration(timing.phases[1].seconds), help: "Downloading the rest of the response")
-                }
-            } else if flow.state == .pending {
-                MetaItem(symbol: "clock", text: "Waiting…", help: "The response has not finished yet")
+        WrappingHStack(spacing: 12, lineSpacing: 6) {
+            ForEach(InspectorMeta(flow).items, id: \.symbol) { item in
+                MetaItem(symbol: item.symbol, text: item.text, help: item.help)
             }
-            if !flow.request.body.isEmpty {
-                MetaItem(symbol: "arrow.up.circle", text: Format.bytes(flow.request.body.count), help: "Request body size")
-            }
-            if let response = flow.response {
-                MetaItem(symbol: "arrow.down.circle", text: Format.bytes(response.body.count), help: "Response body size")
-            }
-            if let version = flow.upstreamHTTPVersion {
-                MetaItem(symbol: "network", text: version, help: "Protocol used with the server")
-            }
-            if let tls = flow.clientTLS {
-                MetaItem(symbol: "lock.fill", text: tls, help: "TLS between the app and Watcher")
-            }
-            MetaItem(symbol: "calendar.badge.clock", text: flow.startedAt.formatted(date: .omitted, time: .standard), help: "Started \(flow.startedAt.formatted(date: .abbreviated, time: .standard))")
             if let app = flow.request.clientApp {
                 HStack(spacing: 4) { AppIconView(process: app, size: 13); Text(IconStore.appName(forProcess: app)).lineLimit(1) }
                     .font(.caption).foregroundStyle(.secondary).help("Sent by \(app)")
-            }
-            if let comment = flow.comment {
-                MetaItem(symbol: "text.bubble", text: comment, help: "Your comment")
             }
         }
     }
