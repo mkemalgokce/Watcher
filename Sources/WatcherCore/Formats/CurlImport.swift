@@ -160,9 +160,9 @@ public enum CurlImport {
                     if next == "\"" {
                         closed = true; break
                     }
-                    if next == "\\", let escaped = characters.first, "\"\\$`\n".contains(escaped) {
+                    if next == "\\", let escaped = characters.first, "\"\\$`\n\r\n".contains(escaped) {
                         characters.removeFirst()
-                        if escaped != "\n" {
+                        if escaped != "\n", escaped != "\r\n" {
                             current.append(escaped)
                         }
                     } else {
@@ -176,14 +176,10 @@ public enum CurlImport {
                 current += try ansiC(&characters)
             case "\\":
                 guard let escaped = characters.popFirst() else { break }
-                if escaped == "\n" || escaped == "\r" { // line continuation
-                    if escaped == "\r", characters.first == "\n" {
-                        characters.removeFirst()
-                    }
-                } else {
+                if !["\n", "\r", "\r\n"].contains(escaped) { // otherwise a line continuation
                     inWord = true; current.append(escaped)
                 }
-            case " ", "\t", "\n", "\r":
+            case " ", "\t", "\n", "\r", "\r\n": // "\r\n" is one Character
                 if inWord {
                     words.append(current); current = ""; inWord = false
                 }

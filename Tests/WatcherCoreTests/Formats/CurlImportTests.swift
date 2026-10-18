@@ -135,6 +135,17 @@ struct CurlImportTests {
     }
 
     @Test(arguments: [
+        "curl \\\r\n  -H 'A: b' \\\r\n  https://x.com/",
+        "curl https://x.com/\r\n-H 'A: b'",
+        "curl -H \"A: \\\r\nb\" https://x.com/",
+    ])
+    func windowsLineEndingsSeparateWordsAndContinueLines(command: String) throws {
+        let request = try CurlImport.parse(command)
+        #expect(request.url == "https://x.com/")
+        #expect(request.headers.value(for: "a") == "b")
+    }
+
+    @Test(arguments: [
         ("curl -G -d 'q=hello world' https://x.com/s", "/s?q=hello%20world"),
         ("curl -G -d 'q=100%' https://x.com/s?a=1", "/s?a=1&q=100%25"),
         ("curl -G -d 'q=%41' https://x.com/s", "/s?q=%41"),
