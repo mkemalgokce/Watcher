@@ -148,7 +148,7 @@ extension WatcherEngineTests {
         func anEditMadeOutsideTheEngineIsPickedUpWhileRunning() async throws {
             let engine = try engine()
             _ = try await engine.start(port: 0)
-            let settingsFile = URL(fileURLWithPath: "/fake-home/.watcher/settings.json")
+            let settingsFile = WatcherPaths.settingsFile(in: URL(fileURLWithPath: "/fake-home/.watcher"))
             let outside = SettingsStore(url: settingsFile, files: files.access)
             try outside.update { $0.maxFlows = 7 }
             #expect(await eventually { engine.store.maxFlows == 7 })
@@ -169,7 +169,7 @@ extension WatcherEngineTests {
             let proxy = try #require(server.value)
             #expect(!proxy.sslProxying.allows("api.example.com"), "decrypted right after the start")
 
-            let settingsFile = URL(fileURLWithPath: "/fake-home/.watcher/settings.json")
+            let settingsFile = WatcherPaths.settingsFile(in: URL(fileURLWithPath: "/fake-home/.watcher"))
             let outside = SettingsStore(url: settingsFile, files: files.access)
             try outside.update { $0.maxFlows = 7 }
             #expect(await eventually { engine.store.maxFlows == 7 })

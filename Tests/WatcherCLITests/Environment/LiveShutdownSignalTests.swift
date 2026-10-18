@@ -7,6 +7,9 @@ import WatcherTestSupport
 struct LiveShutdownSignalTests {
     @Test
     func aCaughtSignalAsksToStopInsteadOfEndingTheProcess() async {
+        // The handler is process-wide; put back the one the rest of this test process runs with.
+        let previousHandler = signal(SIGUSR1, SIG_DFL)
+        defer { signal(SIGUSR1, previousHandler) }
         let caught = LockedBox(false)
         let requests = LiveShutdownSignal.stopRequest(on: [SIGUSR1])()
         let listening = Task {
