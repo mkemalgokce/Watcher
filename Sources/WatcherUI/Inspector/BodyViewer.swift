@@ -177,7 +177,9 @@ struct BodyViewer: View {
                         }
                         Button("Copy as Base64") { actions.copy(decoded.base64EncodedString(), "Base64 copied") }
                         OpenWithMenu(data: decoded, name: fileName, contentType: contentType)
-                        Button("Save Body…", systemImage: "square.and.arrow.down") { save() }
+                        Button("Save Body…", systemImage: "square.and.arrow.down") {
+                            sessionFiles.saveBody(of: flow, side: side)
+                        }
                     } label: {
                         Image(systemName: "ellipsis").font(.system(size: 15, weight: .regular)).frame(width: Metrics.iconButton, height: Metrics.iconButton)
                     }
@@ -280,13 +282,7 @@ struct BodyViewer: View {
         Self.compute(payload, contentType, headers.value(for: "content-encoding"), textMode, sortKeys, "", capped: false).text
     }
 
-    /// The last path component when it looks like a file name, otherwise "body"; the extension comes from the content type.
     private var fileName: String {
-        let last = URL(string: flow.request.url)?.lastPathComponent ?? ""
-        return last.isEmpty || last == "/" ? side.rawValue : last
-    }
-
-    private func save() {
-        sessionFiles.saveData(decoded, suggestedName: fileName)
+        ExchangeText.suggestedFileName(for: flow, side: side)
     }
 }
