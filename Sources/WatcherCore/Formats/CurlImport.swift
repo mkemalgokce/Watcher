@@ -127,7 +127,7 @@ public enum CurlImport {
         return RequestRecord(
             method: resolvedMethod,
             scheme: scheme,
-            host: host,
+            host: HostPort.unbracketed(host),
             port: components.port ?? RequestRecord.defaultPort(for: scheme),
             path: path,
             headers: headers,

@@ -13,7 +13,11 @@ struct ComposeView: View {
     @FocusState private var urlFocused: Bool
 
     init(now: @escaping @Sendable () -> Date) {
-        _viewModel = State(initialValue: ComposeViewModel(now: now))
+        self.init(viewModel: ComposeViewModel(now: now))
+    }
+
+    init(viewModel: ComposeViewModel) {
+        _viewModel = State(initialValue: viewModel)
     }
 
     var body: some View {

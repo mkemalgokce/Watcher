@@ -3,7 +3,7 @@ import WatcherCore
 
 extension AppModel {
     /// A handful of realistic-looking requests covering the list's states.
-    func loadDemoData() {
+    func loadDemoData(startedAt: Date = Date()) {
         func flow(_ n: Int, _ method: String, _ host: String, _ path: String, status: Int?, type: String = "application/json", body: String = "", ms: Double = 0.12, tools: [String] = []) -> Flow {
             var flow = Flow(sequence: n, request: RequestRecord(
                 method: method,
@@ -20,7 +20,7 @@ extension AppModel {
             } else {
                 flow.state = .failed
             }
-            flow.duration = ms; flow.appliedTools = tools
+            flow.duration = ms; flow.appliedTools = tools; flow.startedAt = startedAt
             return flow
         }
         engine.store.load([
@@ -33,8 +33,8 @@ extension AppModel {
     }
 
     /// The demo requests in the list with the first one selected, as previews and interaction tests start.
-    func showingDemoData() -> AppModel {
-        loadDemoData()
+    func showingDemoData(startedAt: Date = Date()) -> AppModel {
+        loadDemoData(startedAt: startedAt)
         list.syncFromStore()
         list.selection = list.flows.first?.id
         return self

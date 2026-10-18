@@ -13,7 +13,7 @@ struct InspectorMeta {
     let items: [Item]
     let comment: Item?
 
-    init(_ flow: Flow) {
+    init(_ flow: Flow, timestamp: Timestamp = Timestamp()) {
         var items = Self.timing(of: flow)
         if !flow.request.body.isEmpty {
             let size = Format.bytes(flow.request.body.count)
@@ -31,8 +31,8 @@ struct InspectorMeta {
         }
         items.append(Item(
             symbol: "calendar.badge.clock",
-            text: flow.startedAt.formatted(date: .omitted, time: .standard),
-            help: "Started \(flow.startedAt.formatted(date: .abbreviated, time: .standard))"
+            text: timestamp.clock(flow.startedAt),
+            help: "Started \(timestamp.abbreviated(flow.startedAt))"
         ))
         comment = flow.comment.map { Item(symbol: "text.bubble", text: $0, help: "Your comment") }
         self.items = items

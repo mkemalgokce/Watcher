@@ -230,7 +230,7 @@ public final class MCPServer: @unchecked Sendable {
                 let request = RequestRecord(
                     method: (args["method"] as? String ?? "GET").uppercased(),
                     scheme: scheme,
-                    host: host,
+                    host: HostPort.unbracketed(host),
                     port: url.port ?? RequestRecord.defaultPort(for: scheme),
                     path: (url.percentEncodedPath.isEmpty ? "/" : url.percentEncodedPath) + (url.percentEncodedQuery.map { "?\($0)" } ?? ""),
                     headers: headers,

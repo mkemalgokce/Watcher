@@ -166,8 +166,9 @@ private struct HitEditor: View {
     var body: some View {
         @Bindable var viewModel = viewModel
         VStack(alignment: .leading, spacing: 10) {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                let wait = BreakpointsViewModel.wait(of: hit, at: context.date)
+            // The timeline only redraws this every second; the time itself comes from the app clock.
+            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                let wait = BreakpointsViewModel.wait(of: hit, at: model.now())
                 Label(wait.text, systemImage: "hourglass")
                     .font(.caption).foregroundStyle(wait.isLate ? Palette.warning : Color.secondary)
             }

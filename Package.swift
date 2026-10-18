@@ -157,7 +157,7 @@ let package = Package(
             ],
             exclude: [
                 "__Snapshots__", "Design/Components/__Snapshots__", "MainWindow/__Snapshots__",
-                "Settings/__Snapshots__", "Tools/__Snapshots__",
+                "Settings/__Snapshots__", "Tools/__Snapshots__", "Screens/__Snapshots__",
             ],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),

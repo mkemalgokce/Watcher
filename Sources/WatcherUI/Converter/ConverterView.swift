@@ -6,7 +6,15 @@ struct ConverterView: View {
     @Environment(AppModel.self) private var model
     @Environment(RequestActions.self) private var actions
     @Environment(\.dismiss) private var dismiss
-    @State private var converter = ConverterViewModel()
+    @State private var converter: ConverterViewModel
+
+    init() {
+        self.init(converter: ConverterViewModel())
+    }
+
+    init(converter: ConverterViewModel) {
+        _converter = State(initialValue: converter)
+    }
 
     var body: some View {
         @Bindable var converter = converter

@@ -3,9 +3,13 @@ import SwiftUI
 /// ⌘/ — every keyboard shortcut in one searchable place, and what the colours and symbols mean.
 struct HelpView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var page = Page.shortcuts
+    @State private var page: Page
     @State private var search = ""
     @FocusState private var searchFocused: Bool
+
+    init(page: Page = .shortcuts) {
+        _page = State(initialValue: page)
+    }
 
     enum Page: String, CaseIterable { case shortcuts = "Keyboard Shortcuts", legend = "Colours & Symbols" }
 
