@@ -49,7 +49,7 @@ extension ProxyServer {
         }
     }
 
-    private static func format(_ version: TLSVersion) -> String {
+    static func format(_ version: TLSVersion) -> String {
         switch version {
         case .tlsv1: "TLS 1.0"
         case .tlsv11: "TLS 1.1"
