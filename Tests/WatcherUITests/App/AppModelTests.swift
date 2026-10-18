@@ -30,6 +30,16 @@ struct AppModelTests {
     }
 
     @Test
+    func theProxyDoesNotStartUntilRecordIsPressed() throws {
+        let runner = ProxyRunnerStub()
+        let model = try AppModel(dependencies: .test(runner: runner))
+        model.onboardingDone = true
+        #expect(runner.calls.isEmpty)
+        #expect(!model.proxy.isRunning)
+        #expect(model.statusLine == "Not recording · 0 requests")
+    }
+
+    @Test
     func finishingOnboardingRemembersItClosesTheSheetAndStartsRecording() async throws {
         let preferences = PreferencesFake()
         let runner = ProxyRunnerStub()

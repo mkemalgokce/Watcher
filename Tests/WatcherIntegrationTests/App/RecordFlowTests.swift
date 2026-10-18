@@ -17,9 +17,9 @@ struct RecordFlowTests {
     private func makeModel(_ networkSetup: NetworkSetupSpy) throws -> AppModel {
         let systemProxy = SystemProxy(run: { networkSetup.run($0) }, backupURL: backup.appending("backup.json"))
         let engine = try WatcherEngine.inMemory()
-        let model = try AppModel(dependencies: .test(engine: engine, runner: engine, systemProxy: systemProxy))
+        let runner = AnyPortRunner(engine)
+        let model = try AppModel(dependencies: .test(engine: engine, runner: runner, systemProxy: systemProxy))
         model.settings.autoSystemProxy = true
-        try model.useFreePort(searchingFrom: 21000, fallback: 29998)
         return model
     }
 
@@ -48,35 +48,28 @@ struct RecordFlowTests {
 
     /// Record and Pause answer at once; the slow system-proxy switch finishes in the background, and the proxy keeps
     /// serving until the Mac's own settings are back so no request hits a closed port.
-    @Test(.tags(.timing))
+    @Test
     func recordAndPauseDoNotWaitForTheSystemProxy() async throws {
-        let model = try makeModel(NetworkSetupSpy(delay: 0.1))
+        let networkSetup = NetworkSetupSpy()
+        networkSetup.hold()
+        let model = try makeModel(networkSetup)
 
-        var started = Date()
         model.proxy.toggleRunning()
         #expect(await eventually { model.proxy.isRunning && !model.proxy.isSwitchingProxy })
-        #expect(Date().timeIntervalSince(started) < 0.2, "Record must not wait for networksetup")
+        #expect(!model.proxy.systemProxyOn, "networksetup is still blocked")
+        networkSetup.release()
         #expect(await eventually(timeout: 10) { model.proxy.systemProxyOn })
 
-        started = Date()
+        networkSetup.hold()
         model.proxy.toggleRunning()
         #expect(await eventually { !model.proxy.isRunning && !model.proxy.isSwitchingProxy })
-        #expect(Date().timeIntervalSince(started) < 0.2, "Pause must not wait for networksetup")
         #expect(model.engine.isRunning, "the proxy serves until the original settings are back")
+        networkSetup.release()
         #expect(await eventually(timeout: 10) { !model.proxy.systemProxyOn && !model.engine.isRunning })
 
         model.proxy.toggleRunning() // a new Record waits for the pending switch instead of racing it
         #expect(await eventually(timeout: 10) { model.proxy.isRunning && model.proxy.systemProxyOn })
         model.proxy.toggleRunning()
         #expect(await eventually(timeout: 10) { !model.proxy.systemProxyOn && !model.engine.isRunning })
-    }
-
-    @Test
-    func theProxyDoesNotStartUntilRecordIsPressed() async throws {
-        let model = try makeModel(NetworkSetupSpy())
-        model.onboardingDone = true
-        try? await Task.sleep(for: .milliseconds(300))
-        #expect(!model.proxy.isRunning)
-        #expect(model.statusLine == "Not recording · 0 requests")
     }
 }
