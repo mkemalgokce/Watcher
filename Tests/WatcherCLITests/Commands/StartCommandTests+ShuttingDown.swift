@@ -11,10 +11,8 @@ extension StartCommandTests {
         @Test
         func theSystemProxyPointsAtTheBoundPortUntilTheProxyStops() async throws {
             let log = LockedBox<[String]>([])
-            let networkSetup = NetworkSetupSpy()
-            let commands = CommandRunnerSpy(respond: { command in
+            let commands = CommandRunnerSpy.networkSetup(onRun: { command in
                 log.mutate { $0.append(command.arguments[0]) }
-                return CommandResult(status: 0, output: Data(networkSetup.run(command.arguments).utf8))
             })
             let cli = CLIHarness(commands: commands, engine: { EngineFake(settings: $0, log: log) })
 
@@ -67,12 +65,10 @@ extension StartCommandTests {
         @Test
         func aStopRequestedWhileTheSystemProxyIsBeingSetStillPutsItBack() async throws {
             let shutdown = ShutdownTrigger()
-            let networkSetup = NetworkSetupSpy()
-            let commands = CommandRunnerSpy(respond: { command in
+            let commands = CommandRunnerSpy.networkSetup(onRun: { command in
                 if command.arguments[0] == "-setwebproxy" {
                     shutdown.fire()
                 }
-                return CommandResult(status: 0, output: Data(networkSetup.run(command.arguments).utf8))
             })
             let cli = CLIHarness(commands: commands, shutdown: shutdown)
 
@@ -84,11 +80,7 @@ extension StartCommandTests {
         }
 
         private func failing(_ argument: String) -> CLIHarness {
-            let networkSetup = NetworkSetupSpy()
-            return CLIHarness(commands: CommandRunnerSpy(respond: { command in
-                let failed = command.arguments[0] == argument
-                return CommandResult(status: failed ? 1 : 0, output: Data(networkSetup.run(command.arguments).utf8))
-            }))
+            CLIHarness(commands: .networkSetup(failing: argument))
         }
 
         @Test

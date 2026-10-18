@@ -74,10 +74,7 @@ final class CLIHarness {
 
     /// A harness whose programs are `networksetup` on a Mac with only Wi-Fi, its proxies off.
     static func answeringNetworkSetup() -> CLIHarness {
-        let networkSetup = NetworkSetupSpy()
-        return CLIHarness(commands: CommandRunnerSpy(respond: { command in
-            CommandResult(status: 0, output: Data(networkSetup.run(command.arguments).utf8))
-        }))
+        CLIHarness(commands: .networkSetup())
     }
 
     /// What a session that crashed with `--system-proxy` leaves behind: the backup of the user's own proxy,

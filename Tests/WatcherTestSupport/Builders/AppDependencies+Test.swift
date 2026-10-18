@@ -53,8 +53,8 @@ public extension AppDependencies {
 public extension AppModel {
     /// A model on `AppDependencies.test`, with the doubles passed in for the test to inspect.
     @MainActor
-    static func test(clipboard: ClipboardSpy? = nil, sleep: Sleep? = nil) throws -> AppModel {
-        try AppModel(dependencies: .test(clipboard: clipboard, sleep: sleep))
+    static func test(clipboard: ClipboardSpy? = nil, sleep: Sleep? = nil, clock: ClockStub? = nil) throws -> AppModel {
+        try AppModel(dependencies: .test(clipboard: clipboard, sleep: sleep, clock: clock))
     }
 
     /// A test model showing the preview's demo requests, the first one selected.
