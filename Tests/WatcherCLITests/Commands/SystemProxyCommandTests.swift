@@ -79,4 +79,13 @@ struct SystemProxyCommandTests {
         }
         #expect(cli.printed.isEmpty)
     }
+
+    @Test
+    func aFailureWhilePointingTheProxyKeepsTheBackupSoOffRestoresIt() throws {
+        let cli = CLIHarness(commands: .networkSetup(failing: "-setsecurewebproxy"))
+        let command = try SystemProxyCommand.parse(["on"])
+        #expect(throws: (any Error).self) { try command.run(in: cli.environment) }
+        #expect(cli.files.paths.contains(cli.supportFile("system-proxy-backup.json")))
+        #expect(cli.printed.isEmpty)
+    }
 }

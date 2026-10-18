@@ -101,4 +101,23 @@ struct ImportCharlesCommandTests {
         cli.files.write(Data(Self.export.utf8), to: "/tmp/charles.xml")
         return cli
     }
+
+    @Test(arguments: ["not xml at all", "<configuration><unclosed>"])
+    func aFileThatIsNotXMLChangesNothingAndPrintsNothing(content: String) throws {
+        let cli = CLIHarness()
+        cli.files.write(Data(content.utf8), to: "/tmp/charles.xml")
+        let command = try ImportCharles.parse(["/tmp/charles.xml"])
+        #expect(throws: (any Error).self) { try command.run(in: cli.environment) }
+        #expect(!cli.files.paths.contains(cli.supportFile("settings.json")))
+        #expect(cli.printed.isEmpty)
+    }
+
+    @Test
+    func aSettingsFileThatCannotBeWrittenPrintsNoSummary() throws {
+        let cli = try harnessWithOneStoredBreakpoint()
+        cli.files.fail(.writePrivately)
+        let command = try ImportCharles.parse(["/tmp/charles.xml"])
+        #expect(throws: FileAccessFake.Failure(operation: .writePrivately)) { try command.run(in: cli.environment) }
+        #expect(cli.printed.isEmpty)
+    }
 }
