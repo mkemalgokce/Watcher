@@ -49,7 +49,7 @@ public enum SimulatorCertificate {
 
     public static let xcrun: Runner = xcrun(using: LiveCommandRunner.run)
 
-    static func xcrun(using runner: @escaping CommandRunner) -> Runner {
+    public static func xcrun(using runner: @escaping CommandRunner) -> Runner {
         { arguments in
             let executable = URL(fileURLWithPath: "/usr/bin/xcrun")
             return try Command(executable: executable, arguments: arguments, mergesErrorOutput: true)

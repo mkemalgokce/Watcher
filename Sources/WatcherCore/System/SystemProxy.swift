@@ -106,7 +106,7 @@ public struct SystemProxy: Sendable {
 
     public static let networksetup: Runner = networksetup(using: LiveCommandRunner.run)
 
-    static func networksetup(using runner: @escaping CommandRunner) -> Runner {
+    public static func networksetup(using runner: @escaping CommandRunner) -> Runner {
         { arguments in
             let executable = URL(fileURLWithPath: "/usr/sbin/networksetup")
             return try Command(executable: executable, arguments: arguments, mergesErrorOutput: true)

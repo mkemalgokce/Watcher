@@ -45,7 +45,7 @@ public struct AndroidDevice: Equatable, Identifiable, Sendable {
         home: NSHomeDirectory()
     )
 
-    static func adb(
+    public static func adb(
         using runner: @escaping CommandRunner,
         isExecutable: @escaping @Sendable (String) -> Bool,
         home: String
