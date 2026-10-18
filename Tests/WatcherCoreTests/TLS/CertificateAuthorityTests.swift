@@ -106,6 +106,40 @@ struct CertificateAuthorityTests {
         authority.setKeyLog(nil)
         #expect(try authority.serverContext(for: "a.test") !== first)
     }
+
+    @Test
+    func aChangedValidityDropsTheCachedContextsButAnUnchangedOneKeepsThem() throws {
+        let authority = try authority()
+        let first = try authority.serverContext(for: "a.test")
+        authority.setLeafValidity(days: 365)
+        #expect(try authority.serverContext(for: "a.test") === first)
+        authority.setLeafValidity(days: 30)
+        #expect(try authority.serverContext(for: "a.test") !== first)
+    }
+
+    @Test
+    func aCachedContextIsReplacedBeforeItsLeafExpires() throws {
+        let clock = LockedBox(now)
+        let authority = try CertificateAuthority(directory: directory, files: files.access, now: { clock.value })
+        authority.setLeafValidity(days: 1)
+        let first = try authority.serverContext(for: "a.test")
+        clock.mutate { $0 = now.addingTimeInterval(3600) }
+        #expect(try authority.serverContext(for: "a.test") === first)
+        clock.mutate { $0 = now.addingTimeInterval(86400) }
+        #expect(try authority.serverContext(for: "a.test") !== first)
+    }
+
+    @Test(arguments: [true, false])
+    func onlyHalfOfASavedAuthorityIsReportedNotReplaced(keyRemains: Bool) throws {
+        _ = try authority()
+        let removed = keyRemains ? certificatePath : keyPath
+        let kept = keyRemains ? keyPath : certificatePath
+        files.remove(removed)
+        let before = files.contents(of: kept)
+        #expect(throws: CertificateAuthority.Incomplete.self) { try authority() }
+        #expect(files.contents(of: kept) == before)
+        #expect(files.contents(of: removed) == nil)
+    }
 }
 
 private func zeros(_ count: Int) -> [UInt8] {

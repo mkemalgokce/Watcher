@@ -13,7 +13,7 @@ public final class CertificateAuthority: @unchecked Sendable {
     private let name: DistinguishedName
     private let issuerKeyIdentifier: ArraySlice<UInt8>
     private let lock = NSLock()
-    private var contexts: [String: NIOSSLContext] = [:]
+    private var contexts: [String: (context: NIOSSLContext, expires: Date)] = [:]
     private var _leafValidityDays = 365
     private var _keyLog: NIOSSLKeyLogCallback?
     private let now: @Sendable () -> Date
@@ -21,6 +21,15 @@ public final class CertificateAuthority: @unchecked Sendable {
     public struct Unavailable: Error, CustomStringConvertible { public var description: String {
         "No root certificate available"
     } }
+
+    /// Only one of the two files exists; replacing them would orphan the root the user already trusts.
+    public struct Incomplete: Error, CustomStringConvertible {
+        public let missing: String
+        public var description: String {
+            "The root certificate is incomplete: \(missing) is missing. "
+                + "Restore it, or remove the other file to start over."
+        }
+    }
 
     public var certificateDER: Data {
         (try? Data(certificate.serializeAsPEM().derBytes)) ?? Data()
@@ -43,7 +52,11 @@ public final class CertificateAuthority: @unchecked Sendable {
         }
         self.name = name
 
-        if files.fileExists(keyURL.path), files.fileExists(certURL.path) {
+        let hasKey = files.fileExists(keyURL.path), hasCertificate = files.fileExists(certURL.path)
+        if hasKey != hasCertificate {
+            throw Incomplete(missing: hasKey ? certURL.lastPathComponent : keyURL.lastPathComponent)
+        }
+        if hasKey {
             key = try P256.Signing.PrivateKey(pemRepresentation: Self.text(of: keyURL, files: files))
             certificate = try Certificate(pemEncoded: Self.text(of: certURL, files: files))
         } else {
@@ -90,7 +103,12 @@ public final class CertificateAuthority: @unchecked Sendable {
 
     /// Validity of newly generated certificates, clamped to what Apple's TLS stack accepts (825 days).
     public func setLeafValidity(days: Int) {
-        lock.withLock { _leafValidityDays = min(825, max(1, days)) }
+        lock.withLock {
+            let clamped = min(825, max(1, days))
+            if clamped != _leafValidityDays {
+                _leafValidityDays = clamped; contexts.removeAll()
+            }
+        }
     }
 
     /// Receives TLS session secrets for contexts created from now on; existing cached contexts are dropped so it takes effect.
@@ -101,8 +119,8 @@ public final class CertificateAuthority: @unchecked Sendable {
     /// TLS server context presenting a certificate for `host`, signed by this CA.
     public func serverContext(for host: String, offerHTTP2: Bool = true) throws -> NIOSSLContext {
         let cacheKey = "\(host)|\(offerHTTP2)"
-        if let cached = lock.withLock({ contexts[cacheKey] }) {
-            return cached
+        if let cached = lock.withLock({ contexts[cacheKey] }), cached.expires > now() {
+            return cached.context
         }
 
         let leafKey = P256.Signing.PrivateKey()
@@ -115,7 +133,8 @@ public final class CertificateAuthority: @unchecked Sendable {
             keyLog: lock.withLock { _keyLog }
         )
         let context = try NIOSSLContext(configuration: configuration)
-        lock.withLock { contexts[cacheKey] = context }
+        let expires = leaf.notValidAfter.addingTimeInterval(-Self.renewalMargin)
+        lock.withLock { contexts[cacheKey] = (context, expires) }
         return context
     }
 
@@ -131,6 +150,9 @@ public final class CertificateAuthority: @unchecked Sendable {
         }
         return .dnsName(host)
     }
+
+    /// A cached leaf is replaced this long before it expires.
+    private static let renewalMargin: TimeInterval = 3600
 
     /// A one-year server certificate for `host`, signed by this CA.
     func leafCertificate(for host: String, key leafKey: P256.Signing.PrivateKey = P256.Signing.PrivateKey()) throws -> Certificate {
