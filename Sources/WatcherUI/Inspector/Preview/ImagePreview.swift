@@ -57,7 +57,7 @@ struct ImagePreview: View {
     }
 
     private func save() {
-        let ext = (mime ?? Base64Finder.imageMime(data) ?? "image/png").replacingOccurrences(of: "image/", with: "").replacingOccurrences(of: "jpeg", with: "jpg").replacingOccurrences(of: "svg+xml", with: "svg")
+        let ext = FileExtension.preferred(forContentType: mime ?? Base64Finder.imageMime(data)) ?? "png"
         sessionFiles.saveData(data, suggestedName: "image.\(ext)")
     }
 }

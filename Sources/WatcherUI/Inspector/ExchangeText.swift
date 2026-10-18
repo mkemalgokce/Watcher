@@ -1,5 +1,4 @@
 import Foundation
-import UniformTypeIdentifiers
 import WatcherCore
 
 /// File names and text that save, copy and Open With offer for one half of an exchange.
@@ -8,10 +7,9 @@ enum ExchangeText {
     static func suggestedFileName(for flow: Flow, side: MessageSide) -> String {
         let last = URL(string: flow.request.url)?.lastPathComponent ?? ""
         let base = last.isEmpty || last == "/" ? side.rawValue : last
-        let mimeType = flow.headers(side).value(for: "content-type")?.split(separator: ";").first
-            .map { $0.trimmingCharacters(in: .whitespaces) }
         guard (base as NSString).pathExtension.isEmpty,
-              let mimeType, let ext = UTType(mimeType: mimeType)?.preferredFilenameExtension else { return base }
+              let ext = FileExtension.preferred(forContentType: flow.headers(side).value(for: "content-type"))
+        else { return base }
         return "\(base).\(ext)"
     }
 

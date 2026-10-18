@@ -10,8 +10,8 @@ public final class AppModel {
     typealias Sheet = WindowRouter.Sheet
 
     let engine: WatcherEngine
-    @ObservationIgnored let clipboard: any Clipboard
-    @ObservationIgnored let preferences: any Preferences
+    let clipboard: any Clipboard
+    let preferences: any Preferences
     let notices: NoticeCenter
     var settings: SettingsEditor
     let router: WindowRouter

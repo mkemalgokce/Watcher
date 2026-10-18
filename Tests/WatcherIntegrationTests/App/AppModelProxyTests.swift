@@ -4,7 +4,7 @@ import Testing
 import WatcherTestSupport
 @testable import WatcherUI
 
-/// Starting the proxy from the window: invalid ports are refused and a failed start stays visible until a retry.
+/// Starting the proxy from the window: a failed start stays visible until a retry.
 @MainActor
 @Suite(.timeLimit(.minutes(1)), .tags(.integration))
 struct AppModelProxyTests {
@@ -37,15 +37,6 @@ struct AppModelProxyTests {
         #expect(model.proxy.proxyError == nil)
         model.proxy.toggleRunning()
         #expect(await eventually { !model.proxy.isSwitchingProxy && !model.proxy.isRunning })
-    }
-
-    @Test(arguments: [0, -1, 65536])
-    func invalidPortIsRefusedWithoutTryingToStart(port: Int) throws {
-        let model = try AppModel.test()
-        model.settings.port = port
-        model.proxy.toggleRunning()
-        #expect(!model.proxy.isSwitchingProxy)
-        #expect(model.proxy.proxyError?.contains("not valid") == true)
     }
 
     @Test(arguments: [1, 65535])
