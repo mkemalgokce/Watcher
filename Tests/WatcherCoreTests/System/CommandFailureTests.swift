@@ -4,7 +4,7 @@ import WatcherCore
 import WatcherTestSupport
 
 @Suite(.tags(.unit))
-struct CommandRunnerTests {
+struct CommandFailureTests {
     private let command = Command(executable: URL(fileURLWithPath: "/usr/bin/tool"), arguments: ["a", "b"])
 
     @Test
