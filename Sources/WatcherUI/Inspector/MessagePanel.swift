@@ -160,24 +160,8 @@ private struct RawMessage: View {
     let flow: Flow
     let side: MessageSide
 
-    private var text: String {
-        let headers: [Header], body: Data, first: String
-        if side == .request {
-            first = "\(flow.request.method) \(flow.request.path) \(flow.upstreamHTTPVersion ?? "HTTP/1.1")"
-            headers = [Header("Host", flow.request.host)].filter { _ in flow.request.headers.value(for: "host") == nil } + flow.request.headers
-            body = flow.request.body
-        } else {
-            let status = flow.response?.status ?? 0
-            first = "\(flow.upstreamHTTPVersion ?? "HTTP/1.1") \(status) \(HTTPStatus.reason(status))"
-            headers = flow.response?.headers ?? []
-            body = flow.response?.body ?? Data()
-        }
-        let bodyText = body.isEmpty ? "" : (String(data: body.prefix(1_000_000), encoding: .utf8) ?? "<\(body.count) bytes of binary data>")
-        return ([first] + headers.map { "\($0.name): \($0.value)" }).joined(separator: "\n") + "\n\n" + bodyText
-    }
-
     var body: some View {
-        let raw = text
+        let raw = ExchangeText.rawMessage(of: flow, side: side)
         VStack(alignment: .trailing, spacing: 4) {
             Button("Copy Raw Message", systemImage: "doc.on.doc") { actions.copy(raw, "Raw message copied") }
                 .controlSize(.small)
