@@ -8,7 +8,7 @@ import WatcherCore
 public final class FileAccessFake: @unchecked Sendable {
     /// The `FileAccess` closures that can throw.
     public enum Operation: Sendable {
-        case read, writeAtomically, remove, move, createDirectory, contentsOfDirectory, writePrivately
+        case read, writeAtomically, remove, move, createDirectory, contentsOfDirectory, writePrivately, appendPrivately
     }
 
     public struct Failure: Error, Equatable {
@@ -128,6 +128,14 @@ public final class FileAccessFake: @unchecked Sendable {
                 try perform(.writePrivately) {
                     store(data, at: url.path)
                     permissions[url.path, default: []].append(0o600)
+                }
+            },
+            appendPrivately: { [self] data, url in
+                try perform(.appendPrivately) {
+                    if files[url.path] == nil {
+                        permissions[url.path, default: []].append(0o600)
+                    }
+                    store((files[url.path] ?? Data()) + data, at: url.path)
                 }
             },
             modificationDate: { [self] path in lock.withLock { files[path] == nil ? nil : modified[path] } },

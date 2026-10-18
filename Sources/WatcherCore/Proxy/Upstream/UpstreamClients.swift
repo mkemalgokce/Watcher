@@ -7,6 +7,7 @@ import NIOSSL
 final class UpstreamClients: UpstreamSending, @unchecked Sendable {
     private let group: EventLoopGroup
     let tls: TLSConfiguration
+    private let files: FileAccess
     private let lock = NSLock()
     private var external = ExternalProxySettings()
     private var bypass = HostList([])
@@ -16,8 +17,8 @@ final class UpstreamClients: UpstreamSending, @unchecked Sendable {
     private var keyLog: NIOSSLKeyLogCallback?
     private var cache: [String: HTTPClient] = [:]
 
-    init(group: EventLoopGroup, tls: TLSConfiguration) {
-        self.group = group; self.tls = tls
+    init(group: EventLoopGroup, tls: TLSConfiguration, files: FileAccess = .live) {
+        self.group = group; self.tls = tls; self.files = files
     }
 
     func update(external: ExternalProxySettings, pac: PACEvaluator?, dnsRules: [DNSSpoofRule], clientCertificates: [CustomCertificateRule]) {
@@ -61,7 +62,7 @@ final class UpstreamClients: UpstreamSending, @unchecked Sendable {
             tlsConfiguration.keyLogCallback = keyLog
             // shortcut: an unreadable P12 silently falls back to no client identity; surface it through a log hook if that bites.
             if let identity {
-                try? CustomCertificates.applyClientIdentity(identity, to: &tlsConfiguration)
+                try? CustomCertificates.applyClientIdentity(identity, to: &tlsConfiguration, files: files)
             }
             var configuration = HTTPClient.Configuration(tlsConfiguration: tlsConfiguration, redirectConfiguration: .disallow)
             configuration.timeout = .init(connect: .seconds(15), read: .seconds(60))

@@ -16,6 +16,8 @@ public final class ProxyServer: @unchecked Sendable {
     /// The Mac's LAN addresses, so the certificate page also answers on them.
     let localAddresses: @Sendable () -> Set<String>
     let now: @Sendable () -> Date
+    /// Where the TLS key log and custom certificates are read and written.
+    let files: FileAccess
 
     let upstream: UpstreamClients
     /// Where forwarded requests go; the upstream clients unless a test answers in their place.
@@ -62,12 +64,13 @@ public final class ProxyServer: @unchecked Sendable {
         upstream sender: (any UpstreamSending)? = nil,
         clientApp: @escaping @Sendable (Int) -> String? = ClientProcess.name(forLocalPort:),
         localAddresses: @escaping @Sendable () -> Set<String> = { Set(LocalNetwork.ipv4Addresses().map(\.ip)) },
-        now: @escaping @Sendable () -> Date = { Date() }
+        now: @escaping @Sendable () -> Date = { Date() },
+        files: FileAccess = .live
     ) {
         self.store = store; self.tools = tools; self.authority = authority; filter = sslProxying
         certificatePage = authority.map(CertificatePage.init)
-        self.clientApp = clientApp; self.localAddresses = localAddresses; self.now = now
-        upstream = UpstreamClients(group: group, tls: upstreamTLS)
+        self.clientApp = clientApp; self.localAddresses = localAddresses; self.now = now; self.files = files
+        upstream = UpstreamClients(group: group, tls: upstreamTLS, files: files)
         self.sender = sender ?? upstream
     }
 
@@ -86,12 +89,12 @@ public final class ProxyServer: @unchecked Sendable {
         authority?.setLeafValidity(days: settings.leafCertificateValidityDays)
         let path = settings.tlsKeyLogFile.trimmingCharacters(in: .whitespaces)
         let sink: KeyLogFile? = lock.withLock { keyLogPath == path ? keyLog : nil }
-        let activeSink = sink ?? (path.isEmpty ? nil : KeyLogFile(path: path))
+        let activeSink = sink ?? (path.isEmpty ? nil : KeyLogFile(path: path, files: files))
         let keyLogChanged = lock.withLock {
             preferHTTP2 = settings.preferHTTP2; accessControl = settings.accessControl.compile()
             autoIgnorePinning = settings.autoIgnoreSSLPinning; markModified = settings.markModifiedTraffic
             defer { keyLog = activeSink; keyLogPath = path }
-            return keyLogPath != path
+            return keyLog !== activeSink
         }
         // The authority outlives this server, so it always takes the current sink.
         authority?.setKeyLog(activeSink?.callback)
@@ -124,7 +127,9 @@ public final class ProxyServer: @unchecked Sendable {
     func serverContext(for host: String) throws -> NIOSSLContext {
         let (offerHTTP2, sink) = lock.withLock { (preferHTTP2, keyLog) }
         if let rule = customServerCertificate(for: host) {
-            return try CustomCertificates.serverContext(rule, offerHTTP2: offerHTTP2, keyLog: sink?.callback)
+            return try CustomCertificates.serverContext(
+                rule, offerHTTP2: offerHTTP2, keyLog: sink?.callback, files: files
+            )
         }
         guard let authority else { throw CertificateAuthority.Unavailable() }
         return try authority.serverContext(for: host, offerHTTP2: offerHTTP2)

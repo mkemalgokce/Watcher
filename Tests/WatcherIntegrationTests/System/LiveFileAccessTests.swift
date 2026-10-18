@@ -48,6 +48,19 @@ struct LiveFileAccessTests {
     }
 
     @Test
+    func aPrivateAppendCreatesAnOwnerOnlyFileAndKeepsWhatItHolds() throws {
+        let file = temporary.url.appendingPathComponent("keys.log")
+        try files.appendPrivately(Data("a\n".utf8), file)
+        try files.appendPrivately(Data("b\n".utf8), file)
+        #expect(try files.read(file) == Data("a\nb\n".utf8))
+        let mode = try #require(FileManager.default.attributesOfItem(atPath: file.path)[.posixPermissions] as? Int)
+        #expect(mode == 0o600)
+        #expect(throws: (any Error).self) {
+            try files.appendPrivately(Data(), temporary.url.appendingPathComponent("none/keys.log"))
+        }
+    }
+
+    @Test
     func temporaryFilesAreUniqueAndCarryTheirExtension() {
         let first = files.temporaryFile("har"), second = files.temporaryFile("har")
         #expect(first != second)

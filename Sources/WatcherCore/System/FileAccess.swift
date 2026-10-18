@@ -16,6 +16,8 @@ public struct FileAccess: Sendable {
     public var contentsOfDirectory: @Sendable (URL) throws -> [URL]
     /// Like `writeAtomically`, but the file is readable and writable by its owner alone from the moment it appears.
     public var writePrivately: @Sendable (Data, URL) throws -> Void
+    /// Adds to the end of a file, creating it readable and writable by its owner alone when it is missing.
+    public var appendPrivately: @Sendable (Data, URL) throws -> Void
     public var modificationDate: @Sendable (String) -> Date?
     /// A path in the temporary directory that no other call returns, ending in `.<extension>`.
     public var temporaryFile: @Sendable (_ extension: String) -> URL
@@ -31,13 +33,14 @@ public struct FileAccess: Sendable {
         createDirectory: @escaping @Sendable (URL) throws -> Void,
         contentsOfDirectory: @escaping @Sendable (URL) throws -> [URL],
         writePrivately: @escaping @Sendable (Data, URL) throws -> Void,
+        appendPrivately: @escaping @Sendable (Data, URL) throws -> Void,
         modificationDate: @escaping @Sendable (String) -> Date?,
         temporaryFile: @escaping @Sendable (_ extension: String) -> URL
     ) {
         self.isExecutable = isExecutable; self.fileExists = fileExists; self.isDirectory = isDirectory
         self.read = read; self.writeAtomically = writeAtomically; self.remove = remove; self.move = move
         self.createDirectory = createDirectory; self.contentsOfDirectory = contentsOfDirectory
-        self.writePrivately = writePrivately
+        self.writePrivately = writePrivately; self.appendPrivately = appendPrivately
         self.modificationDate = modificationDate; self.temporaryFile = temporaryFile
     }
 }

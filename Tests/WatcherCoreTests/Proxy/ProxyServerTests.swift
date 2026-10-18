@@ -46,6 +46,24 @@ struct ProxyServerTests {
     }
 
     @Test
+    func aKeyLogThatCouldNotBeCreatedIsRetriedForTheUpstreamClients() async throws {
+        let files = FileAccessFake()
+        let server = ProxyServer(authority: nil, files: files.access)
+        var settings = WatcherSettings()
+        settings.tlsKeyLogFile = "/logs/keys.log"
+        files.fail(.appendPrivately)
+        server.updatePolicies(settings)
+        let withoutLog = server.upstream.client(for: .fixture(host: "a.test"))
+        files.succeed(.appendPrivately)
+        server.updatePolicies(settings)
+        let withLog = server.upstream.client(for: .fixture(host: "a.test"))
+        #expect(withLog !== withoutLog)
+        server.updatePolicies(settings)
+        #expect(server.upstream.client(for: .fixture(host: "a.test")) === withLog)
+        try await server.stop()
+    }
+
+    @Test
     func anEventStreamIsStreamedWhateverItsLength() {
         let headers: HTTPHeaders = ["Content-Type": "text/event-stream", "Content-Length": "1"]
         #expect(ProxyServer.shouldStream(HTTPClientResponse(status: .ok, headers: headers)))
