@@ -77,7 +77,10 @@ struct MessagePanel: View {
                 switch section {
                 case .headers: KeyValueTable(rows: KeyValueRow.headers(headers), emptyText: "No headers.")
                 case .params: KeyValueTable(rows: KeyValueRow.fields(fields), emptyText: "No query parameters or form fields.")
-                case .body: BodyViewer(flow: flow, side: side, options: model.viewer)
+                case .body: BodyViewer(
+                        flow: flow, side: side, options: model.viewer,
+                        makeViewModel: model.bodyViewerModel(flow: flow, side: side)
+                    )
                 case .cookies: KeyValueTable(
                         rows: KeyValueRow.cookies(cookies, secureConnection: flow.request.scheme == "https"),
                         emptyText: side == .request ? "No cookies were sent." : "The server set no cookies."

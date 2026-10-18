@@ -37,10 +37,9 @@ struct FormFieldsTests {
             headers: [Header("Content-Type", "application/x-www-form-urlencoded")],
             body: Data("name=Ada+L&city=Z%C3%BCrich".utf8)
         )
-        // `+` in a urlencoded body means a space; URLComponents leaves it, so the viewer shows the raw text for that case.
         #expect(
             FormFields.parse(form).map { "\($0.source.rawValue):\($0.name)=\($0.value)" }
-                == ["query:debug=1", "query:q=a b", "form:name=Ada+L", "form:city=Zürich"]
+                == ["query:debug=1", "query:q=a b", "form:name=Ada L", "form:city=Zürich"]
         )
 
         let body = "--XX\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nhello\r\n"
@@ -76,5 +75,17 @@ struct FormFieldsTests {
             body: Data(body.utf8)
         )
         #expect(FormFields.parse(request).map { "\($0.name)=\($0.value)" } == fields)
+    }
+
+    @Test(arguments: [
+        ("a=two+words", "two words"), ("a=two%20words", "two words"), ("a=1%2B1", "1+1"), ("a=%zz", "%zz"),
+    ])
+    func aFormBodyDecodesPlusAsSpaceAndPercentEscapes(body: String, value: String) {
+        let request = RequestRecord.fixture(
+            method: "POST",
+            headers: [Header("Content-Type", "application/x-www-form-urlencoded")],
+            body: Data(body.utf8)
+        )
+        #expect(FormFields.parse(request).map(\.value) == [value])
     }
 }

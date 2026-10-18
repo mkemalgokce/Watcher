@@ -22,7 +22,8 @@ public extension AppDependencies {
         previews: (@Sendable (Flow) async -> [PreviewOutput])? = nil,
         workspace: WorkspaceOpenerSpy? = nil,
         loginItem: LoginItemStub? = nil,
-        clock: ClockStub? = nil
+        clock: ClockStub? = nil,
+        devices: DevicesViewModel.DeviceProbe = .none
     ) throws -> AppDependencies {
         let files = files ?? FileAccessFake()
         let engine = try engine ?? .inMemory(files: files)
@@ -43,9 +44,16 @@ public extension AppDependencies {
             workspace: workspace ?? WorkspaceOpenerSpy(),
             paths: SupportPaths(directory: URL(fileURLWithPath: "/fake-home/.watcher")),
             focusFilterField: {},
-            devices: .none,
+            devices: devices,
             loginItem: (loginItem ?? LoginItemStub()).loginItem,
-            now: (clock ?? ClockStub()).now
+            now: (clock ?? ClockStub()).now,
+            homeDirectory: URL(fileURLWithPath: "/fake-home"),
+            appInfo: AppInfo(
+                bundleIdentifier: nil, shortVersion: nil, buildNumber: nil,
+                operatingSystem: OperatingSystemVersion(majorVersion: 26, minorVersion: 0, patchVersion: 0),
+                architecture: "arm64", homeDirectory: "/fake-home"
+            ),
+            faviconDownload: { _ in nil }
         )
     }
 }

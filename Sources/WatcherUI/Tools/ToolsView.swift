@@ -118,7 +118,7 @@ struct ToolsView: View {
 
     /// Holds no state of its own (it reads the model), so a fresh one per update is free and always current.
     private var viewModel: ToolsViewModel {
-        ToolsViewModel(settings: model.settings, router: model.router, proxy: model.proxy)
+        model.toolsViewModel()
     }
 
     @ViewBuilder private var detail: some View {
@@ -132,7 +132,7 @@ struct ToolsView: View {
             RuleListEditor(
                 tool: tool,
                 set: $model.settings.blockList,
-                title: { $0.name.orElse($0.matching.pattern) },
+                title: \.displayName,
                 make: { BlockRule(matching: MatchingRule(pattern: "*")) },
                 problems: problems
             ) { rule in
@@ -143,7 +143,7 @@ struct ToolsView: View {
             RuleListEditor(
                 tool: tool,
                 set: $model.settings.allowList,
-                title: { $0.name.orElse($0.matching.pattern) },
+                title: \.displayName,
                 make: { AllowRule(matching: MatchingRule(pattern: "*")) },
                 problems: problems
             ) { rule in
@@ -153,7 +153,7 @@ struct ToolsView: View {
             RuleListEditor(
                 tool: tool,
                 set: $model.settings.mapLocal,
-                title: { $0.name.orElse($0.matching.pattern) },
+                title: \.displayName,
                 make: { MapLocalRule(matching: MatchingRule(pattern: "*"), source: .file("")) },
                 problems: problems
             ) { rule in
@@ -167,7 +167,7 @@ struct ToolsView: View {
             RuleListEditor(
                 tool: tool,
                 set: $model.settings.mapRemote,
-                title: { $0.name.orElse($0.matching.pattern) },
+                title: \.displayName,
                 make: { MapRemoteRule(matching: MatchingRule(pattern: "*"), destination: .init()) },
                 problems: problems
             ) { rule in
@@ -183,7 +183,7 @@ struct ToolsView: View {
             RuleListEditor(
                 tool: tool,
                 set: $model.settings.breakpoints,
-                title: { $0.name.orElse($0.matching.pattern) },
+                title: \.displayName,
                 make: { BreakpointRule(matching: MatchingRule(pattern: "*")) },
                 problems: problems
             ) { rule in
@@ -197,7 +197,7 @@ struct ToolsView: View {
             RuleListEditor(
                 tool: tool,
                 set: $model.settings.scripting,
-                title: { $0.name.orElse($0.matching.pattern) },
+                title: \.displayName,
                 make: { ScriptRule(matching: MatchingRule(pattern: "*")) },
                 problems: problems
             ) { rule in
@@ -253,7 +253,7 @@ struct ToolsView: View {
             RuleListEditor(
                 tool: tool,
                 set: $model.settings.previewers,
-                title: { $0.name.orElse($0.matching.pattern) },
+                title: \.displayName,
                 make: { PreviewerRule(matching: MatchingRule(pattern: "*")) },
                 problems: problems
             ) { rule in

@@ -5,6 +5,7 @@ import WatcherCore
 /// Watcher ▸ About Watcher: what this build is, who makes it and how to support it, where its files live, and the
 /// open-source work it stands on.
 public struct AboutView: View {
+    @Environment(AppModel.self) private var model
     @Environment(RequestActions.self) private var actions
     @Environment(DevicesViewModel.self) private var devices
     @Environment(ExternalApps.self) private var externalApps
@@ -24,7 +25,8 @@ public struct AboutView: View {
                 WatcherLogo(size: 96)
                 Text("Watcher").font(.system(size: 26, weight: .bold))
                 Text("HTTP(S) debugging proxy for macOS").foregroundStyle(.secondary)
-                Text(Self.versionText).font(.callout.monospacedDigit()).foregroundStyle(.secondary).textSelection(.enabled)
+                Text(model.appInfo.versionText)
+                    .font(.callout.monospacedDigit()).foregroundStyle(.secondary).textSelection(.enabled)
                 HStack(spacing: 4) {
                     Text("by").foregroundStyle(.secondary)
                     Link(ProjectLinks.authorName, destination: ProjectLinks.author)
@@ -51,7 +53,7 @@ public struct AboutView: View {
 
             VStack(spacing: 10) {
                 Card("Files", symbol: "folder") {
-                    fileRow("Settings, mocks, workspaces", url: WatcherPaths.supportDirectory)
+                    fileRow("Settings, mocks, workspaces", url: model.supportDirectory)
                     fileRow("Root certificate", url: devices.certificateURL)
                 }
                 Card("Built with", symbol: "shippingbox") {
@@ -77,7 +79,7 @@ public struct AboutView: View {
                 Text("MIT License · © 2026 \(ProjectLinks.authorName)").font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 Button("Copy Version Info", systemImage: "doc.on.doc") {
-                    actions.copy(Self.diagnostics, "Version info copied")
+                    actions.copy(model.appInfo.diagnostics, "Version info copied")
                 }
                 .help("Version, build and macOS version, for bug reports")
             }
@@ -91,28 +93,11 @@ public struct AboutView: View {
         HStack {
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.callout)
-                Text(url.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")).font(.caption.monospaced()).foregroundStyle(.secondary)
+                Text(model.appInfo.abbreviatingHome(url.path)).font(.caption.monospaced()).foregroundStyle(.secondary)
                     .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
             }
             Spacer()
             IconButton("Show in Finder", symbol: "magnifyingglass") { externalApps.reveal(url) }
         }
-    }
-
-    /// "Version 1.0 (1)" in a packaged app; `swift run`, Xcode and tests run inside another bundle, whose version is not Watcher's.
-    static var versionText: String {
-        let info = Bundle.main.infoDictionary ?? [:]
-        guard info["CFBundleIdentifier"] as? String == "dev.watcher.app", let version = info["CFBundleShortVersionString"] as? String else { return "Development build" }
-        return "Version \(version) (\(info["CFBundleVersion"] as? String ?? "?"))"
-    }
-
-    static var diagnostics: String {
-        let os = ProcessInfo.processInfo.operatingSystemVersion
-        #if arch(arm64)
-            let arch = "arm64"
-        #else
-            let arch = "x86_64"
-        #endif
-        return "Watcher \(versionText) · macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion) · \(arch)"
     }
 }

@@ -21,14 +21,10 @@ struct BreakpointsView: View {
         }
         .frame(minWidth: 860, minHeight: 560)
         .onAppear {
-            if selection == nil {
-                selection = breakpoints.hits.first?.id
-            }
+            selection = BreakpointsViewModel.selection(keeping: selection, among: breakpoints.hits.map(\.id))
         }
-        .onChange(of: breakpoints.hits.map(\.id)) {
-            _, ids in if selection.map({ !ids.contains($0) }) ?? true {
-                selection = ids.first
-            }
+        .onChange(of: breakpoints.hits.map(\.id)) { _, ids in
+            selection = BreakpointsViewModel.selection(keeping: selection, among: ids)
         }
     }
 
@@ -132,6 +128,7 @@ private struct RuleRow: View {
                 Text(rule.matching.pattern).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             .opacity(rule.isEnabled ? 1 : 0.5)
+            .help("Stops the \(rule.phaseSummary)")
             Spacer(minLength: 4)
             IconButton("Delete Breakpoint", symbol: "trash", action: delete)
         }
@@ -167,11 +164,9 @@ private struct HitEditor: View {
         @Bindable var viewModel = viewModel
         VStack(alignment: .leading, spacing: 10) {
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                let waited = Int(context.date.timeIntervalSince(hit.pausedAt))
-                Label(
-                    waited < 20 ? "Paused for \(waited) s" : "Paused for \(waited) s. The client may give up soon; continue or abort.",
-                    systemImage: "hourglass"
-                ).font(.caption).foregroundStyle(waited < 20 ? Color.secondary : Palette.warning)
+                let wait = BreakpointsViewModel.wait(of: hit, at: context.date)
+                Label(wait.text, systemImage: "hourglass")
+                    .font(.caption).foregroundStyle(wait.isLate ? Palette.warning : Color.secondary)
             }
             if viewModel.isResponse {
                 HStack {

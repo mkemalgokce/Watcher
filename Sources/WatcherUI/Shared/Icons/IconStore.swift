@@ -5,20 +5,38 @@ import WatcherCore
 /// Icons for the apps that send requests and the websites they talk to, loaded once and cached.
 @MainActor @Observable
 final class IconStore {
-    static let shared = IconStore(preferences: LivePreferences.standard)
-
     // Filled while views are drawn, so they must not count as observable changes: writing observed state during a view
     // update re-renders every icon. Only favicons, which arrive later, are observed.
     @ObservationIgnored private var appIcons: [String: NSImage] = [:]
     @ObservationIgnored private var missingApps: Set<String> = []
     /// One observed slot per site, so an icon that arrives redraws only its own row, not every row of a long sidebar.
     @ObservationIgnored private var favicons: [String: FaviconSlot] = [:]
-    @ObservationIgnored private var requested: Set<String> = []
+    @ObservationIgnored private(set) var requested: Set<String> = []
 
     @ObservationIgnored private let preferences: any Preferences
+    @ObservationIgnored private let files: FileAccess
+    @ObservationIgnored private let workspace: any WorkspaceOpener
+    @ObservationIgnored private let cacheFolder: URL
+    @ObservationIgnored private let homeDirectory: URL
+    @ObservationIgnored private let download: FaviconDownload
 
-    init(preferences: any Preferences) {
-        self.preferences = preferences
+    init(
+        preferences: any Preferences,
+        files: FileAccess,
+        workspace: any WorkspaceOpener,
+        paths: SupportPaths,
+        homeDirectory: URL,
+        download: @escaping FaviconDownload
+    ) {
+        self.preferences = preferences; self.files = files; self.workspace = workspace
+        cacheFolder = paths.faviconsDirectory; self.homeDirectory = homeDirectory; self.download = download
+    }
+
+    convenience init(_ dependencies: AppDependencies) {
+        self.init(
+            preferences: dependencies.preferences, files: dependencies.files, workspace: dependencies.workspace,
+            paths: dependencies.paths, homeDirectory: dependencies.homeDirectory, download: dependencies.faviconDownload
+        )
     }
 
     // MARK: Apps
@@ -30,8 +48,8 @@ final class IconStore {
         if missingApps.contains(process) {
             return nil
         }
-        guard let url = Self.appBundle(for: process) else { missingApps.insert(process); return nil }
-        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        guard let url = appBundle(for: process) else { missingApps.insert(process); return nil }
+        let icon = workspace.icon(forFile: url.path)
         appIcons[process] = icon
         return icon
     }
@@ -51,34 +69,32 @@ final class IconStore {
         return name.trimmingCharacters(in: .whitespaces)
     }
 
-    private static func appBundle(for process: String) -> URL? {
-        let name = appName(forProcess: process)
-        let folders = [
-            "/Applications",
-            "/Applications/Utilities",
-            "/System/Applications",
-            "/System/Applications/Utilities",
-            "/System/Volumes/Preboot/Cryptexes/App/System/Applications",
-            "\(NSHomeDirectory())/Applications",
-        ]
-        for folder in folders {
-            let url = URL(fileURLWithPath: folder).appendingPathComponent("\(name).app")
-            if FileManager.default.fileExists(atPath: url.path) {
-                return url
-            }
-        }
-        return nil
+    private func appBundle(for process: String) -> URL? {
+        let name = Self.appName(forProcess: process)
+        let folders = Self.systemApplicationFolders + [homeDirectory.appendingPathComponent("Applications").path]
+        return folders
+            .map { URL(fileURLWithPath: $0).appendingPathComponent("\(name).app") }
+            .first { files.fileExists($0.path) }
     }
+
+    private static let systemApplicationFolders = [
+        "/Applications",
+        "/Applications/Utilities",
+        "/System/Applications",
+        "/System/Applications/Utilities",
+        "/System/Volumes/Preboot/Cryptexes/App/System/Applications",
+    ]
 
     // MARK: Websites
 
     func favicon(for domain: String, fetch: Bool = true) -> NSImage? {
         let slot = slot(for: domain)
-        let isAddress = domain.allSatisfy { $0.isNumber || $0 == "." }
-        if slot.image == nil, fetch, preferences.websiteIconsEnabled, !isAddress, !requested.contains(domain) {
+        let hasNoSite = ToolValidation.isIPAddress(domain) || !domain.contains(".")
+        if slot.image == nil, fetch, preferences.websiteIconsEnabled, !hasNoSite, !requested.contains(domain) {
             requested.insert(domain)
-            Task {
-                if let icon = await Self.loadFavicon(domain) {
+            Task { [files, cacheFolder, download] in
+                let icon = await Self.loadFavicon(domain, files: files, cacheFolder: cacheFolder, download: download)
+                if let icon {
                     setFavicon(icon, for: domain)
                 }
             }
@@ -99,32 +115,25 @@ final class IconStore {
         return slot
     }
 
-    private nonisolated static var cacheFolder: URL {
-        WatcherPaths.supportDirectory.appendingPathComponent("favicons", isDirectory: true)
-    }
-
     /// Off the main actor: reading the cache and decoding images for hundreds of sites would freeze the window.
-    private nonisolated static func loadFavicon(_ domain: String) async -> NSImage? {
+    private nonisolated static func loadFavicon(
+        _ domain: String, files: FileAccess, cacheFolder: URL, download: FaviconDownload
+    ) async -> NSImage? {
         let cached = cacheFolder.appendingPathComponent("\(domain).ico")
-        if let data = try? Data(contentsOf: cached), let image = NSImage(data: data) {
+        if let data = try? files.read(cached), let image = NSImage(data: data) {
             return image
         }
-        // Straight to the site: an empty proxy dictionary keeps this out of the system proxy, i.e. out of Watcher's own list.
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.connectionProxyDictionary = [:]
-        configuration.timeoutIntervalForRequest = 5
-        let session = URLSession(configuration: configuration)
-        defer { session.finishTasksAndInvalidate() }
         for host in [domain, "www.\(domain)"] {
-            guard let url = URL(string: "https://\(host)/favicon.ico"),
-                  let (data, response) = try? await session.data(from: url),
-                  (response as? HTTPURLResponse)?.statusCode == 200, data.count < 512 * 1024, let image = NSImage(data: data) else { continue }
-            try? FileManager.default.createDirectory(at: cacheFolder, withIntermediateDirectories: true)
-            try? data.write(to: cached)
+            guard let url = URL(string: "https://\(host)/favicon.ico"), let data = await download(url),
+                  data.count < maxFaviconBytes, let image = NSImage(data: data) else { continue }
+            try? files.createDirectory(cacheFolder)
+            try? files.writeAtomically(data, cached)
             return image
         }
         return nil
     }
+
+    private nonisolated static let maxFaviconBytes = 512 * 1024
 }
 
 /// One site's icon; observed on its own so its arrival redraws a single row.

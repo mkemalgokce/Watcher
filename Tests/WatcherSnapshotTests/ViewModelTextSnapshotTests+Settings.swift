@@ -16,13 +16,13 @@ extension ViewModelTextSnapshotTests {
             let pane = model.settingsPane
             var lines = ["\(pane.status): \(pane.statusText)"]
             model.proxy.toggleRunning()
-            _ = await eventually { model.proxy.isRunning && !model.proxy.isSwitchingProxy }
+            #expect(await eventually { model.proxy.isRunning && !model.proxy.isSwitchingProxy })
             lines.append("\(pane.status): \(pane.statusText)")
             model.proxy.toggleRunning()
-            _ = await eventually { !model.proxy.isSwitchingProxy }
+            #expect(await eventually { !model.proxy.isSwitchingProxy })
             runner.failStarting()
             model.proxy.toggleRunning()
-            _ = await eventually { model.proxy.proxyError != nil }
+            #expect(await eventually { model.proxy.proxyError != nil })
             lines.append("\(pane.status): \(pane.statusText)")
             for port in [0, 80, 1024, 65536] {
                 model.settings.port = port

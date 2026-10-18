@@ -38,7 +38,10 @@ public enum FormFields {
         guard !body.isEmpty else { return [] }
         return body.split(separator: "&", omittingEmptySubsequences: false).map { pair in
             let parts = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
-            let decoded = parts.map { $0.removingPercentEncoding ?? String($0) }
+            let decoded = parts.map { part in
+                let spaced = part.replacingOccurrences(of: "+", with: " ")
+                return spaced.removingPercentEncoding ?? spaced
+            }
             return FormField(source: .form, name: decoded[0], value: decoded.count > 1 ? decoded[1] : "", filename: nil)
         }
     }

@@ -100,20 +100,37 @@ struct FlowListViewModelTests {
         #expect(list.selection != nil)
     }
 
-    /// Integration with a real store: a burst of traffic reaches the list as a batch, not one re-render per event.
-    @Test(.tags(.timing))
-    func followsStoreInBatches() async {
-        let list = FlowListViewModel(store: store, sleep: liveSleep)
+    /// Integration with a real store: its events reach the list only through the flush timer.
+    @Test
+    func followsTheStoreThroughTheFlushTimer() async {
+        let gate = SleepGate()
+        let list = FlowListViewModel(store: store, sleep: gate.sleep)
         list.observeStore()
-        store.load((1 ... 2000).map { Flow.fixture(sequence: $0, status: 200) })
-        #expect(await eventually { list.flows.count == 2000 })
+        store.load((1 ... 3).map { Flow.fixture(sequence: $0, status: 200) })
+        #expect(await eventually { gate.waitingCount == 1 })
+        #expect(list.flows.isEmpty, "nothing is applied before the timer ends")
+        #expect(await eventually { gate.releaseAll(); return list.flows.count == 3 })
+
+        let removed = list.flows[0].id
+        store.discard([removed])
+        #expect(await eventually { gate.releaseAll(); return list.flows.count == 2 })
+        #expect(!list.flows.contains { $0.id == removed })
+        #expect(gate.durations.allSatisfy { $0 == .milliseconds(80) })
+    }
+
+    @Test
+    func aLargeBatchIsAppliedInOneFlush() {
+        let list = list()
+        let flows = (1 ... 2000).map { Flow.fixture(sequence: $0, status: 200) }
+        flows.forEach { list.enqueue(.added($0)) }
+        list.flushEvents()
+        #expect(list.flows.count == 2000)
         #expect(list.flows.last?.sequence == 2000)
 
-        let started = Date()
-        let ids = Set(list.flows.prefix(1000).map(\.id))
-        store.discard(ids)
-        #expect(await eventually { list.flows.count == 1000 })
-        #expect(Date().timeIntervalSince(started) < 5, "deleting a large selection must not be quadratic")
+        let ids = Set(flows.prefix(1000).map(\.id))
+        ids.forEach { list.enqueue(.removed($0)) }
+        list.flushEvents()
+        #expect(list.flows.count == 1000)
         #expect(list.flows.allSatisfy { !ids.contains($0.id) })
     }
 

@@ -10,24 +10,10 @@ extension DevicesViewModelTests {
     struct Actions {
         private static let certificate = URL(fileURLWithPath: "/fake-home/.watcher/watcher-ca.pem")
         private static let phone = AndroidDevice(serial: "R5", model: "Pixel 9", isEmulator: false)
-        private let calls = LockedBox<[String]>([])
-
+        private let spy = DeviceProbeSpy()
         private func viewModel(lan: [String] = ["192.168.1.20"], port: Int = 9090) -> DevicesViewModel {
-            let calls = calls
-            var probe = DevicesViewModel.DeviceProbe.none
-            probe.lanAddresses = { lan }
-            probe.trustMac = { url in calls.mutate { $0.append("trust \(url.lastPathComponent)") } }
-            probe.removeMacTrust = { calls.mutate { $0.append("untrust") } }
-            probe.installOnSimulator = { url, udid in
-                calls.mutate { $0.append("simulator \(udid) \(url.lastPathComponent)") }
-            }
-            probe.setAndroidProxy = { device, endpoint in
-                calls.mutate { $0.append("proxy \(device.serial) \(endpoint ?? "off")") }
-            }
-            probe.pushCertificate = { device, url in
-                calls.mutate { $0.append("push \(device.serial) \(url.lastPathComponent)") }
-            }
-            return DevicesViewModel(probe: probe, certificateURL: Self.certificate) { port }
+            spy.lan = lan
+            return DevicesViewModel(probe: spy.probe, certificateURL: Self.certificate) { port }
         }
 
         @Test
@@ -37,7 +23,7 @@ extension DevicesViewModelTests {
             #expect(devices.status == .done("Certificate trusted on this Mac."))
             await devices.removeMacTrust()
             #expect(devices.status == .done("Certificate removed from this Mac."))
-            #expect(calls.value == ["trust watcher-ca.pem", "untrust"])
+            #expect(spy.calls == ["trust watcher-ca.pem", "untrust"])
         }
 
         @Test
@@ -47,7 +33,7 @@ extension DevicesViewModelTests {
             )
             let devices = viewModel()
             await devices.install(on: simulator)
-            #expect(calls.value == ["simulator U1 watcher-ca.pem"])
+            #expect(spy.calls == ["simulator U1 watcher-ca.pem"])
             #expect(devices.status == .done("Installed on iPhone 17. Restart apps that were already running."))
         }
 
@@ -55,10 +41,10 @@ extension DevicesViewModelTests {
         func settingTheAndroidProxyPointsItAtThisMac() async {
             let devices = viewModel(port: 9123)
             await devices.setProxy(on: Self.phone, enabled: true)
-            #expect(calls.value == ["proxy R5 192.168.1.20:9123"])
+            #expect(spy.calls == ["proxy R5 192.168.1.20:9123"])
             #expect(devices.status == .done("Proxy set on Pixel 9."))
             await devices.setProxy(on: Self.phone, enabled: false)
-            #expect(calls.value.last == "proxy R5 off")
+            #expect(spy.calls.last == "proxy R5 off")
             #expect(devices.status == .done("Proxy cleared."))
         }
 
@@ -66,7 +52,7 @@ extension DevicesViewModelTests {
         func withoutANetworkAddressTheProxyIsNotSet() async {
             let devices = viewModel(lan: [])
             await devices.setProxy(on: Self.phone, enabled: true)
-            #expect(calls.value.isEmpty)
+            #expect(spy.calls.isEmpty)
             #expect(devices.status == .failed("No network address found for this Mac."))
         }
 
@@ -74,7 +60,7 @@ extension DevicesViewModelTests {
         func pushingTheCertificateToAPhone() async {
             let devices = viewModel()
             await devices.pushCertificate(to: Self.phone)
-            #expect(calls.value == ["push R5 watcher-ca.pem"])
+            #expect(spy.calls == ["push R5 watcher-ca.pem"])
         }
 
         @Test(arguments: [(["10.0.0.5", "192.168.1.2"], "10.0.0.5:8080"), ([], nil)])
@@ -98,7 +84,8 @@ extension DevicesViewModelTests {
             probe.simulators = {
                 scans.mutate { $0 += 1 }
                 if scans.value == 1 {
-                    blocked.wait() // only the first scan is held, so a second one would show up instead of hanging
+                    // only the first scan is held, so a second one would show up instead of hanging
+                    _ = blocked.wait(timeout: .now() + 5)
                 }
                 return []
             }
@@ -110,6 +97,53 @@ extension DevicesViewModelTests {
             await first.value
             #expect(scans.value == 1)
             #expect(!devices.isScanning)
+        }
+
+        @Test
+        func trustingWhileAScanRunsShowsTheTrustWhenTheScanEnds() async {
+            let trusted = LockedBox(false)
+            let release = DispatchSemaphore(value: 0)
+            let scanning = LockedBox(0)
+            var probe = DevicesViewModel.DeviceProbe.none
+            probe.isMacTrusted = {
+                let value = trusted.value // read before the trust is installed
+                scanning.mutate { $0 += 1 }
+                if scanning.value == 1 {
+                    _ = release.wait(timeout: .now() + 5)
+                }
+                return value
+            }
+            probe.trustMac = { _ in trusted.mutate { $0 = true } }
+            let devices = DevicesViewModel(probe: probe, certificateURL: Self.certificate) { 9090 }
+            let scan = Task { await devices.refresh() }
+            #expect(await eventually { scanning.value == 1 })
+            let trust = Task { await devices.trustOnMac() }
+            #expect(await eventually { trusted.value })
+            release.signal()
+            await scan.value
+            await trust.value
+            #expect(devices.macTrusted)
+            #expect(devices.status == .done("Certificate trusted on this Mac."))
+        }
+
+        @Test
+        func theAddressFollowsTheNetworkWhenItChanges() {
+            let spy = DeviceProbeSpy(lan: ["10.0.0.5"])
+            let devices = DevicesViewModel(probe: spy.probe, certificateURL: Self.certificate) { 9090 }
+            #expect(devices.lanProxyAddress == "10.0.0.5:9090")
+            spy.lan = ["192.168.1.7"]
+            #expect(devices.lanProxyAddress == "192.168.1.7:9090")
+            #expect(devices.certificateDirectURL == "http://192.168.1.7:9090")
+        }
+
+        @Test(arguments: [
+            (["10.0.0.5"], "10.0.0.5", "http://10.0.0.5:9090"), ([String](), "—", nil),
+        ])
+        func theDevicePageAndServerFollowTheNetworkAddress(lan: [String], server: String, url: String?) {
+            let devices = viewModel(lan: lan)
+            #expect(devices.serverHost == server)
+            #expect(devices.certificateDirectURL == url)
+            #expect(devices.certificatePageURL == (url ?? "http://watcher.cert"))
         }
     }
 }

@@ -90,16 +90,14 @@ private struct InspectorHeader: View {
 
     private var statusPill: some View {
         let failed = flow.state == .failed
-        let text: String = switch flow.state {
-        case .pending: "Pending"
-        case .failed: "Failed"
-        case .blocked, .completed: flow.response.map { "\($0.status) \(HTTPStatus.reason($0.status))" } ?? "—"
-        }
         return HStack(spacing: 4) {
             if flow.state == .pending {
                 ProgressView().controlSize(.mini)
             }
-            Pill(text: text, tint: Palette.status(flow.response?.status, failed: failed), monospaced: false)
+            Pill(
+                text: flow.inspectorStatusText, tint: Palette.status(flow.response?.status, failed: failed),
+                monospaced: false
+            )
         }
         .accessibilityElement(children: .combine)
     }

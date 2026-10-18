@@ -19,8 +19,7 @@ extension ViewModelTextSnapshotTests {
             ])
             let breakpoints = model.breakpoints
             var lines = model.settings.breakpoints.rules.map { rule in
-                let phases = [rule.onRequest ? "request" : nil, rule.onResponse ? "response" : nil].compactMap(\.self)
-                return "\(rule.isEnabled ? "on " : "off") \(rule.displayName) · \(phases.joined(separator: " + "))"
+                "\(rule.isEnabled ? "on " : "off") \(rule.displayName) · \(rule.phaseSummary)"
             }
             let paused = [("api.example.com", "/login"), ("api.example.com", "/v1/users"), ("cdn.a.com", "/a.css")]
             for (host, path) in paused {

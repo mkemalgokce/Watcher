@@ -38,7 +38,7 @@ public struct ContentView: View {
         }
         .modifier(SearchFocus(request: router.searchFocusRequest))
         .toolbar { WatcherToolbar() }
-        .safeAreaInset(edge: .bottom, spacing: 0) { StatusBar() }
+        .safeAreaInset(edge: .bottom, spacing: 0) { StatusBar(viewModel: model.statusBar) }
         .sheet(item: Bindable(router).sheet) { sheet in
             switch sheet {
             case .tools: ToolsView()

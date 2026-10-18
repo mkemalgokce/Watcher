@@ -17,7 +17,7 @@ extension ViewModelTextSnapshotTests {
                 ReverseProxyRule(localPort: 9191, remoteHost: "example.com"),
                 ReverseProxyRule(localPort: 9191, remoteHost: "example.com"),
             ])
-            let tools = ToolsViewModel(settings: model.settings, router: model.router, proxy: model.proxy)
+            let tools = model.toolsViewModel()
             var lines = ToolsView.Tool.groups.flatMap { title, group in
                 ["[\(title)]"] + group.map { "\($0.rawValue): \(tools.summary($0))" }
             }

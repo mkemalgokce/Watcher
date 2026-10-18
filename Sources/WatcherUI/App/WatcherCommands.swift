@@ -158,7 +158,7 @@ public struct WatcherCommands: Commands {
                 Button("Show Root Certificate in Finder") { model.actions.revealCertificate() }
                 Divider()
                 Button("Copy Certificate Page URL") {
-                    model.actions.copy(model.devices.lanProxyAddress.map { "http://\($0)" } ?? "http://watcher.cert")
+                    model.actions.copy(model.devices.certificatePageURL)
                 }
             }
         }

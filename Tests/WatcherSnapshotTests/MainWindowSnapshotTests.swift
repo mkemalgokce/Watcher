@@ -25,7 +25,8 @@ struct MainWindowSnapshotTests {
     @Test
     func statusBarWhileStopped() throws {
         let model = try model([.fixture(sequence: 1, status: 200, body: Data(count: 2048))])
-        ImageSnapshot.verify(StatusBar().environment(model), size: Self.size, named: "stopped")
+        let bar = StatusBar(viewModel: model.statusBar).environment(model)
+        ImageSnapshot.verify(bar, size: Self.size, named: "stopped")
     }
 
     @Test
@@ -36,7 +37,8 @@ struct MainWindowSnapshotTests {
         model.breakpoints.hits = [.init(phase: .request, request: .fixture(), pausedAt: .distantPast)]
         model.proxy.toggleRunning()
         #expect(await eventually { model.proxy.isRunning && !model.proxy.isSwitchingProxy })
-        ImageSnapshot.verify(StatusBar().environment(model), size: Self.size, named: "busy")
+        let bar = StatusBar(viewModel: model.statusBar).environment(model)
+        ImageSnapshot.verify(bar, size: Self.size, named: "busy")
     }
 
     @Test(arguments: [Notice.Kind.success, .info, .error])

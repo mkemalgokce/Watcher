@@ -7,6 +7,7 @@ import WatcherCore
 final class SettingsEditor {
     var value: WatcherSettings {
         didSet {
+            guard value != oldValue else { return }
             scheduleCommit()
             onChange?(oldValue, value)
         }

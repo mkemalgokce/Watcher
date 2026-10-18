@@ -19,15 +19,15 @@ struct ViewModelTextSnapshotTests {
         var lines = [model.statusLine]
         model.proxy.toggleRunning()
         lines.append(model.statusLine)
-        _ = await eventually { model.proxy.isRunning && !model.proxy.isSwitchingProxy }
+        #expect(await eventually { model.proxy.isRunning && !model.proxy.isSwitchingProxy })
         model.list.query.statusClasses = [4]
         lines.append(model.statusLine)
         model.proxy.toggleRunning()
         lines.append(model.statusLine)
-        _ = await eventually { !model.proxy.isSwitchingProxy }
+        #expect(await eventually { !model.proxy.isSwitchingProxy })
         runner.failStarting()
         model.proxy.toggleRunning()
-        _ = await eventually { model.proxy.proxyError != nil }
+        #expect(await eventually { model.proxy.proxyError != nil })
         lines.append(model.statusLine)
         assertSnapshot(of: lines.joined(separator: "\n"), as: .lines)
     }

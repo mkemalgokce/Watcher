@@ -100,7 +100,8 @@ final class FlowListViewModel {
         var batch = EventBatch(flows: flows, index: indexByID)
         events.forEach { batch.apply($0) }
         if !batch.removed.isEmpty {
-            batch.flows.removeAll { batch.removed.contains($0.id) }
+            let doomed = Set(batch.removed.keys)
+            batch.flows.removeAll { doomed.contains($0.id) }
             batch.index = Self.index(of: batch.flows)
         }
         flows = batch.flows
@@ -151,14 +152,16 @@ final class FlowListViewModel {
 private struct EventBatch {
     var flows: [Flow]
     var index: [Flow.ID: Int]
-    var removed = Set<Flow.ID>()
+    /// Flows taken out in this batch, with the place each had, so one added again takes that place back.
+    var removed: [Flow.ID: Int] = [:]
     var wasCleared = false
 
     mutating func apply(_ event: FlowEvent) {
         switch event {
         case let .added(flow):
-            if let position = index[flow.id] {
+            if let position = index[flow.id] ?? removed.removeValue(forKey: flow.id) {
                 flows[position] = flow
+                index[flow.id] = position
             } else {
                 index[flow.id] = flows.count
                 flows.append(flow)
@@ -168,11 +171,11 @@ private struct EventBatch {
                 flows[position] = flow
             }
         case let .removed(id):
-            if index.removeValue(forKey: id) != nil {
-                removed.insert(id)
+            if let position = index.removeValue(forKey: id) {
+                removed[id] = position
             }
         case .cleared:
-            flows = []; index = [:]; removed = []; wasCleared = true
+            flows = []; index = [:]; removed = [:]; wasCleared = true
         }
     }
 }

@@ -7,7 +7,7 @@ import WatcherTestSupport
 @MainActor
 @Suite(.tags(.unit))
 struct ExternalAppsTests {
-    private let notices = NoticeCenter(sleep: sleepUntilCancelled) { _ in }
+    private let notices = NoticeCenter.silent()
     private let file = URL(fileURLWithPath: "/tmp/Watcher Open/1/body.json")
     private let preview = URL(fileURLWithPath: "/System/Applications/Preview.app")
     private let editor = URL(fileURLWithPath: "/Applications/Editor.app")
