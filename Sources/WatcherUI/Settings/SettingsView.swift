@@ -49,8 +49,8 @@ private struct GeneralSettings: View {
                     TextField(
                         "Allowed addresses",
                         text: Binding(
-                            get: { model.settings.accessControl.allowedAddresses.joined(separator: ", ") },
-                            set: { model.settings.accessControl.allowedAddresses = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }
+                            get: { AllowedAddresses.text(for: model.settings.accessControl.allowedAddresses) },
+                            set: { model.settings.accessControl.allowedAddresses = AllowedAddresses.addresses(in: $0) }
                         ),
                         prompt: Text("192.168.1.*, 10.0.0.5")
                     )
@@ -69,7 +69,10 @@ private struct GeneralSettings: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Session") {
-                Stepper("Keep at most \(model.settings.maxFlows == 0 ? "∞" : "\(model.settings.maxFlows)") requests", value: $model.settings.maxFlows, in: 0 ... 100_000, step: 500)
+                Stepper(
+                    FlowLimitText.label(for: model.settings.maxFlows), value: $model.settings.maxFlows,
+                    in: 0 ... 100_000, step: 500
+                )
                 Text("0 keeps everything until you clear the session.").font(.caption).foregroundStyle(.secondary)
             }
         }

@@ -2,16 +2,15 @@ import SwiftUI
 import WatcherCore
 
 struct WebSocketView: View {
-    @Environment(AppModel.self) private var model
     @Environment(WindowRouter.self) private var router
     let messages: [WebSocketMessage]
 
     var body: some View {
-        @Bindable var model = model
-        let shown = messages.filter { !router.hidePingPong || ($0.kind != .ping && $0.kind != .pong) }
+        let list = WebSocketMessageList(all: messages, hidesPingPong: router.hidePingPong)
+        let shown = list.shown
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("\(shown.count) of \(messages.count) messages").font(.caption).foregroundStyle(.secondary)
+                Text(list.countText).font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 Toggle("Hide ping/pong", isOn: Bindable(router).hidePingPong).toggleStyle(.switch).controlSize(.mini)
             }
@@ -21,7 +20,7 @@ struct WebSocketView: View {
                 ContentUnavailableView(
                     "No Messages",
                     systemImage: "bubble.left.and.bubble.right",
-                    description: Text(messages.isEmpty ? "The socket has not sent anything yet." : "Only ping/pong frames so far.")
+                    description: Text(list.emptyText)
                 )
             } else {
                 ScrollView {
