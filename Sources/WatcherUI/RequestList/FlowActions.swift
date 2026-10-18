@@ -3,25 +3,23 @@ import WatcherCore
 
 /// Context menu of the request list; the same actions are in the Request menu of the menu bar.
 struct FlowActions: View {
-    @Environment(WindowRouter.self) private var router
+    @Environment(AppModel.self) private var model
     @Environment(FlowListViewModel.self) private var list
     @Environment(RequestActions.self) private var actions
-    @Environment(SessionFilesViewModel.self) private var sessionFiles
     let ids: Set<Flow.ID>
     var onComment: (Flow) -> Void = { _ in }
 
     var body: some View {
         if let flow = list.flows.first(where: { ids.contains($0.id) }) {
             let request = flow.request
-            Button("Repeat", systemImage: "arrow.clockwise") { actions.repeatRequest(request) }
-            Button("Edit & Repeat…", systemImage: "square.and.pencil") { actions.editAndRepeat(flow) }
+            let commands = model.requestCommands(for: flow, ids: ids)
+            item("Repeat", "arrow.clockwise", .repeatRequest, in: commands)
+            item("Edit & Repeat…", "square.and.pencil", .editAndRepeat, in: commands)
             Divider()
-            Button(flow.isStarred ? "Remove Star" : "Star", systemImage: flow.isStarred ? "star.slash" : "star") {
-                actions.toggleStar(ids)
-            }
+            item(commands.starTitle, flow.isStarred ? "star.slash" : "star", .toggleStar, in: commands)
             Button("Add Comment…", systemImage: "text.bubble") { onComment(flow) }
             Menu("Copy as", systemImage: "doc.on.doc") {
-                Button("URL") { actions.copy(request.url) }
+                item("URL", nil, .copyURL, in: commands)
                 ForEach(CodeGenerator.Language.allCases, id: \.self) { language in
                     Button(language.rawValue) { actions.copy(actions.code(for: request, as: language)) }
                 }
@@ -29,9 +27,7 @@ struct FlowActions: View {
             Menu("Response Body", systemImage: "doc") {
                 let body = ExchangeText.body(of: flow, side: .response)
                 let name = ExchangeText.suggestedFileName(for: flow, side: .response)
-                Button("Save…", systemImage: "square.and.arrow.down") {
-                    sessionFiles.saveBody(of: flow, side: .response)
-                }
+                item("Save…", "square.and.arrow.down", .saveResponseBody, in: commands)
                 OpenWithMenu(data: body, name: name, contentType: flow.response?.headers.value(for: "content-type"))
                 Button("Copy as Text", systemImage: "doc.on.doc") {
                     actions.copy(String(decoding: body, as: UTF8.self), "Response body copied")
@@ -40,27 +36,34 @@ struct FlowActions: View {
             }
             .disabled(flow.response?.body.isEmpty ?? true)
             Menu("Copy Headers", systemImage: "list.bullet.rectangle") {
-                Button("Request Headers") {
-                    actions.copy(ExchangeText.headerText(of: flow, side: .request), "Request headers copied")
-                }
-                Button("Response Headers") {
-                    actions.copy(ExchangeText.headerText(of: flow, side: .response), "Response headers copied")
-                }
-                .disabled(flow.response == nil)
+                item("Request Headers", nil, .copyRequestHeaders, in: commands)
+                item("Response Headers", nil, .copyResponseHeaders, in: commands)
             }
-            if !flow.request.body.isEmpty {
-                Button("Save Request Body…", systemImage: "square.and.arrow.up") {
-                    sessionFiles.saveBody(of: flow, side: .request)
-                }
+            if commands.isEnabled(.saveRequestBody) {
+                item("Save Request Body…", "square.and.arrow.up", .saveRequestBody, in: commands)
             }
-            Button("Set as Compare Base", systemImage: "arrow.left.arrow.right") { router.compare(withBase: flow) }
-            Button("Mock This Response", systemImage: "theatermasks") { actions.mockResponse(flow) }
-                .disabled(flow.response == nil)
+            item("Set as Compare Base", "arrow.left.arrow.right", .setCompareBase, in: commands)
+            item("Mock This Response", "theatermasks", .mockResponse, in: commands)
             Divider()
             Button("Add Breakpoint for this URL", systemImage: "pause.circle") { actions.addBreakpoint(for: request) }
             Button("Block this Host", systemImage: "nosign") { actions.blockHost(request.host) }
             Divider()
-            Button("Delete", systemImage: "trash", role: .destructive) { actions.delete(ids) }
+            Button("Delete", systemImage: "trash", role: .destructive) { commands.perform(.delete) }
         }
+    }
+
+    private func item(
+        _ title: String, _ symbol: String?, _ command: RequestCommands.Command, in commands: RequestCommands
+    ) -> some View {
+        Button {
+            commands.perform(command)
+        } label: {
+            if let symbol {
+                Label(title, systemImage: symbol)
+            } else {
+                Text(title)
+            }
+        }
+        .disabled(!commands.isEnabled(command))
     }
 }

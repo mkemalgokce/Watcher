@@ -48,8 +48,6 @@ struct FlowDetailView: View {
 /// Method, status and URL with the actions people repeat most, then the facts about the exchange.
 private struct InspectorHeader: View {
     @Environment(AppModel.self) private var model
-    @Environment(WindowRouter.self) private var router
-    @Environment(SessionFilesViewModel.self) private var sessionFiles
     let flow: Flow
 
     var body: some View {
@@ -103,35 +101,32 @@ private struct InspectorHeader: View {
     }
 
     private var actions: some View {
-        GlassGroup {
+        let commands = model.requestCommands(for: flow)
+        return GlassGroup {
             HStack(spacing: 2) {
-                IconButton("Repeat", symbol: "arrow.clockwise", shortcut: "⌘R") {
-                    model.actions.repeatRequest(flow.request)
-                }
+                IconButton("Repeat", symbol: "arrow.clockwise", shortcut: "⌘R") { commands.perform(.repeatRequest) }
                 IconButton("Edit & Repeat", symbol: "square.and.pencil", shortcut: "⌥⌘R") {
-                    model.actions.editAndRepeat(flow)
+                    commands.perform(.editAndRepeat)
                 }
                 IconButton(
-                    flow.isStarred ? "Remove Star" : "Star",
+                    commands.starTitle,
                     symbol: "star",
                     shortcut: "⌘D",
                     tint: flow.isStarred ? Palette.starred : nil,
                     isOn: flow.isStarred
-                ) { model.actions.toggleStar([flow.id]) }
-                IconButton("Copy as cURL", symbol: "terminal", shortcut: "⇧⌘C") {
-                    model.actions.copy(model.actions.code(for: flow.request, as: .curl), "cURL copied")
-                }
+                ) { commands.perform(.toggleStar) }
+                IconButton("Copy as cURL", symbol: "terminal", shortcut: "⇧⌘C") { commands.perform(.copyCURL) }
                 Menu {
-                    Button("Copy URL", systemImage: "link") { model.actions.copy(flow.request.url, "URL copied") }
+                    Button("Copy URL", systemImage: "link") { commands.perform(.copyURL) }
                     Button("Save Response Body…", systemImage: "square.and.arrow.down") {
-                        sessionFiles.saveBody(of: flow, side: .response)
+                        commands.perform(.saveResponseBody)
                     }
-                    .disabled(flow.response?.body.isEmpty ?? true)
+                    .disabled(!commands.isEnabled(.saveResponseBody))
                     Divider()
-                    Button("Mock This Response", systemImage: "theatermasks") { model.actions.mockResponse(flow) }
-                        .disabled(flow.response == nil)
+                    Button("Mock This Response", systemImage: "theatermasks") { commands.perform(.mockResponse) }
+                        .disabled(!commands.isEnabled(.mockResponse))
                     Button("Set as Compare Base", systemImage: "arrow.left.arrow.right") {
-                        router.compare(withBase: flow)
+                        commands.perform(.setCompareBase)
                     }
                 } label: {
                     Image(systemName: "ellipsis").font(.system(size: 15, weight: .regular)).frame(width: Metrics.iconButton, height: Metrics.iconButton)

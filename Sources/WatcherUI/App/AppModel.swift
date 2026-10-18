@@ -124,6 +124,11 @@ public final class AppModel {
         ToolsViewModel(settings: settings, router: router, proxy: proxy, files: files, homeDirectory: homeDirectory)
     }
 
+    /// The request actions for `flow`, applying to `ids` when given (a multi-selection) and otherwise to `flow` alone.
+    func requestCommands(for flow: Flow?, ids: Set<Flow.ID>? = nil) -> RequestCommands {
+        RequestCommands(flow: flow, ids: ids, actions: actions, router: router, sessionFiles: sessionFiles)
+    }
+
     var statusBar: StatusBarViewModel {
         StatusBarViewModel(
             proxy: proxy, settings: settings, devices: devices, breakpoints: breakpoints, list: list,
