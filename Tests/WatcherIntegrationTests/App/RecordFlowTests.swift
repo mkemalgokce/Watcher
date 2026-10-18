@@ -16,7 +16,8 @@ struct RecordFlowTests {
 
     private func makeModel(_ networkSetup: NetworkSetupSpy) throws -> AppModel {
         let systemProxy = SystemProxy(run: { networkSetup.run($0) }, backupURL: backup.appending("backup.json"))
-        let model = AppModel(listening: false, systemProxy: systemProxy)
+        let engine = try WatcherEngine.inMemory()
+        let model = try AppModel(dependencies: .test(engine: engine, runner: engine, systemProxy: systemProxy))
         model.settings.autoSystemProxy = true
         try model.useFreePort(searchingFrom: 21000, fallback: 29998)
         return model
@@ -27,16 +28,17 @@ struct RecordFlowTests {
         let networkSetup = NetworkSetupSpy()
         let model = try makeModel(networkSetup)
 
-        model.toggleRunning()
-        #expect(await eventually { model.isRunning && model.systemProxyOn && !model.isSwitchingProxy })
+        model.proxy.toggleRunning()
+        let proxy = model.proxy
+        #expect(await eventually { proxy.isRunning && proxy.systemProxyOn && !proxy.isSwitchingProxy })
 
         let port = String(model.engine.boundPort ?? -1)
         let expected = ["-setwebproxy", "Wi-Fi", "127.0.0.1", port]
         #expect(networkSetup.arguments.contains(expected), "uses the port actually bound")
         #expect(!networkSetup.anyOnMain, "networksetup must not block the window")
 
-        model.toggleRunning()
-        #expect(await eventually { !model.isRunning && !model.systemProxyOn && !model.isSwitchingProxy })
+        model.proxy.toggleRunning()
+        #expect(await eventually { !proxy.isRunning && !proxy.systemProxyOn && !proxy.isSwitchingProxy })
         #expect(
             networkSetup.arguments.contains(["-setwebproxystate", "Wi-Fi", "off"]),
             "pausing restores the original"
@@ -51,22 +53,22 @@ struct RecordFlowTests {
         let model = try makeModel(NetworkSetupSpy(delay: 0.1))
 
         var started = Date()
-        model.toggleRunning()
-        #expect(await eventually { model.isRunning && !model.isSwitchingProxy })
+        model.proxy.toggleRunning()
+        #expect(await eventually { model.proxy.isRunning && !model.proxy.isSwitchingProxy })
         #expect(Date().timeIntervalSince(started) < 0.2, "Record must not wait for networksetup")
-        #expect(await eventually(timeout: 10) { model.systemProxyOn })
+        #expect(await eventually(timeout: 10) { model.proxy.systemProxyOn })
 
         started = Date()
-        model.toggleRunning()
-        #expect(await eventually { !model.isRunning && !model.isSwitchingProxy })
+        model.proxy.toggleRunning()
+        #expect(await eventually { !model.proxy.isRunning && !model.proxy.isSwitchingProxy })
         #expect(Date().timeIntervalSince(started) < 0.2, "Pause must not wait for networksetup")
         #expect(model.engine.isRunning, "the proxy serves until the original settings are back")
-        #expect(await eventually(timeout: 10) { !model.systemProxyOn && !model.engine.isRunning })
+        #expect(await eventually(timeout: 10) { !model.proxy.systemProxyOn && !model.engine.isRunning })
 
-        model.toggleRunning() // a new Record waits for the pending switch instead of racing it
-        #expect(await eventually(timeout: 10) { model.isRunning && model.systemProxyOn })
-        model.toggleRunning()
-        #expect(await eventually(timeout: 10) { !model.systemProxyOn && !model.engine.isRunning })
+        model.proxy.toggleRunning() // a new Record waits for the pending switch instead of racing it
+        #expect(await eventually(timeout: 10) { model.proxy.isRunning && model.proxy.systemProxyOn })
+        model.proxy.toggleRunning()
+        #expect(await eventually(timeout: 10) { !model.proxy.systemProxyOn && !model.engine.isRunning })
     }
 
     @Test
@@ -74,7 +76,7 @@ struct RecordFlowTests {
         let model = try makeModel(NetworkSetupSpy())
         model.onboardingDone = true
         try? await Task.sleep(for: .milliseconds(300))
-        #expect(!model.isRunning)
+        #expect(!model.proxy.isRunning)
         #expect(model.statusLine == "Not recording · 0 requests")
     }
 }

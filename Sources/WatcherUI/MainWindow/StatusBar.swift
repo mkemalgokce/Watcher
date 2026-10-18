@@ -4,56 +4,27 @@ import WatcherCore
 /// The bottom bar: what Watcher is doing right now, each item clickable for the obvious action.
 struct StatusBar: View {
     @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
+    @Environment(FlowListViewModel.self) private var list
+    @Environment(ProxyController.self) private var proxy
+    @Environment(BreakpointsViewModel.self) private var breakpoints
+    @Environment(RequestActions.self) private var actions
+    @Environment(DevicesViewModel.self) private var devices
+    @Environment(NoticeCenter.self) private var notices
+    @Environment(SessionFilesViewModel.self) private var sessionFiles
     @State private var showLegend = false
 
-    /// Tools that change traffic right now, by name.
     private var activeTools: [String] {
-        let s = model.settings
-        var names: [String] = []
-        if !s.mapLocal.active.isEmpty {
-            names.append("Map Local")
-        }
-        if !s.mapRemote.active.isEmpty {
-            names.append("Map Remote")
-        }
-        if !s.blockList.active.isEmpty {
-            names.append("Block List")
-        }
-        if !s.allowList.active.isEmpty {
-            names.append("Allow List")
-        }
-        if !s.breakpoints.active.isEmpty {
-            names.append("Breakpoints")
-        }
-        if !s.scripting.active.isEmpty {
-            names.append("Scripting")
-        }
-        if !s.dnsSpoofing.active.isEmpty {
-            names.append("DNS Spoofing")
-        }
-        if !s.reverseProxy.active.isEmpty {
-            names.append("Reverse Proxy")
-        }
-        if s.throttle.isEnabled {
-            names.append("Throttling")
-        }
-        if s.externalProxy.isEnabled {
-            names.append("External Proxy")
-        }
-        if s.noCaching {
-            names.append("No Caching")
-        }
-        return names
+        ToolsView.Tool.activeNames(in: model.settings.value)
     }
 
     private var stateTint: Color {
-        if model.proxyError != nil {
-            return Palette.error
+        switch proxy.state {
+        case .failed: Palette.error
+        case .switching: Palette.warning
+        case .running: Palette.done
+        case .stopped: .secondary
         }
-        if model.isSwitchingProxy {
-            return Palette.warning
-        }
-        return model.isRunning ? Palette.done : .secondary
     }
 
     var body: some View {
@@ -66,20 +37,20 @@ struct StatusBar: View {
             .padding(.horizontal, 6)
             .accessibilityElement(children: .combine)
             separator
-            if model.isRunning, model.settings.listenOnAllInterfaces, let lan = model.lanProxyAddress {
-                item(symbol: "iphone", tint: .secondary, text: lan, help: "Address for phones and tablets on this network. Click to copy.") { model.copy(lan, "Device address copied") }
+            if proxy.isRunning, model.settings.listenOnAllInterfaces, let lan = devices.lanProxyAddress {
+                item(symbol: "iphone", tint: .secondary, text: lan, help: "Address for phones and tablets on this network. Click to copy.") { actions.copy(lan, "Device address copied") }
                 separator
             }
             item(
                 symbol: "network",
-                tint: model.systemProxyOn ? Palette.done : .secondary,
-                text: model.systemProxyOn ? "System proxy on" : "System proxy off",
-                help: model.systemProxyOn ? "Mac traffic goes through Watcher. Click to turn off (⇧⌘Y)." : "Only apps set to use Watcher are captured. Click to capture the whole Mac (⇧⌘Y)."
+                tint: proxy.systemProxyOn ? Palette.done : .secondary,
+                text: proxy.systemProxyOn ? "System proxy on" : "System proxy off",
+                help: proxy.systemProxyOn ? "Mac traffic goes through Watcher. Click to turn off (⇧⌘Y)." : "Only apps set to use Watcher are captured. Click to capture the whole Mac (⇧⌘Y)."
             ) {
-                if model.isRunning {
-                    model.setSystemProxy(!model.systemProxyOn)
+                if proxy.isRunning {
+                    proxy.setSystemProxy(!proxy.systemProxyOn)
                 } else {
-                    model.notify("Start the proxy first.", .error)
+                    notices.notify("Start the proxy first.", .error)
                 }
             }
             let decryptsAll = model.settings.sslProxying.include.contains("*") && model.settings.sslProxying.exclude.isEmpty
@@ -88,25 +59,25 @@ struct StatusBar: View {
                 tint: decryptsAll ? Palette.done : .secondary,
                 text: decryptsAll ? "HTTPS decrypted" : "HTTPS: \(model.settings.sslProxying.include.count) hosts",
                 help: "Which HTTPS hosts Watcher decrypts (SSL Proxying in Tools). Apps must trust the Watcher certificate."
-            ) { model.toolsSelection = .sslProxying; model.show(.tools) }
+            ) { router.toolsSelection = .sslProxying; router.show(.tools) }
             if !activeTools.isEmpty {
                 item(
                     symbol: "wrench.adjustable.fill",
                     tint: Palette.modified,
                     text: activeTools.count == 1 ? activeTools[0] : "\(activeTools.count) tools on",
                     help: "Changing traffic: \(activeTools.joined(separator: ", ")). Click to open Tools (⌘T)."
-                ) { model.show(.tools) }
+                ) { router.show(.tools) }
             }
-            if !model.hits.isEmpty {
+            if !breakpoints.hits.isEmpty {
                 item(
                     symbol: "pause.circle.fill",
                     tint: Palette.paused,
-                    text: "\(model.hits.count) paused",
+                    text: "\(breakpoints.hits.count) paused",
                     help: "Requests waiting at a breakpoint. Click to review (⌘B)."
-                ) { model.show(.breakpoints) }
+                ) { router.show(.breakpoints) }
             }
             Spacer(minLength: 8)
-            if let busy = model.busyMessage {
+            if let busy = sessionFiles.busyMessage {
                 HStack(spacing: 4) { ProgressView().controlSize(.mini); Text(busy).lineLimit(1) }.accessibilityElement(children: .combine)
             }
             Text(summary).foregroundStyle(.secondary).lineLimit(1).help("Requests shown with the current filters, and their response sizes")
@@ -119,7 +90,7 @@ struct StatusBar: View {
     }
 
     private var summary: String {
-        "\(model.visibleFlows.count) of \(model.flows.count) · \(Format.bytes(model.visibleBytes))"
+        "\(list.visibleFlows.count) of \(list.flows.count) · \(Format.bytes(list.visibleBytes))"
     }
 
     private var separator: some View {

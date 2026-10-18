@@ -9,15 +9,15 @@ extension InteractionTests {
     struct CompareWindowTests {
         @Test
         func compareSwitchesWhatItCompares() async throws {
-            let model = AppModel.preview()
-            var request = model.flows[0].request
+            let model = try AppModel.demo()
+            var request = model.list.flows[0].request
             request.headers.append(Header("X-Debug", "1"))
-            let response = model.flows[0].response
+            let response = model.list.flows[0].response
             let other = Flow.fixture(sequence: 9, request: request, response: response, state: .completed)
-            model.engine.store.load(model.flows + [other])
-            model.syncFromStore()
-            model.diffBase = model.flows[0]
-            model.selection = model.flows.last?.id
+            model.engine.store.load(model.list.flows + [other])
+            model.list.syncFromStore()
+            model.router.diffBase = model.list.flows[0]
+            model.list.selection = model.list.flows.last?.id
             try await withWindow(showing: CompareWindow().environment(model), width: 900, height: 600) { window in
                 await settle(1)
                 #expect(!window.elements("No Differences").isEmpty, "the response bodies are the same")

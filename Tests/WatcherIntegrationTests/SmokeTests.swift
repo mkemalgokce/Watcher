@@ -33,9 +33,9 @@ struct SmokeTests {
     }
 
     @Test @MainActor
-    func appModelBuildsWithoutListening() {
-        let model = AppModel(listening: false)
-        #expect(model.flows.isEmpty)
-        #expect(!model.isRunning)
+    func appModelBuildsWithoutListening() throws {
+        let model = try AppModel.test()
+        #expect(model.list.flows.isEmpty)
+        #expect(!model.proxy.isRunning)
     }
 }

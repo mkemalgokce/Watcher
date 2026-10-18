@@ -5,12 +5,11 @@ import WatcherCore
 /// Headers, Params (request only), Body, Cookies and the Raw message.
 struct MessagePanel: View {
     @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
     let flow: Flow
     let side: MessageSide
     /// In a narrow inspector the title becomes the Request / Response switch, so switching costs no extra row.
     var switchesSide = false
-    @AppStorage("panel.request.section") private var requestSection = Section.body.rawValue
-    @AppStorage("panel.response.section") private var responseSection = Section.body.rawValue
 
     enum Section: String, CaseIterable {
         case headers = "Headers", params = "Params", body = "Body", cookies = "Cookies", raw = "Raw"
@@ -32,62 +31,41 @@ struct MessagePanel: View {
         }
     }
 
-    private var sectionBinding: Binding<String> {
-        side == .request ? $requestSection : $responseSection
+    private var content: MessagePanelViewModel {
+        MessagePanelViewModel(
+            flow: flow,
+            side: side,
+            previewersActive: !model.settings.previewers.active.isEmpty,
+            embedded: EmbeddedDataIndex.shared.segments(in: flow, side: side)
+        )
     }
 
-    /// The chosen section, except that a request without a body shows its parameters (or headers) instead of an empty Body,
-    /// and a section this exchange does not have (Messages on plain HTTP) falls back to Body.
     private var section: Section {
-        var chosen = Section(rawValue: sectionBinding.wrappedValue) ?? .body
-        if !available.contains(chosen) {
-            chosen = .body
-        }
-        guard side == .request, chosen == .body, flow.request.body.isEmpty else { return chosen }
-        return fields.isEmpty ? .headers : .params
+        content.section(chosen: model.viewer.section(for: side).rawValue)
     }
 
     private var headers: [Header] {
-        side == .request ? flow.request.headers : flow.response?.headers ?? []
+        content.headers
     }
 
     private var fields: [FormField] {
-        side == .request ? FormFields.parse(flow.request) : []
+        content.fields
     }
 
     private var cookies: [CookieEntry] {
-        Cookies.entries(for: flow).filter { $0.source == (side == .request ? .request : .response) }
+        content.cookies
     }
 
     private var embedded: [Base64Segment] {
-        EmbeddedDataIndex.shared.segments(in: flow, side: side)
-    }
-
-    private var isWebSocket: Bool {
-        !flow.webSocketMessages.isEmpty || flow.response?.status == 101
+        content.embedded
     }
 
     private var available: [Section] {
-        Section.allCases.filter { section in
-            switch section {
-            case .params: side == .request
-            case .messages: side == .response && isWebSocket
-            case .previewers: side == .response && !model.settings.previewers.active.isEmpty
-            case .decoded: !embedded.isEmpty
-            default: true
-            }
-        }
+        content.available
     }
 
     private func count(_ section: Section) -> Int? {
-        switch section {
-        case .headers: headers.count
-        case .params: fields.count
-        case .cookies: cookies.count
-        case .messages: flow.webSocketMessages.count
-        case .decoded: embedded.count
-        case .body, .raw, .previewers: nil
-        }
+        content.count(section)
     }
 
     var body: some View {
@@ -99,7 +77,7 @@ struct MessagePanel: View {
                 switch section {
                 case .headers: KeyValueTable(rows: KeyValueRow.headers(headers), emptyText: "No headers.")
                 case .params: KeyValueTable(rows: KeyValueRow.fields(fields), emptyText: "No query parameters or form fields.")
-                case .body: BodyViewer(flow: flow, side: side)
+                case .body: BodyViewer(flow: flow, side: side, options: model.viewer)
                 case .cookies: KeyValueTable(
                         rows: KeyValueRow.cookies(cookies, secureConnection: flow.request.scheme == "https"),
                         emptyText: side == .request ? "No cookies were sent." : "The server set no cookies."
@@ -123,7 +101,7 @@ struct MessagePanel: View {
                     TabStrip(items: [
                         TabItem(id: MessageSide.request, title: "Request", symbol: "arrow.up.circle", shortcut: "⌥⌘["),
                         TabItem(id: MessageSide.response, title: "Response", symbol: "arrow.down.circle", shortcut: "⌥⌘]"),
-                    ], selection: $model.exchangeSide)
+                    ], selection: Bindable(router).exchangeSide)
                 } else {
                     Label(side == .request ? "Request" : "Response", systemImage: side == .request ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
                         .font(.headline).foregroundStyle(side == .request ? Palette.request : Palette.response)
@@ -138,17 +116,13 @@ struct MessagePanel: View {
             }
             TabStrip(items: available.map { item in
                 TabItem(id: item, title: item.rawValue, symbol: item.symbol, badge: count(item).flatMap { $0 > 0 ? "\($0)" : nil })
-            }, selection: Binding(get: { section }, set: { sectionBinding.wrappedValue = $0.rawValue }))
+            }, selection: Binding(get: { section }, set: { model.viewer.choose($0, for: side) }))
                 .accessibilityLabel("\(side == .request ? "Request" : "Response") section")
         }
     }
 
     private var detail: String {
-        let body = side == .request ? flow.request.body : flow.response?.body ?? Data()
-        let type = headers.value(for: "content-type")?.split(separator: ";").first.map(String.init)
-        // A response always states its size, so an empty one reads "0 B" instead of looking unloaded.
-        let size = side == .response || !body.isEmpty ? Format.bytes(body.count) : nil
-        return [type, size].compactMap(\.self).joined(separator: " · ")
+        content.detail
     }
 }
 
@@ -182,7 +156,7 @@ private struct PendingResponse: View {
 
 /// The message as it travels: request or status line, headers, blank line, body.
 private struct RawMessage: View {
-    @Environment(AppModel.self) private var model
+    @Environment(RequestActions.self) private var actions
     let flow: Flow
     let side: MessageSide
 
@@ -205,7 +179,8 @@ private struct RawMessage: View {
     var body: some View {
         let raw = text
         VStack(alignment: .trailing, spacing: 4) {
-            Button("Copy Raw Message", systemImage: "doc.on.doc") { model.copy(raw, "Raw message copied") }.controlSize(.small)
+            Button("Copy Raw Message", systemImage: "doc.on.doc") { actions.copy(raw, "Raw message copied") }
+                .controlSize(.small)
             SyntaxTextView(raw, language: .http, wraps: true).background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 6))
         }
     }

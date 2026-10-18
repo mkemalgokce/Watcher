@@ -5,7 +5,8 @@ import WatcherCore
 
 /// The Decoded section: every embedded payload with a preview and the actions a developer needs (save, open, copy).
 struct EmbeddedDataView: View {
-    @Environment(AppModel.self) private var model
+    @Environment(RequestActions.self) private var actions
+    @Environment(SessionFilesViewModel.self) private var sessionFiles
     let segments: [Base64Segment]
 
     var body: some View {
@@ -53,20 +54,22 @@ struct EmbeddedDataView: View {
         HStack(spacing: 2) {
             // The image preview has its own copy, save and open buttons; repeating them on the card would show each twice.
             if !segment.isImage {
-                IconButton("Save \(segment.kindName)…", symbol: "square.and.arrow.down") { model.saveData(segment.data, suggestedName: segment.suggestedFileName) }
+                IconButton("Save \(segment.kindName)…", symbol: "square.and.arrow.down") {
+                    sessionFiles.saveData(segment.data, suggestedName: segment.suggestedFileName)
+                }
                 OpenWithMenu(data: segment.data, name: segment.suggestedFileName, contentType: segment.mimeType)
                     .labelStyle(.iconOnly).menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                     .help("Open the decoded \(segment.kindName.lowercased()) in another app")
             }
             Menu {
                 if case .image = segment.kind, let image = NSImage(data: segment.data) {
-                    Button("Copy Image") { model.pasteboard.clearContents(); model.pasteboard.writeObjects([image]); model.notify("Image copied", .success) }
+                    Button("Copy Image") { actions.copy(image: image) }
                 }
                 if let text = segment.text {
-                    Button("Copy Decoded Text") { model.copy(text, "Decoded text copied") }
+                    Button("Copy Decoded Text") { actions.copy(text, "Decoded text copied") }
                 }
-                Button("Copy as Base64") { model.copy(segment.data.base64EncodedString(), "Base64 copied") }
-                Button("Copy as Data URI") { model.copy("data:\(segment.mimeType);base64,\(segment.data.base64EncodedString())", "Data URI copied") }
+                Button("Copy as Base64") { actions.copy(segment.data.base64EncodedString(), "Base64 copied") }
+                Button("Copy as Data URI") { actions.copy("data:\(segment.mimeType);base64,\(segment.data.base64EncodedString())", "Data URI copied") }
             } label: {
                 Image(systemName: "doc.on.doc").font(.system(size: 15, weight: .regular)).frame(width: Metrics.iconButton, height: Metrics.iconButton)
             }

@@ -1,3 +1,3 @@
 Sources/WatcherCore 85
-Sources/WatcherUI 12
+Sources/WatcherUI 16
 TOTAL 40

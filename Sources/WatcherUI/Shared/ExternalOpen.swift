@@ -11,14 +11,9 @@ enum ExternalOpen {
     }
 
     static func fileExtension(contentType: String?, data: Data) -> String {
-        let media = contentType?.split(separator: ";").first.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
-        if let ext = UTType(mimeType: media)?.preferredFilenameExtension {
-            return ext
-        }
-        if let image = Base64Finder.imageMime(data), let ext = UTType(mimeType: image)?.preferredFilenameExtension {
-            return ext
-        }
-        return String(data: data.prefix(4096), encoding: .utf8) != nil ? "txt" : "bin"
+        FileExtension.preferred(forContentType: contentType)
+            ?? FileExtension.preferred(forContentType: Base64Finder.imageMime(data))
+            ?? (String(data: data.prefix(4096), encoding: .utf8) != nil ? "txt" : "bin")
     }
 
     static func write(_ data: Data, name: String, contentType: String?) throws -> URL {

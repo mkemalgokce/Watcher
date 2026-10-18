@@ -3,7 +3,7 @@ import SwiftUI
 
 /// "Open With" for a body, an uploaded file, an image or a decoded Base64 payload.
 struct OpenWithMenu: View {
-    @Environment(AppModel.self) private var model
+    @Environment(NoticeCenter.self) private var notices
     let data: Data
     var name = "body"
     var contentType: String?
@@ -35,13 +35,16 @@ struct OpenWithMenu: View {
             if let app {
                 NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration()) { _, error in
                     if let error {
-                        Task { @MainActor in model.errorMessage = "Cannot open with \(app.deletingPathExtension().lastPathComponent): \(error.localizedDescription)" }
+                        let name = app.deletingPathExtension().lastPathComponent
+                        Task { @MainActor in
+                            notices.notify("Cannot open with \(name): \(error.localizedDescription)", .error)
+                        }
                     }
                 }
             } else if !NSWorkspace.shared.open(url) {
-                model.errorMessage = "No app opens \(url.pathExtension) files. Use Open With to pick one."
+                notices.notify("No app opens \(url.pathExtension) files. Use Open With to pick one.", .error)
             }
-        } catch { model.errorMessage = "Cannot prepare the file: \(error.localizedDescription)" }
+        } catch { notices.notify("Cannot prepare the file: \(error.localizedDescription)", .error) }
     }
 }
 

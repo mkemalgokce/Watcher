@@ -1,0 +1,19 @@
+[Inspect]
+SSL Proxying: 1 rule on
+Breakpoints: 1 rule on
+Protobuf: 1 rule on
+Previewers: 1 rule on
+[Change traffic]
+Map Local: 1 rule on
+Map Remote: 1 rule on
+Scripting: 1 rule on
+Block List: 1 rule on
+Allow List: 1 rule on
+[Network]
+Throttling: 1 rule on
+DNS Spoofing: 1 rule on
+Reverse Proxy: 2 problems in rules
+External Proxy: 1 rule on
+Certificates: 1 rule needs attention
+status bar: Map Local, Map Remote, Block List, Allow List, Breakpoints, Scripting, DNS Spoofing, Reverse Proxy, Throttling, External Proxy, No Caching
+toolbar badge: 11

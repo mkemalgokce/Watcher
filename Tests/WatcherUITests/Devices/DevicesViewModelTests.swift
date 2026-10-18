@@ -21,7 +21,7 @@ struct DevicesViewModelTests {
         return DevicesViewModel(
             probe: .init(simulators: { [simulator] }, androidDevices: { [] }, isMacTrusted: { trusted }),
             certificateURL: Self.certificateURL
-        )
+        ) { 9090 }
     }
 
     @Test
@@ -55,7 +55,7 @@ struct DevicesViewModelTests {
 
     @Test
     func previewProbeFindsNothing() async {
-        let devices = DevicesViewModel(probe: .none, certificateURL: Self.certificateURL)
+        let devices = DevicesViewModel(probe: .none, certificateURL: Self.certificateURL) { 9090 }
         await devices.refresh()
         #expect(devices.simulators.isEmpty && devices.androidDevices.isEmpty && !devices.macTrusted)
     }

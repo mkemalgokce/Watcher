@@ -20,120 +20,130 @@ public struct WatcherCommands: Commands {
             }
 
             CommandGroup(replacing: .newItem) {
-                Button("New Request…") { model.show(.compose) }.keyboardShortcut("n")
-                Button("New Request from cURL in Clipboard") { model.composeFromClipboardCurl() }.keyboardShortcut("n", modifiers: [.command, .option])
+                Button("New Request…") { model.router.show(.compose) }.keyboardShortcut("n")
+                Button("New Request from cURL in Clipboard") { model.actions.composeFromClipboardCurl() }
+                    .keyboardShortcut("n", modifiers: [.command, .option])
                 Divider()
-                Button("Open…") { model.importFile() }.keyboardShortcut("o")
+                Button("Open…") { model.sessionFiles.importFile() }.keyboardShortcut("o")
                 Menu("Workspaces") {
-                    ForEach(model.workspaces, id: \.self) { name in Button(name) { model.openWorkspace(name) } }
-                    if !model.workspaces.isEmpty {
+                    ForEach(model.workspaces.names, id: \.self) { name in Button(name) { model.workspaces.open(name) } }
+                    if !model.workspaces.names.isEmpty {
                         Divider()
                     }
-                    Button("Save Current as…") { model.askWorkspaceName = true }
+                    Button("Save Current as…") { model.router.askWorkspaceName = true }
                 }
             }
             CommandGroup(replacing: .saveItem) {
-                Button("Save Session…") { model.saveSession() }.keyboardShortcut("s")
-                Button("Export HAR…") { model.exportHAR() }.keyboardShortcut("e", modifiers: [.command, .shift])
-                Button("Export CSV…") { model.exportCSV() }
+                Button("Save Session…") { model.sessionFiles.saveSession() }.keyboardShortcut("s")
+                Button("Export HAR…") { model.sessionFiles.exportHAR() }
+                    .keyboardShortcut("e", modifiers: [.command, .shift])
+                Button("Export CSV…") { model.sessionFiles.exportCSV() }
             }
             CommandGroup(replacing: .textEditing) {
-                Button("Find…") { Find.show { model.requestSearchFocus() } }.keyboardShortcut("f")
+                Button("Find…") { Find.show { model.router.requestSearchFocus() } }.keyboardShortcut("f")
                 Button("Find in Body") { Find.findInBody() }.keyboardShortcut("f", modifiers: [.command, .option])
                 Button("Find Next") { Find.perform(.nextMatch) }.keyboardShortcut("g")
                 Button("Find Previous") { Find.perform(.previousMatch) }.keyboardShortcut("g", modifiers: [.command, .shift])
             }
             CommandGroup(after: .pasteboard) {
                 Divider()
-                Button("Delete Request") { model.delete(model.selection.map { [$0] } ?? []) }
-                    .keyboardShortcut(.delete, modifiers: .command).disabled(model.selection == nil)
-                Button("Clear Session") { model.clear() }.keyboardShortcut("k")
+                Button("Delete Request") { model.actions.delete(model.list.selection.map { [$0] } ?? []) }
+                    .keyboardShortcut(.delete, modifiers: .command).disabled(model.list.selection == nil)
+                Button("Clear Session") { model.actions.clear() }.keyboardShortcut("k")
             }
             CommandGroup(after: .sidebar) {
                 Divider()
-                Button("All Requests") { model.sidebar = .all }.keyboardShortcut("1")
-                Button("Starred") { model.sidebar = .starred }.keyboardShortcut("2")
-                Button("Errors") { model.sidebar = .errors }.keyboardShortcut("3")
-                Button("WebSocket") { model.sidebar = .webSocket }.keyboardShortcut("4")
+                Button("All Requests") { model.list.sidebar = .all }.keyboardShortcut("1")
+                Button("Starred") { model.list.sidebar = .starred }.keyboardShortcut("2")
+                Button("Errors") { model.list.sidebar = .errors }.keyboardShortcut("3")
+                Button("WebSocket") { model.list.sidebar = .webSocket }.keyboardShortcut("4")
                 Divider()
-                Button("Show Body Preview") { UserDefaults.standard.set("Preview", forKey: "body.mode") }.keyboardShortcut("1", modifiers: [.command, .control])
-                Button("Show Body Pretty") { UserDefaults.standard.set("Pretty", forKey: "body.mode") }.keyboardShortcut("2", modifiers: [.command, .control])
-                Button("Show Body Raw") { UserDefaults.standard.set("Raw", forKey: "body.mode") }.keyboardShortcut("3", modifiers: [.command, .control])
-                Button("Show Body as Hex") { UserDefaults.standard.set("Hex", forKey: "body.mode") }.keyboardShortcut("4", modifiers: [.command, .control])
-                Button("Show Request") { model.exchangeSide = .request }.keyboardShortcut("[", modifiers: [.command, .option])
-                Button("Show Response") { model.exchangeSide = .response }.keyboardShortcut("]", modifiers: [.command, .option])
-                Button("Filter JSON Body") { UserDefaults.standard.set(!UserDefaults.standard.bool(forKey: "body.jsonFilter"), forKey: "body.jsonFilter") }
+                Button("Show Body Preview") { model.viewer.mode = .preview }
+                    .keyboardShortcut("1", modifiers: [.command, .control])
+                Button("Show Body Pretty") { model.viewer.mode = .pretty }
+                    .keyboardShortcut("2", modifiers: [.command, .control])
+                Button("Show Body Raw") { model.viewer.mode = .raw }
+                    .keyboardShortcut("3", modifiers: [.command, .control])
+                Button("Show Body as Hex") { model.viewer.mode = .hex }
+                    .keyboardShortcut("4", modifiers: [.command, .control])
+                Button("Show Request") { model.router.exchangeSide = .request }
+                    .keyboardShortcut("[", modifiers: [.command, .option])
+                Button("Show Response") { model.router.exchangeSide = .response }
+                    .keyboardShortcut("]", modifiers: [.command, .option])
+                Button("Filter JSON Body") { model.viewer.toggleJSONFilter() }
                     .keyboardShortcut("j", modifiers: [.command, .shift])
-                Button("Toggle Line Wrapping") { UserDefaults.standard.set(!(UserDefaults.standard.object(forKey: "body.wrap") as? Bool ?? true), forKey: "body.wrap") }
+                Button("Toggle Line Wrapping") { model.viewer.toggleLineWrapping() }
                     .keyboardShortcut("l", modifiers: [.command, .option])
                 Divider()
-                Button("Clear Filters") { model.query.reset(); model.sidebar = .all }.keyboardShortcut("l", modifiers: [.command, .shift])
+                Button("Clear Filters") { model.list.clearFilters() }
+                    .keyboardShortcut("l", modifiers: [.command, .shift])
                 Toggle("Hide Apple Traffic", isOn: Binding(get: { model.settings.hideAppleTraffic }, set: { model.settings.hideAppleTraffic = $0 }))
             }
         }
 
         Group {
             CommandMenu("Request") {
-                let selected = model.selectedFlow
+                let selected = model.list.selectedFlow
                 Button("Repeat") {
                     if let selected {
-                        model.repeatRequest(selected.request)
+                        model.actions.repeatRequest(selected.request)
                     }
                 }
                 .keyboardShortcut("r").disabled(selected == nil)
                 Button("Edit & Repeat…") {
                     if let selected {
-                        model.editAndRepeat(selected)
+                        model.actions.editAndRepeat(selected)
                     }
                 }
                 .keyboardShortcut("r", modifiers: [.command, .option]).disabled(selected == nil)
                 Divider()
                 Button(selected?.isStarred == true ? "Remove Star" : "Star") {
                     if let selected {
-                        model.toggleStar([selected.id])
+                        model.actions.toggleStar([selected.id])
                     }
                 }
                 .keyboardShortcut("d").disabled(selected == nil)
                 Button("Copy as cURL") {
                     if let selected {
-                        model.copy(model.code(for: selected.request, as: .curl))
+                        model.actions.copy(model.actions.code(for: selected.request, as: .curl))
                     }
                 }
                 .keyboardShortcut("c", modifiers: [.command, .shift]).disabled(selected == nil)
                 Button("Copy URL") {
                     if let selected {
-                        model.copy(selected.request.url)
+                        model.actions.copy(selected.request.url)
                     }
                 }
                 .keyboardShortcut("c", modifiers: [.command, .option]).disabled(selected == nil)
                 Button("Mock This Response") {
                     if let selected {
-                        model.mockResponse(selected)
+                        model.actions.mockResponse(selected)
                     }
                 }
                 .keyboardShortcut("m", modifiers: [.command, .option]).disabled(selected?.response == nil)
                 Button("Set as Compare Base") {
                     if let selected {
-                        model.compare(withBase: selected)
+                        model.router.compare(withBase: selected)
                     }
                 }
                 .keyboardShortcut("b", modifiers: [.command, .shift]).disabled(selected == nil)
             }
 
             CommandMenu("Proxy") {
-                Button(model.isRunning ? "Pause Recording" : "Record") { model.toggleRunning() }
-                    .keyboardShortcut("e").disabled(model.isSwitchingProxy)
-                Toggle("System Proxy", isOn: Binding(get: { model.systemProxyOn }, set: model.setSystemProxy))
-                    .keyboardShortcut("y", modifiers: [.command, .shift]).disabled(!model.isRunning)
+                Button(model.proxy.isRunning ? "Pause Recording" : "Record") { model.proxy.toggleRunning() }
+                    .keyboardShortcut("e").disabled(model.proxy.isSwitchingProxy)
+                Toggle("System Proxy", isOn: Binding(get: { model.proxy.systemProxyOn }, set: model.proxy.setSystemProxy))
+                    .keyboardShortcut("y", modifiers: [.command, .shift]).disabled(!model.proxy.isRunning)
                 Divider()
-                Button("Breakpoints…") { model.show(.breakpoints) }.keyboardShortcut("b")
-                Button("Tools…") { model.show(.tools) }.keyboardShortcut("t")
-                Button("Converter…") { model.show(.converter) }.keyboardShortcut("u", modifiers: [.command, .shift])
+                Button("Breakpoints…") { model.router.show(.breakpoints) }.keyboardShortcut("b")
+                Button("Tools…") { model.router.show(.tools) }.keyboardShortcut("t")
+                Button("Converter…") { model.router.show(.converter) }
+                    .keyboardShortcut("u", modifiers: [.command, .shift])
             }
 
             CommandGroup(replacing: .help) {
-                Button("Keyboard Shortcuts") { model.show(.help) }.keyboardShortcut("/")
-                Button("Getting Started…") { model.show(.welcome) }
+                Button("Keyboard Shortcuts") { model.router.show(.help) }.keyboardShortcut("/")
+                Button("Getting Started…") { model.router.show(.welcome) }
                 Divider()
                 Link("Watcher on GitHub", destination: ProjectLinks.repository)
                 Link("Report an Issue…", destination: ProjectLinks.issues)
@@ -141,13 +151,14 @@ public struct WatcherCommands: Commands {
             }
 
             CommandMenu("Certificate") {
-                Button("Set Up a Device…") { model.show(.devices) }.keyboardShortcut("d", modifiers: [.command, .shift])
+                Button("Set Up a Device…") { model.router.show(.devices) }
+                    .keyboardShortcut("d", modifiers: [.command, .shift])
                 Button(model.devices.macTrusted ? "Trusted on This Mac" : "Install & Trust on This Mac…") { Task { await model.devices.trustOnMac() } }
                     .disabled(model.devices.macTrusted)
-                Button("Show Root Certificate in Finder") { model.revealCertificate() }
+                Button("Show Root Certificate in Finder") { model.actions.revealCertificate() }
                 Divider()
                 Button("Copy Certificate Page URL") {
-                    model.copy(model.lanProxyAddress.map { "http://\($0)" } ?? "http://watcher.cert")
+                    model.actions.copy(model.devices.lanProxyAddress.map { "http://\($0)" } ?? "http://watcher.cert")
                 }
             }
         }

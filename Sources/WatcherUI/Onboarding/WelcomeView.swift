@@ -4,6 +4,8 @@ import WatcherCore
 /// First-run setup: the three things Watcher needs before traffic shows up, each with its current state.
 struct WelcomeView: View {
     @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
+    @Environment(DevicesViewModel.self) private var devices
 
     var body: some View {
         @Bindable var model = model
@@ -21,13 +23,13 @@ struct WelcomeView: View {
                     number: 1,
                     symbol: "lock.shield",
                     title: "Trust the certificate",
-                    done: model.devices.macTrusted,
+                    done: devices.macTrusted,
                     detail: "Lets Watcher show HTTPS in readable form. macOS asks for your password once."
                 ) {
-                    if model.devices.macTrusted {
+                    if devices.macTrusted {
                         Label("Trusted", systemImage: "checkmark").font(.callout.weight(.medium)).foregroundStyle(Palette.done)
                     } else {
-                        Button("Install & Trust…") { Task { await model.devices.trustOnMac() } }
+                        Button("Install & Trust…") { Task { await devices.trustOnMac() } }
                     }
                 }
                 SetupStep(
@@ -53,16 +55,16 @@ struct WelcomeView: View {
             .padding(.horizontal, 24)
 
             HStack {
-                Button("Skip for Now") { model.onboardingDone = true; model.sheet = nil }
+                Button("Skip for Now") { model.onboardingDone = true; router.sheet = nil }
                     .buttonStyle(.link).help("Close without starting; Help ▸ Getting Started brings this back")
                 Spacer()
-                Button("Set Up a Device…") { model.onboardingDone = true; model.sheet = .devices }
+                Button("Set Up a Device…") { model.onboardingDone = true; router.sheet = .devices }
                 Button("Start Capturing") { model.finishOnboarding() }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
             }
             .padding(24)
         }
         .frame(width: 580)
-        .task { await model.devices.refreshMacTrust() }
+        .task { await devices.refreshMacTrust() }
     }
 }
 

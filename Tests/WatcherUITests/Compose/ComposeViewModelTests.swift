@@ -96,6 +96,15 @@ struct ComposeViewModelTests {
     }
 
     @Test
+    func theAnswerTakesTheTimeTheClockMeasuredAroundTheSend() async {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let viewModel = ComposeViewModel(now: ClockStub(start, start.addingTimeInterval(1.5)).now)
+        viewModel.address = "https://api.example.com/x"
+        await viewModel.send(isProxyRunning: true) { _, _ in .fixture(status: 200) }
+        #expect(viewModel.result?.duration == 1.5)
+    }
+
+    @Test
     func loadingACapturedRequestDropsTransportHeaders() {
         let viewModel = ComposeViewModel()
         viewModel.load(.fixture(

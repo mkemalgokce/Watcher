@@ -1,0 +1,16 @@
+request: Headers (2), Params (1), Body, Cookies (2), Raw · application/json · 31 B
+  shows Body · JSON
+{
+  "user" : {
+    "id" : 42,
+    "name" : "Ada"
+  }
+}
+response: Headers (1), Body, Cookies (0), Raw · application/json · 31 B
+  shows Body · JSON
+{
+  "user" : {
+    "id" : 42,
+    "name" : "Ada"
+  }
+}

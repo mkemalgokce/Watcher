@@ -31,18 +31,21 @@ extension AppModel {
             flow(5, "GET", "slow.example.com", "/report", status: nil, ms: 5.0),
         ])
     }
+
+    /// The demo requests in the list with the first one selected, as previews and interaction tests start.
+    func showingDemoData() -> AppModel {
+        loadDemoData()
+        list.syncFromStore()
+        list.selection = list.flows.first?.id
+        return self
+    }
 }
 
 #if DEBUG
     extension AppModel {
         /// A model filled with demo traffic for Xcode previews.
         @MainActor static func preview() -> AppModel {
-            UserDefaults.standard.set("Preview", forKey: "body.mode") // previews share defaults; start from the app's default view
-            let model = AppModel(listening: false)
-            model.loadDemoData()
-            model.syncFromStore()
-            model.selection = model.flows.first?.id
-            return model
+            AppModel(dependencies: .preview()).showingDemoData()
         }
     }
 
@@ -52,7 +55,11 @@ extension AppModel {
 
     #Preview("Device setup") { DeviceSetupView().environment(AppModel.preview()) }
     #Preview("Settings") { SettingsView().environment(AppModel.preview()) }
-    #Preview("Compose") { ComposeView().environment(AppModel.preview()) }
+    #Preview("Compose") {
+        let model = AppModel.preview()
+        return ComposeView(now: model.now).environment(model)
+    }
+
     #Preview("Tools") { ToolsView().environment(AppModel.preview()) }
     #Preview("Breakpoints") { BreakpointsView().environment(AppModel.preview()) }
     #Preview("Android setup") { DeviceSetupView(target: .android).environment(AppModel.preview()) }
@@ -60,20 +67,18 @@ extension AppModel {
 
 #if DEBUG
     #Preview("Large JSON", traits: .fixedLayout(width: 1320, height: 780)) {
-        UserDefaults.standard.set("Preview", forKey: "body.mode")
-        let model = AppModel(listening: false)
+        let model = AppModel(dependencies: .preview())
         let item = #"{"id":12345,"name":"Ada Lovelace","tags":["a","b",null,true],"score":-1.5e3,"avatar":"https://example.com/a.png"},"#
         let body = "[" + String(repeating: item, count: 300_000) + #"{"end":true}]"# // ~33 MB
         var flow = Flow(sequence: 1, request: RequestRecord(method: "GET", scheme: "https", host: "api.example.com", port: 443, path: "/v1/export", clientApp: "curl"))
         flow.response = ResponseRecord(status: 200, headers: [Header("Content-Type", "application/json")], body: Data(body.utf8))
         flow.state = .completed; flow.duration = 1.2
-        model.engine.store.load([flow]); model.syncFromStore(); model.selection = model.flows.first?.id
+        model.engine.store.load([flow]); model.list.syncFromStore(); model.list.selection = model.list.flows.first?.id
         return ContentView().environment(model)
     }
 
     #Preview("Form data", traits: .fixedLayout(width: 1320, height: 780)) {
-        UserDefaults.standard.set("Preview", forKey: "body.mode")
-        let model = AppModel(listening: false)
+        let model = AppModel(dependencies: .preview())
         // A 2×2 red PNG, uploaded next to an ordinary field.
         let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAEAAAAAoCAIAAADBrGu+AAAAWElEQVR4nO3PwQkAIBDAsJvLv/uPpEP4CEKhA6Rz9vq64YIGtKABLWhACxrQgga0oAEtaEALGtCCBrSgAS1oQAsa0IIGtKABLWhACxrQgga0oAEtaEALHrtwRezT21HipwAAAABJRU5ErkJggg==")!
         var body = Data("--B\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nHoliday photo\r\n--B\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"red.png\"\r\nContent-Type: image/png\r\n\r\n".utf8)
@@ -90,13 +95,13 @@ extension AppModel {
         ))
         flow.response = ResponseRecord(status: 201, headers: [Header("Content-Type", "application/json")], body: Data(#"{"id":"p_42","url":"https://cdn.example.com/p_42.png"}"#.utf8))
         flow.state = .completed; flow.duration = 0.31
-        model.engine.store.load([flow]); model.syncFromStore(); model.selection = model.flows.first?.id
+        model.engine.store.load([flow]); model.list.syncFromStore(); model.list.selection = model.list.flows.first?.id
         return ContentView().environment(model)
     }
 
     #Preview("Breakpoints paused") {
         let model = AppModel.preview()
-        model.hits = [
+        model.breakpoints.hits = [
             .init(phase: .request, request: RequestRecord(
                 method: "POST",
                 scheme: "https",
@@ -116,8 +121,7 @@ extension AppModel {
     }
 
     #Preview("Insights", traits: .fixedLayout(width: 1320, height: 900)) {
-        UserDefaults.standard.set("Preview", forKey: "body.mode")
-        let model = AppModel(listening: false)
+        let model = AppModel(dependencies: .preview())
         let png = "iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAAQUlEQVR4nO3OMQ0AIBAAsZ/RjW9wwTE0qYDO2ucrkw+EhISE6oGQkJBQPRASEhKqB0JCQkL1QEhISKgeCAkJPXYBFEP1xJNEZhsAAAAASUVORK5CYII="
         func part(_ s: String) -> String {
             Data(s.utf8).base64EncodedString().replacingOccurrences(of: "=", with: "").replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
@@ -137,7 +141,7 @@ extension AppModel {
             body: Data(#"{"name":"Ada","avatar":"data:image/png;base64,\#(png)"}"#.utf8)
         )
         flow.state = .completed
-        model.engine.store.load([flow]); model.syncFromStore(); model.selection = model.flows.first?.id
+        model.engine.store.load([flow]); model.list.syncFromStore(); model.list.selection = model.list.flows.first?.id
         return ContentView().environment(model)
     }
 
@@ -145,7 +149,7 @@ extension AppModel {
 
     #Preview("Notices", traits: .fixedLayout(width: 1100, height: 500)) {
         let model = AppModel.preview()
-        model.notify("Cannot start the proxy: port 9090 is in use. Pick a different port in Settings.", .error)
+        model.notices.notify("Cannot start the proxy: port 9090 is in use. Pick a different port in Settings.", .error)
         return ContentView().environment(model)
     }
 
@@ -176,7 +180,7 @@ extension AppModel {
     }
 
     #Preview("First run", traits: .fixedLayout(width: 1320, height: 780)) {
-        ContentView().environment(AppModel(listening: false))
+        ContentView().environment(AppModel(dependencies: .preview()))
     }
 
     #Preview("Help") { HelpView() }

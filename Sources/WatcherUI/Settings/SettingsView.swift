@@ -1,14 +1,14 @@
-import ServiceManagement
 import SwiftUI
 import WatcherCore
 
 /// The standard macOS Settings window (⌘,).
 public struct SettingsView: View {
+    @Environment(AppModel.self) private var model
     public init() {}
     public var body: some View {
         TabView {
-            GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }
-            AppearanceSettings().tabItem { Label("Viewer", systemImage: "textformat") }
+            GeneralSettings(pane: model.settingsPane).tabItem { Label("General", systemImage: "gearshape") }
+            AppearanceSettings(options: model.viewer).tabItem { Label("Viewer", systemImage: "textformat") }
             ProxySettings().tabItem { Label("Proxy", systemImage: "network") }
             AdvancedSettings().tabItem { Label("Advanced", systemImage: "slider.horizontal.3") }
         }
@@ -18,31 +18,28 @@ public struct SettingsView: View {
 
 private struct GeneralSettings: View {
     @Environment(AppModel.self) private var model
+    @Environment(ProxyController.self) private var proxy
+    @Bindable var pane: SettingsViewModel
     var body: some View {
         @Bindable var model = model
         Form {
             Section("Listening") {
                 LabeledContent("Status") {
                     HStack(spacing: 8) {
-                        if model.isSwitchingProxy {
+                        if proxy.isSwitchingProxy {
                             ProgressView().controlSize(.small)
                         }
-                        Label(
-                            model.isRunning ? "Listening on 127.0.0.1:\(String(model.engine.boundPort ?? model.settings.port))" : model.proxyError == nil ? "Stopped" : "Failed to start",
-                            systemImage: "circle.fill"
-                        )
-                        .labelStyle(.titleAndIcon).imageScale(.small)
-                        .foregroundStyle(model.isRunning ? Palette.done : model.proxyError == nil ? Color.secondary : Palette.error)
-                        Button(model.isRunning ? "Stop" : "Start") { model.toggleRunning() }.disabled(model.isSwitchingProxy)
+                        Label(pane.statusText, systemImage: "circle.fill")
+                            .labelStyle(.titleAndIcon).imageScale(.small)
+                            .foregroundStyle(statusTint)
+                        Button(proxy.isRunning ? "Stop" : "Start") { proxy.toggleRunning() }
+                            .disabled(proxy.isSwitchingProxy)
                     }
                 }
                 TextField("Port", value: $model.settings.port, format: .number.grouping(.never))
-                if !PortRange.isValid(model.settings.port) {
-                    Label("Use a port from 1 to 65535. Ports below 1024 need administrator rights.", systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption).foregroundStyle(Palette.error)
-                } else if model.settings.port < 1024 {
-                    Label("Ports below 1024 need administrator rights; the proxy may fail to start.", systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption).foregroundStyle(Palette.warning)
+                if let warning = pane.portWarning {
+                    Label(warning.message, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption).foregroundStyle(warning == .invalid ? Palette.error : Palette.warning)
                 }
                 Toggle("Pick another port if it is taken", isOn: $model.settings.autoSelectPort)
                 Toggle("Listen on all interfaces (phones, tablets)", isOn: $model.settings.listenOnAllInterfaces)
@@ -64,13 +61,10 @@ private struct GeneralSettings: View {
                 }
             }
             Section("This Mac") {
-                OpenAtLoginToggle()
+                Toggle("Open Watcher at login", isOn: $pane.opensAtLogin)
                 Toggle("Turn on the system proxy when the proxy starts", isOn: $model.settings.autoSystemProxy)
                 Toggle("Hide Apple system traffic", isOn: $model.settings.hideAppleTraffic)
-                Toggle("Show website icons", isOn: Binding(
-                    get: { UserDefaults.standard.object(forKey: "icons.websites") as? Bool ?? true },
-                    set: { UserDefaults.standard.set($0, forKey: "icons.websites") }
-                ))
+                Toggle("Show website icons", isOn: $pane.showsWebsiteIcons)
                 Text("Icons are downloaded from each site's /favicon.ico, directly and not through Watcher, and kept in ~/.watcher/favicons.")
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -81,39 +75,36 @@ private struct GeneralSettings: View {
         }
         .formStyle(.grouped)
     }
-}
 
-/// macOS owns the login item, so its status is read back after every change instead of being stored in settings.
-private struct OpenAtLoginToggle: View {
-    @Environment(AppModel.self) private var model
-    @State private var isOn = SMAppService.mainApp.status == .enabled
-    var body: some View {
-        Toggle("Open Watcher at login", isOn: Binding(get: { isOn }, set: { on in
-            do { try on ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister() }
-            catch { model.errorMessage = "Cannot change the login item: \(error.localizedDescription). This works only in the packaged Watcher.app." }
-            isOn = SMAppService.mainApp.status == .enabled
-        }))
+    private var statusTint: Color {
+        switch pane.status {
+        case .listening: Palette.done
+        case .stopped: .secondary
+        case .failed: Palette.error
+        }
     }
 }
 
 private struct AppearanceSettings: View {
-    @AppStorage("body.mode") private var mode = "Pretty"
-    @AppStorage("body.wrap") private var wraps = true
-    @AppStorage("body.sortKeys") private var sortKeys = false
-    @AppStorage("body.fontSize") private var fontSize = 12.0
+    @Bindable var options: ViewerOptions
 
     private let sample = #"{"user":{"id":42,"name":"Ada","admin":true,"tags":["a","b"],"manager":null}}"#
 
     var body: some View {
         Form {
             Section("Bodies") {
-                Picker("Show bodies as", selection: $mode) { Text("Pretty").tag("Pretty"); Text("Raw").tag("Raw"); Text("Hex").tag("Hex") }.pickerStyle(.segmented)
-                Toggle("Wrap long lines", isOn: $wraps)
-                Toggle("Sort JSON keys", isOn: $sortKeys)
-                Slider(value: $fontSize, in: 9 ... 20, step: 1) { Text("Font size \(Int(fontSize))") }
+                Picker("Show bodies as", selection: $options.mode) {
+                    ForEach(BodyMode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }.pickerStyle(.segmented)
+                Toggle("Wrap long lines", isOn: $options.wrapsLines)
+                Toggle("Sort JSON keys", isOn: $options.sortsKeys)
+                Slider(value: $options.fontSize, in: 9 ... 20, step: 1) { Text("Font size \(Int(options.fontSize))") }
             }
             Section("Preview") {
-                SyntaxTextView(BodyFormatter.format(Data(sample.utf8), contentType: "application/json", sortKeys: sortKeys).text, language: .json, wraps: wraps, fontSize: fontSize)
+                let text = BodyFormatter.format(
+                    Data(sample.utf8), contentType: "application/json", sortKeys: options.sortsKeys
+                ).text
+                SyntaxTextView(text, language: .json, wraps: options.wrapsLines, fontSize: options.fontSize)
                     .frame(height: 150)
             }
         }
@@ -123,6 +114,8 @@ private struct AppearanceSettings: View {
 
 private struct ProxySettings: View {
     @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
+    @Environment(RequestActions.self) private var actions
     var body: some View {
         @Bindable var model = model
         Form {
@@ -133,8 +126,8 @@ private struct ProxySettings: View {
                 TextField("TLS key log file", text: $model.settings.tlsKeyLogFile, prompt: Text("Optional path for Wireshark"))
             }
             Section("Certificate") {
-                Button("Set Up a Device…", systemImage: "iphone.gen3") { model.show(.devices) }
-                Button("Show Root Certificate in Finder", systemImage: "folder") { model.revealCertificate() }
+                Button("Set Up a Device…", systemImage: "iphone.gen3") { router.show(.devices) }
+                Button("Show Root Certificate in Finder", systemImage: "folder") { actions.revealCertificate() }
             }
         }
         .formStyle(.grouped)

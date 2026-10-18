@@ -4,7 +4,8 @@ import WatcherCore
 
 /// An image from a response or a Base64 field, on a checkerboard so transparency is visible, with size info and save/copy.
 struct ImagePreview: View {
-    @Environment(AppModel.self) private var model
+    @Environment(RequestActions.self) private var actions
+    @Environment(SessionFilesViewModel.self) private var sessionFiles
     let data: Data
     var mime: String?
     @State private var actualSize = false
@@ -22,7 +23,7 @@ struct ImagePreview: View {
                     Picker("Size", selection: $actualSize) { Text("Fit").tag(false); Text("Actual").tag(true) }
                         .pickerStyle(.segmented).labelsHidden().frame(width: 120).accessibilityLabel("Image size")
                     Button("Copy Image", systemImage: "doc.on.doc") {
-                        model.pasteboard.clearContents(); model.pasteboard.writeObjects([image]); model.notify("Image copied", .success)
+                        actions.copy(image: image)
                     }.labelStyle(.iconOnly).help("Copy image")
                     Button("Save Image…", systemImage: "square.and.arrow.down") { save() }.labelStyle(.iconOnly).help("Save image…")
                     OpenWithMenu(data: data, name: "image", contentType: mime).labelStyle(.iconOnly).menuStyle(.borderlessButton).fixedSize()
@@ -56,11 +57,8 @@ struct ImagePreview: View {
     }
 
     private func save() {
-        let panel = NSSavePanel()
-        let ext = (mime ?? Base64Finder.imageMime(data) ?? "image/png").replacingOccurrences(of: "image/", with: "").replacingOccurrences(of: "jpeg", with: "jpg").replacingOccurrences(of: "svg+xml", with: "svg")
-        panel.nameFieldStringValue = "image.\(ext)"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do { try data.write(to: url); model.notify("Saved \(url.lastPathComponent)", .success) } catch { model.errorMessage = "Cannot save the image: \(error)" }
+        let ext = FileExtension.preferred(forContentType: mime ?? Base64Finder.imageMime(data)) ?? "png"
+        sessionFiles.saveData(data, suggestedName: "image.\(ext)")
     }
 }
 
