@@ -67,21 +67,14 @@ extension WatcherEngineTests {
             try await other.stop()
         }
 
-        private func accepts(port: Int) async -> Bool {
-            let channel = try? await ClientBootstrap(group: MultiThreadedEventLoopGroup.singleton)
-                .connect(host: "127.0.0.1", port: port).get()
-            try? await channel?.close()
-            return channel != nil
-        }
-
         @Test
         func startingARunningEngineStopsTheServerItReplaces() async throws {
             let engine = try engine()
             let first = try await engine.start(port: 0)
             let second = try await engine.start(port: 0)
             try #require(first != second)
-            #expect(await !accepts(port: first))
-            #expect(await accepts(port: second))
+            #expect(await !Loopback.accepts(port: first))
+            #expect(await Loopback.accepts(port: second))
             try await engine.stop()
         }
 
@@ -104,7 +97,7 @@ extension WatcherEngineTests {
             _ = try await starting.value
             await applying.value
             let socksPort = try #require(engine.socksPort)
-            #expect(await accepts(port: socksPort))
+            #expect(await Loopback.accepts(port: socksPort))
             try await engine.stop()
         }
 
@@ -192,10 +185,7 @@ extension WatcherEngineTests {
             }
             _ = try await engine.start(port: 0)
             let socksPort = try #require(engine.socksPort)
-            let channel = try? await ClientBootstrap(group: MultiThreadedEventLoopGroup.singleton)
-                .connect(host: "::1", port: socksPort).get()
-            #expect(channel != nil)
-            try? await channel?.close()
+            #expect(await Loopback.accepts(host: "::1", port: socksPort))
             try await engine.stop()
         }
 

@@ -26,22 +26,12 @@ public final class RawClient {
     }
 
     public func receivedBytes(atLeast count: Int, timeout: TimeInterval = 5) async -> [UInt8] {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline, sink.raw.count < count {
-            try? await Task.sleep(for: .milliseconds(50))
-        }
+        _ = await eventually(timeout: timeout, poll: .milliseconds(50)) { sink.raw.count >= count }
         return sink.raw
     }
 
     public func received(containing needle: String, timeout: TimeInterval = 5) async -> String {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            let text = sink.text
-            if text.contains(needle) {
-                return text
-            }
-            try? await Task.sleep(for: .milliseconds(50))
-        }
+        _ = await eventually(timeout: timeout, poll: .milliseconds(50)) { sink.text.contains(needle) }
         return sink.text
     }
 

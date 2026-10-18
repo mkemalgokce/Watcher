@@ -21,25 +21,9 @@ struct ProxyConnectionHandlerTests {
         configure: @escaping (inout WatcherSettings) -> Void = { _ in },
         _ body: (WatcherEngine, _ proxyPort: Int, _ originPort: Int) async throws -> Void
     ) async throws {
-        let upstream = try TestUpstream(tls: origins.serverContext(for: "secure.test"))
-        try await upstream.start()
-        let trust = try origins.trust
-        let engine = try WatcherEngine(directory: URL(fileURLWithPath: "/fake-home/.watcher"), files: files.access) {
-            ProxyServer(store: $0, authority: $1, upstreamTLS: trust, clientApp: { _ in nil }, files: files.access)
+        try await withHarness(host: "secure.test", origin: origins, files: files, configure: configure) { harness in
+            try await body(harness.engine, harness.proxyPort, harness.upstream.port)
         }
-        do {
-            try engine.settings.update {
-                let spoof = DNSSpoofRule(host: "secure.test", address: "127.0.0.1")
-                $0.dnsSpoofing = RuleSet(isEnabled: true, rules: [spoof])
-                configure(&$0)
-            }
-            let proxyPort = try await engine.start(port: 0)
-            try await body(engine, proxyPort, upstream.port)
-        } catch {
-            try? await engine.stop(); await upstream.stop()
-            throw error
-        }
-        try await engine.stop(); await upstream.stop()
     }
 
     /// GET through the proxy, over HTTP/1.1 unless `httpVersion` lets the client offer h2, trusting only `trust`.

@@ -13,17 +13,9 @@ struct PortFinderTests {
         #expect(try #require(PortFinder.firstAvailable(avoiding: [first])) > first)
 
         // A port that is really listening must be skipped even if no rule uses it.
-        let descriptor = socket(AF_INET, SOCK_STREAM, 0)
-        defer { close(descriptor) }
-        var address = sockaddr_in()
-        address.sin_family = sa_family_t(AF_INET); address.sin_port = UInt16(first).bigEndian
-        address.sin_addr.s_addr = inet_addr("127.0.0.1")
-        let bound = withUnsafePointer(to: &address) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                Darwin.bind(descriptor, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
-            }
-        }
-        #expect(bound == 0)
+        let listener = try LoopbackSocket(port: first)
+        #expect(listener.port == first)
         #expect(PortFinder.firstAvailable() != first)
+        withExtendedLifetime(listener) {}
     }
 }
