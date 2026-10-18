@@ -25,6 +25,8 @@ public struct AppDependencies {
     var devices: DevicesViewModel.DeviceProbe
     var loginItem: LoginItem
     var now: @Sendable () -> Date
+    var homeDirectory: URL
+    var faviconDownload: FaviconDownload
 
     var requestServices: RequestActions.Services {
         RequestActions.Services(

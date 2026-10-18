@@ -27,8 +27,10 @@ public final class AppModel {
     let viewer: ViewerOptions
     let filePicker: FilePicker
     let settingsPane: SettingsViewModel
+    let icons: IconStore
     /// The time the inspector and Compose measure against.
     let now: @Sendable () -> Date
+    private let sleep: Sleep
     /// Set once the first-run setup has been completed or skipped.
     var onboardingDone: Bool {
         didSet { preferences.onboardingDone = onboardingDone }
@@ -46,6 +48,7 @@ public final class AppModel {
         self.engine = engine
         clipboard = dependencies.clipboard
         now = dependencies.now
+        sleep = dependencies.sleep
         preferences = dependencies.preferences
         onboardingDone = dependencies.preferences.onboardingDone
         viewer = ViewerOptions(preferences: dependencies.preferences)
@@ -78,6 +81,7 @@ public final class AppModel {
         devices = DevicesViewModel(probe: dependencies.devices, certificateURL: dependencies.paths.certificateURL) {
             proxy.port
         }
+        icons = IconStore(dependencies)
         connect(dependencies)
     }
 
@@ -92,6 +96,15 @@ public final class AppModel {
     func observeEngine() {
         list.observeStore()
         breakpoints.observe()
+    }
+
+    /// The body viewer's model for one side of an exchange, with this window's protobuf schemas and clock.
+    func bodyViewerModel(flow: Flow, side: MessageSide) -> BodyViewerViewModel {
+        BodyViewerViewModel(
+            flow: flow, side: side, mode: viewer.mode, sortKeys: viewer.sortsKeys,
+            protobufText: { [engine] flow, side in engine.bodyText(of: flow, response: side == .response) },
+            sleep: sleep
+        )
     }
 
     /// The line under the window title: starting, listening (with the address), stopped, or that starting failed.

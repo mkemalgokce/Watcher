@@ -24,7 +24,9 @@ extension AppDependencies {
             focusFilterField: LiveSearchFocus.focusFilterField,
             devices: .live,
             loginItem: .live,
-            now: Date.init
+            now: Date.init,
+            homeDirectory: URL(fileURLWithPath: NSHomeDirectory()),
+            faviconDownload: LiveFaviconDownload.fetch
         )
     }
 
@@ -54,7 +56,9 @@ extension AppDependencies {
             focusFilterField: {},
             devices: .none,
             loginItem: .inert,
-            now: Date.init
+            now: Date.init,
+            homeDirectory: URL(fileURLWithPath: NSHomeDirectory()),
+            faviconDownload: LiveFaviconDownload.fetch
         )
     }
 

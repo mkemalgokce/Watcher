@@ -11,36 +11,23 @@ enum BodyMode: String, CaseIterable {
 
 /// The body of one side: rendered (image, HTML, PDF, media, events), pretty-printed with colours, raw, or hex.
 struct BodyViewer: View {
-    @Environment(AppModel.self) private var model
     @Environment(RequestActions.self) private var actions
     @Environment(SessionFilesViewModel.self) private var sessionFiles
     let flow: Flow
     let side: MessageSide
     @Bindable var options: ViewerOptions
     @State private var jsonPath = ""
-    @State private var prepared: BodyRendering.Prepared?
-    /// Decoding a large gzip body is not cheap, so it happens once per body (off the main thread when large) instead of
-    /// on every view update.
-    @State private var unpacked: BodyRendering.Unpacked?
-
-    /// Bodies below this are formatted on the spot so the first frame already shows them.
-    private static let instantLimit = 256 * 1024
+    @State private var viewModel: BodyViewerViewModel
 
     private struct Key: Hashable { let flow: UUID; let side: MessageSide; let mode: BodyMode; let sortKeys: Bool; let path: String; let size: Int }
 
-    init(flow: Flow, side: MessageSide, options: ViewerOptions) {
+    init(flow: Flow, side: MessageSide, options: ViewerOptions, viewModel: BodyViewerViewModel) {
         self.flow = flow; self.side = side; self.options = options
-        let headers = flow.headers(side), payload = flow.body(side)
-        if payload.count < Self.instantLimit {
-            let type = headers.value(for: "content-type"), encoding = headers.value(for: "content-encoding")
-            // Text is prepared as pretty; a rich preview does not need it.
-            let mode = options.mode == .preview ? .pretty : options.mode
-            _prepared = State(initialValue: BodyRendering.prepare(
-                payload, contentType: type, encoding: encoding, mode: mode, sortKeys: options.sortsKeys
-            ))
-            let key = BodyRendering.UnpackKey(flow: flow.id, side: side, size: payload.count)
-            _unpacked = State(initialValue: BodyRendering.unpack(key, payload, contentType: type, encoding: encoding))
-        }
+        _viewModel = State(initialValue: viewModel)
+    }
+
+    private var prepared: BodyRendering.Prepared? {
+        viewModel.prepared
     }
 
     private var headers: [Header] {
@@ -64,7 +51,7 @@ struct BodyViewer: View {
     }
 
     private var current: BodyRendering.Unpacked? {
-        unpacked?.id == unpackKey ? unpacked : nil
+        viewModel.current(for: flow, side: side)
     }
 
     private var decoded: Data {
@@ -105,19 +92,10 @@ struct BodyViewer: View {
             }
             content
         }
-        .task(id: key) { await prepare() }
-        .task(id: unpackKey) {
-            guard current == nil else { return }
-            let (key, payload, type, encoding) = (unpackKey, payload, contentType, encoding)
-            let unpack: @Sendable () -> BodyRendering.Unpacked = {
-                BodyRendering.unpack(key, payload, contentType: type, encoding: encoding)
-            }
-            let result = payload.count < Self.instantLimit
-                ? unpack() : await Task.detached(priority: .userInitiated, operation: unpack).value
-            if !Task.isCancelled {
-                unpacked = result
-            }
+        .task(id: key) {
+            await viewModel.prepare(flow, side: side, mode: textMode, sortKeys: options.sortsKeys, path: jsonPath)
         }
+        .task(id: unpackKey) { await viewModel.unpack(flow, side: side) }
     }
 
     private var toolbar: some View {
@@ -201,38 +179,8 @@ struct BodyViewer: View {
         BodyRendering.summary(mode: effectiveMode, richKind: richKind, prepared: prepared)
     }
 
-    /// Formatting and filtering run off the main thread for large bodies; a newer request (another selection, a key typed) cancels this one.
-    private func prepare() async {
-        let (payload, type, encoding) = (payload, contentType, encoding)
-        let (mode, sortKeys, path) = (textMode, options.sortsKeys, jsonPath)
-        let prepare: @Sendable () -> BodyRendering.Prepared = {
-            BodyRendering.prepare(
-                payload, contentType: type, encoding: encoding, mode: mode, sortKeys: sortKeys, path: path
-            )
-        }
-        var result: BodyRendering.Prepared
-        if payload.count < Self.instantLimit {
-            result = prepare()
-        } else {
-            if !path.isEmpty {
-                try? await Task.sleep(for: .milliseconds(300))
-            } // let typing settle before querying a large document
-            guard !Task.isCancelled else { return }
-            result = await Task.detached(priority: .userInitiated, operation: prepare).value
-        }
-        guard !Task.isCancelled else { return }
-        if result.language == .protobuf, mode == .pretty {
-            result.text = model.engine.bodyText(of: flow, response: side == .response)
-        }
-        prepared = result
-    }
-
-    /// The complete text for copy and save, even when the viewer shows only the first part.
     private func fullText() -> String {
-        BodyRendering.prepare(
-            payload, contentType: contentType, encoding: encoding, mode: textMode, sortKeys: options.sortsKeys,
-            limit: nil
-        ).text
+        viewModel.fullText(flow, side: side, mode: textMode, sortKeys: options.sortsKeys)
     }
 
     private var fileName: String {

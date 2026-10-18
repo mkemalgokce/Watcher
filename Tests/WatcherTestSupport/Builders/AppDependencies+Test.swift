@@ -45,7 +45,9 @@ public extension AppDependencies {
             focusFilterField: {},
             devices: .none,
             loginItem: (loginItem ?? LoginItemStub()).loginItem,
-            now: (clock ?? ClockStub()).now
+            now: (clock ?? ClockStub()).now,
+            homeDirectory: URL(fileURLWithPath: "/fake-home"),
+            faviconDownload: { _ in nil }
         )
     }
 }

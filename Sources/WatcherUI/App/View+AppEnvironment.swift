@@ -16,5 +16,6 @@ public extension View {
             .environment(model.workspaces)
             .environment(model.devices)
             .environment(model.settings)
+            .environment(model.icons)
     }
 }
