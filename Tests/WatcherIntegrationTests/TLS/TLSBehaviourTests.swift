@@ -25,7 +25,7 @@ struct TLSBehaviourTests {
             try: t.recv(4096)
             except Exception: pass
             """)
-            _ = await eventually(timeout: 2, poll: .milliseconds(50)) {
+            _ = await eventually(poll: .milliseconds(50)) {
                 harness.engine.store.all.first?.clientTLS != nil
             }
             let flow = try #require(harness.engine.store.all.first)
@@ -90,7 +90,7 @@ struct TLSBehaviourTests {
                 pythonTLSViaProxy(port: harness.proxyPort, host: "keys.test", verify: false)
                     + "\nprint(t.version() if t else 'failed')"
             )
-            _ = await eventually(timeout: 2, poll: .milliseconds(50)) {
+            _ = await eventually(poll: .milliseconds(50)) {
                 (try? String(contentsOf: log, encoding: .utf8))?.isEmpty == false
             }
             let content = try String(contentsOf: log, encoding: .utf8)

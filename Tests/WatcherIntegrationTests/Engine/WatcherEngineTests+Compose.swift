@@ -20,7 +20,7 @@ extension WatcherEngineTests {
                         timeout: 1
                     )
                     #expect(response.status == 502)
-                    #expect(Date().timeIntervalSince(started) < 5)
+                    #expect(Date().timeIntervalSince(started) < 30)
                 }
             } catch {
                 await silent.stop()

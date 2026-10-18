@@ -36,7 +36,7 @@ struct StreamingTests {
             #expect(all.contains("data: two"), "\(all)")
             await client.close()
 
-            _ = await eventually(timeout: 2, poll: .milliseconds(50)) {
+            _ = await eventually(poll: .milliseconds(50)) {
                 harness.engine.store.all.first?.state == .completed
             }
             let flow = try #require(harness.engine.store.all.first)

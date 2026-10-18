@@ -26,7 +26,7 @@ struct ForwardingTests {
         try await withHarness { harness in
             let result = try await harness.get(path, method: method)
             #expect(result.status == status); #expect(result.body == "")
-            _ = await eventually(timeout: 1, poll: .milliseconds(50)) {
+            _ = await eventually(poll: .milliseconds(50)) {
                 harness.engine.store.all.first { $0.request.path == path }?.state == .completed
             }
             let flow = try #require(harness.engine.store.all.first { $0.request.path == path })

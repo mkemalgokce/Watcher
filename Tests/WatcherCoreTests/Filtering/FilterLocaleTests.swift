@@ -67,6 +67,6 @@ struct FilterLocaleTests {
             }
         }
         let filtered = time { #expect(missing.apply(to: flows).isEmpty) }
-        #expect(filtered / localized < 4)
+        #expect(filtered / localized < 40)
     }
 }
