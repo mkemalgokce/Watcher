@@ -17,8 +17,8 @@ extension RequestRecordTests {
             #expect(RequestRecord.fixture(scheme: scheme, host: "h", port: port, path: "/p").url == url)
         }
 
-        @Test(arguments: [("https", 443), ("http", 80), ("ws", 80), ("", 80)])
-        func theDefaultPortIs443ForHTTPSAnd80Otherwise(scheme: String, port: Int) {
+        @Test(arguments: [("https", 443), ("wss", 443), ("http", 80), ("ws", 80), ("", 80)])
+        func theDefaultPortIs443ForTLSSchemesAnd80Otherwise(scheme: String, port: Int) {
             #expect(RequestRecord.defaultPort(for: scheme) == port)
         }
 

@@ -11,7 +11,7 @@ public extension WatcherEngine {
         guard let scheme = url.scheme, ["ws", "wss"].contains(scheme), let host = url.host else {
             throw WebSocketComposeError(description: "URL must start with ws:// or wss://")
         }
-        let port = url.port ?? (scheme == "wss" ? 443 : 80)
+        let port = url.port ?? RequestRecord.defaultPort(for: scheme)
         let path = (url.path.isEmpty ? "/" : url.path) + (url.query.map { "?\($0)" } ?? "")
         let flow = store.begin(RequestRecord(
             method: "GET",
