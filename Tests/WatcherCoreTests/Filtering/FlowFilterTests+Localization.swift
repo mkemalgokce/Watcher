@@ -57,17 +57,12 @@ extension FlowFilterTests {
             let body = String(repeating: "{\"name\":\"value\",\"count\":12345}\n", count: 30000)
             let flows = (0 ..< 5).map { _ in flow(body: Data(body.utf8)) }
             let missing = filter("needle-not-there", .body, locale: "tr_TR")
-            func time(_ work: () -> Void) -> TimeInterval {
-                let start = Date()
-                work()
-                return Date().timeIntervalSince(start)
-            }
-            let localized = time {
+            let localized = cpuTime {
                 for _ in flows {
                     _ = body.localizedCaseInsensitiveContains("needle-not-there")
                 }
             }
-            let filtered = time { #expect(missing.apply(to: flows).isEmpty) }
+            let filtered = cpuTime { #expect(missing.apply(to: flows).isEmpty) }
             #expect(filtered / localized < 40)
         }
     }

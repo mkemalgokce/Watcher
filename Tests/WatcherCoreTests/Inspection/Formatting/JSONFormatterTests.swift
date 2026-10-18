@@ -41,9 +41,9 @@ struct JSONFormatterTests {
         let item = #"{"id":12345,"name":"Ada \"Lovelace\"","tags":["a","b",null,true],"#
             + #""empty":{},"list":[],"score":-1.5e3},"#
         let text = "[" + String(repeating: item, count: 60000) + #"{"end":1}]"# // ~6 MB
-        let start = Date()
-        let pretty = JSONFormatter.prettyData(Data(text.utf8))
-        #expect(Date().timeIntervalSince(start) < 30)
+        var pretty = Data()
+        let elapsed = cpuTime { pretty = JSONFormatter.prettyData(Data(text.utf8)) }
+        #expect(elapsed < .seconds(30))
         #expect(pretty.count > text.utf8.count)
         #expect(
             String(bytes: JSONFormatter.minifyData(pretty), encoding: .utf8) == text,
