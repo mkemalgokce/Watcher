@@ -40,10 +40,10 @@ struct CustomCertificatesTests {
         let server = ProxyServer(authority: nil, clientApp: { _ in nil }, localAddresses: { [] })
         let rule = try pinnedServerRule()
         server.updateUpstream(external: ExternalProxySettings(), pac: nil, dnsRules: [], certificates: [rule])
-        let socksPort = try freeLoopbackPort()
         do {
             let proxyPort = try await server.start(port: 0)
-            #expect(await server.setSocks(SocksSettings(isEnabled: true, port: socksPort), host: "127.0.0.1") == nil)
+            #expect(await server.setSocks(SocksSettings(isEnabled: true, port: 0), host: "127.0.0.1") == nil)
+            let socksPort = try #require(server.socksPort)
             let script = handshakes(proxyPort: proxyPort, socksPort: socksPort)
             let output = try runPython(script).components(separatedBy: "\n")
             for route in ["connect", "socks"] {

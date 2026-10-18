@@ -27,11 +27,11 @@ struct ExternalProxyTests {
 
     @Test
     func aPACFileAndASocksProxyBothReachTheInnerProxy() async throws {
-        let socksPort = try freeLoopbackPort()
         try await withHarness(configure: {
             $0.sslProxying = SSLProxyingSettings(include: [], exclude: [])
-            $0.socks = SocksSettings(isEnabled: true, port: socksPort)
+            $0.socks = SocksSettings(isEnabled: true, port: 0)
         }) { inner in
+            let socksPort = try #require(inner.engine.socksPort)
             let request = chainedRequest("/chained", to: inner)
 
             // PAC loaded from a file:// URL points at the inner HTTP proxy.

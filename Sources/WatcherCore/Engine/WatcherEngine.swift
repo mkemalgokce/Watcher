@@ -303,3 +303,15 @@ private extension WatcherEngine {
         settings.listenOnAllInterfaces ? (settings.listenOnIPv6 ? "::" : "0.0.0.0") : "127.0.0.1"
     }
 }
+
+public extension WatcherEngine {
+    /// The port the SOCKS5 listener is actually on while it runs (differs from the setting when that is 0).
+    var socksPort: Int? {
+        lock.withLock { server }?.socksPort
+    }
+
+    /// The ports of the running reverse-proxy listeners, in rule order.
+    var reversePorts: [Int] {
+        lock.withLock { server }?.reversePorts ?? []
+    }
+}

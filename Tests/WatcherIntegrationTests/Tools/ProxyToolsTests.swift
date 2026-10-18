@@ -130,14 +130,14 @@ struct ProxyToolsTests {
 
     @Test
     func reverseProxyForwardsALocalPortToTheOrigin() async throws {
-        let localPort = try freeLoopbackPort()
         try await withHarness { harness in
             let port = harness.upstream.port
             try await harness.reconfigure {
                 $0.reverseProxy = RuleSet(isEnabled: true, rules: [
-                    ReverseProxyRule(localPort: localPort, remoteHost: "upstream.test", remotePort: port),
+                    ReverseProxyRule(localPort: 0, remoteHost: "upstream.test", remotePort: port),
                 ])
             }
+            let localPort = try #require(harness.engine.reversePorts.first)
             let body = try await HTTPClientRequestHelper.fetch(
                 HTTPClientRequestHelper.url("http://127.0.0.1:\(localPort)/rp")
             )

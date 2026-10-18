@@ -7,8 +7,8 @@ import WatcherTestSupport
 struct SocksTests {
     @Test
     func plainHTTPThroughSocks5IsRecorded() async throws {
-        let socksPort = try freeLoopbackPort()
-        try await withHarness(configure: { $0.socks = SocksSettings(isEnabled: true, port: socksPort) }) { harness in
+        try await withHarness(configure: { $0.socks = SocksSettings(isEnabled: true, port: 0) }) { harness in
+            let socksPort = try #require(harness.engine.socksPort)
             let client = RawClient()
             try await client.connect(port: socksPort)
             try await client.send(bytes: [5, 1, 0])
@@ -27,11 +27,11 @@ struct SocksTests {
 
     @Test
     func anExcludedHostIsRelayedBlindWithTheBytesSentAlongWithTheRequest() async throws {
-        let socksPort = try freeLoopbackPort()
         try await withHarness(configure: {
-            $0.socks = SocksSettings(isEnabled: true, port: socksPort)
+            $0.socks = SocksSettings(isEnabled: true, port: 0)
             $0.sslProxying.exclude = ["127.0.0.1"]
         }) { harness in
+            let socksPort = try #require(harness.engine.socksPort)
             let client = RawClient()
             try await client.connect(port: socksPort)
             let port = harness.upstream.port
@@ -47,11 +47,12 @@ struct SocksTests {
 
     @Test
     func aHostThatCannotBeReachedGetsReplyCodeFive() async throws {
-        let socksPort = try freeLoopbackPort(), closed = try freeLoopbackPort()
+        let closed = try freeLoopbackPort()
         try await withHarness(configure: {
-            $0.socks = SocksSettings(isEnabled: true, port: socksPort)
+            $0.socks = SocksSettings(isEnabled: true, port: 0)
             $0.sslProxying.exclude = ["127.0.0.1"]
-        }) { _ in
+        }) { harness in
+            let socksPort = try #require(harness.engine.socksPort)
             let client = RawClient()
             try await client.connect(port: socksPort)
             try await client.send(bytes: [5, 1, 0, 5, 1, 0, 1, 127, 0, 0, 1, UInt8(closed >> 8), UInt8(closed & 0xFF)])

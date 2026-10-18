@@ -163,6 +163,16 @@ public final class ProxyServer: @unchecked Sendable {
         return channel.localAddress?.port ?? port
     }
 
+    /// The port the SOCKS5 listener is on, which differs from the setting when that was 0.
+    public var socksPort: Int? {
+        lock.withLock { socksListener?.localAddress?.port }
+    }
+
+    /// The ports of the reverse-proxy listeners that started, in rule order.
+    public var reversePorts: [Int] {
+        lock.withLock { reverseListeners.compactMap { $0.localAddress?.port } }
+    }
+
     /// Replaces the reverse-proxy listeners; returns a message for each one that could not start.
     public func setReverseProxies(_ rules: [ReverseProxyRule]) async -> [String] {
         let old = lock.withLock { defer { reverseListeners = [] }; return reverseListeners }

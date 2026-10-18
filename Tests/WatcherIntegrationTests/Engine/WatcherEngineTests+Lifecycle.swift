@@ -75,10 +75,9 @@ extension WatcherEngineTests {
         @Test
         func startingARunningEngineStopsTheServerItReplaces() async throws {
             let engine = try engine()
-            let first = try freeLoopbackPort(), second = try freeLoopbackPort()
+            let first = try await engine.start(port: 0)
+            let second = try await engine.start(port: 0)
             try #require(first != second)
-            try await engine.start(port: first)
-            try await engine.start(port: second)
             #expect(await !accepts(port: first))
             #expect(await accepts(port: second))
             try await engine.stop()
@@ -94,15 +93,15 @@ extension WatcherEngineTests {
             })
             let starting = Task { try await engine.start(port: 0) }
             #expect(await eventually { building.value })
-            let socksPort = try freeLoopbackPort()
             var settings = engine.settings.value
-            settings.socks = SocksSettings(isEnabled: true, port: socksPort)
+            settings.socks = SocksSettings(isEnabled: true, port: 0)
             let applied = LockedBox(false)
             let applying = Task { await engine.apply(settings); applied.mutate { $0 = true } }
             #expect(await !eventually(timeout: 0.5) { applied.value }, "the apply ran before the start finished")
             mayBuild.signal()
             _ = try await starting.value
             await applying.value
+            let socksPort = try #require(engine.socksPort)
             #expect(await accepts(port: socksPort))
             try await engine.stop()
         }
@@ -131,12 +130,12 @@ extension WatcherEngineTests {
         @Test
         func socksAnswersOverIPv6WhenListeningOnAllInterfacesWithIPv6() async throws {
             let engine = try engine()
-            let socksPort = try freeLoopbackPort()
             try engine.settings.update {
                 $0.listenOnAllInterfaces = true; $0.listenOnIPv6 = true
-                $0.socks = SocksSettings(isEnabled: true, port: socksPort)
+                $0.socks = SocksSettings(isEnabled: true, port: 0)
             }
             _ = try await engine.start(port: 0)
+            let socksPort = try #require(engine.socksPort)
             let channel = try? await ClientBootstrap(group: MultiThreadedEventLoopGroup.singleton)
                 .connect(host: "::1", port: socksPort).get()
             #expect(channel != nil)
