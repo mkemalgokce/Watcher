@@ -174,7 +174,7 @@ public struct ProtobufSchema: Sendable {
             case let .bytes(payload) where field.type == 9:
                 lines.append("\(pad)\(field.name): \"\(String(decoding: payload, as: UTF8.self))\"")
             case let .bytes(payload) where field.type == 12:
-                lines.append("\(pad)\(field.name): 0x" + payload.prefix(64).map { String(format: "%02x", $0) }.joined())
+                lines.append("\(pad)\(field.name): 0x" + payload.prefix(64).hexDigits())
             case let .bytes(payload):
                 // Packed repeated scalars.
                 guard let packed = try? Self.packed(payload, type: field.type) else { return false }
@@ -227,7 +227,7 @@ public struct ProtobufSchema: Sendable {
         case let .varint(n): "\(n)"
         case let .fixed64(n): "\(n)"
         case let .fixed32(n): "\(n)"
-        case let .bytes(b): "0x" + b.prefix(64).map { String(format: "%02x", $0) }.joined()
+        case let .bytes(bytes): "0x" + bytes.prefix(64).hexDigits()
         }
     }
 }

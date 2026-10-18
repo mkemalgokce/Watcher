@@ -31,7 +31,7 @@ public enum Converter {
                 let start = hex.index(hex.startIndex, offsetBy: i); return UInt8(hex[start ..< hex.index(start, offsetBy: 2)], radix: 16)!
             }
             return String(data: Data(bytes), encoding: .utf8) ?? BodyFormatter.hexDump(Data(bytes))
-        case .hexEncode: return Data(input.utf8).map { String(format: "%02x", $0) }.joined()
+        case .hexEncode: return Data(input.utf8).hexDigits()
         case .timestamp:
             guard let value = Double(text) else { throw Failure(description: "Enter seconds or milliseconds since 1970.") }
             let seconds = value > 100_000_000_000 ? value / 1000 : value // 13 digits are milliseconds
