@@ -79,7 +79,7 @@ struct MessagePanel: View {
                 case .params: KeyValueTable(rows: KeyValueRow.fields(fields), emptyText: "No query parameters or form fields.")
                 case .body: BodyViewer(
                         flow: flow, side: side, options: model.viewer,
-                        viewModel: model.bodyViewerModel(flow: flow, side: side)
+                        makeViewModel: model.bodyViewerModel(flow: flow, side: side)
                     )
                 case .cookies: KeyValueTable(
                         rows: KeyValueRow.cookies(cookies, secureConnection: flow.request.scheme == "https"),

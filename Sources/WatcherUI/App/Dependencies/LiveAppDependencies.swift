@@ -60,7 +60,7 @@ extension AppDependencies {
             now: Date.init,
             homeDirectory: URL(fileURLWithPath: NSHomeDirectory()),
             appInfo: .live,
-            faviconDownload: LiveFaviconDownload.fetch
+            faviconDownload: { _ in nil }
         )
     }
 

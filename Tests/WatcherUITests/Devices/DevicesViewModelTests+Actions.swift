@@ -84,7 +84,8 @@ extension DevicesViewModelTests {
             probe.simulators = {
                 scans.mutate { $0 += 1 }
                 if scans.value == 1 {
-                    blocked.wait() // only the first scan is held, so a second one would show up instead of hanging
+                    // only the first scan is held, so a second one would show up instead of hanging
+                    _ = blocked.wait(timeout: .now() + 5)
                 }
                 return []
             }
@@ -108,7 +109,7 @@ extension DevicesViewModelTests {
                 let value = trusted.value // read before the trust is installed
                 scanning.mutate { $0 += 1 }
                 if scanning.value == 1 {
-                    release.wait()
+                    _ = release.wait(timeout: .now() + 5)
                 }
                 return value
             }
@@ -126,18 +127,13 @@ extension DevicesViewModelTests {
         }
 
         @Test
-        func theNetworkIsAskedOncePerRefreshNotOncePerRead() async {
-            let asked = LockedBox(0)
-            var probe = DevicesViewModel.DeviceProbe.none
-            probe.lanAddresses = { asked.mutate { $0 += 1 }; return ["10.0.0.5"] }
-            let devices = DevicesViewModel(probe: probe, certificateURL: Self.certificate) { 9090 }
-            for _ in 0 ..< 5 {
-                #expect(devices.lanProxyAddress == "10.0.0.5:9090")
-            }
-            #expect(asked.value == 1)
-            await devices.refresh()
+        func theAddressFollowsTheNetworkWhenItChanges() {
+            let spy = DeviceProbeSpy(lan: ["10.0.0.5"])
+            let devices = DevicesViewModel(probe: spy.probe, certificateURL: Self.certificate) { 9090 }
             #expect(devices.lanProxyAddress == "10.0.0.5:9090")
-            #expect(asked.value == 2)
+            spy.lan = ["192.168.1.7"]
+            #expect(devices.lanProxyAddress == "192.168.1.7:9090")
+            #expect(devices.certificateDirectURL == "http://192.168.1.7:9090")
         }
 
         @Test(arguments: [

@@ -21,9 +21,12 @@ struct BodyViewer: View {
 
     private struct Key: Hashable { let flow: UUID; let side: MessageSide; let mode: BodyMode; let sortKeys: Bool; let path: String; let size: Int }
 
-    init(flow: Flow, side: MessageSide, options: ViewerOptions, viewModel: BodyViewerViewModel) {
+    init(
+        flow: Flow, side: MessageSide, options: ViewerOptions,
+        makeViewModel: @autoclosure @escaping () -> BodyViewerViewModel
+    ) {
         self.flow = flow; self.side = side; self.options = options
-        _viewModel = State(initialValue: viewModel)
+        _viewModel = State(wrappedValue: makeViewModel())
     }
 
     private var prepared: BodyRendering.Prepared? {

@@ -65,7 +65,7 @@ extension ProxyControllerTests {
             proxy.toggleRunning()
             #expect(await eventually { proxy.isRunning && !proxy.isSwitchingProxy })
             proxy.toggleRunning()
-            await settle(0.05)
+            #expect(await eventually { systemProxy.enableCallsStarted == 1 })
             #expect(log.value == ["start 9090"], "the enable is still held, so pause has not begun")
             gate.signal()
             #expect(await eventually { log.value == ["start 9090", "enable 9123", "disable", "stop"] })

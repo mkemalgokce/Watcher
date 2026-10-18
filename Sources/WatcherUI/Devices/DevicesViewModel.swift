@@ -51,7 +51,7 @@ final class DevicesViewModel {
     private(set) var macTrusted = false
     internal(set) var status: Status?
     /// True while simctl/adb are being asked, so "nothing found" is not shown before the answer.
-    internal(set) var isScanning = false
+    private(set) var isScanning = false
 
     @ObservationIgnored private let probe: DeviceProbe
     @ObservationIgnored private let port: () -> Int
@@ -63,18 +63,11 @@ final class DevicesViewModel {
         self.port = port
     }
 
-    /// Read once per scan: asking the network interfaces on every redraw would be wasted work on the main thread.
-    @ObservationIgnored private var cachedLANAddress: String??
     @ObservationIgnored private var scan: Task<Void, Never>?
 
     /// The Mac's address a phone on the same network should use, without the port.
     private var lanAddress: String? {
-        if let cachedLANAddress {
-            return cachedLANAddress
-        }
-        let address = probe.lanAddresses().first
-        cachedLANAddress = .some(address)
-        return address
+        probe.lanAddresses().first
     }
 
     /// Address a phone on the same network should use as its proxy.
@@ -107,7 +100,6 @@ final class DevicesViewModel {
     func refresh() async {
         guard scan == nil else { return }
         isScanning = true
-        cachedLANAddress = nil
         let probe = probe
         let task = Task {
             let found = await Task.detached { (probe.simulators(), probe.androidDevices(), probe.isMacTrusted()) }.value

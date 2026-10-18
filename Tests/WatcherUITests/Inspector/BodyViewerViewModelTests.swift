@@ -99,12 +99,15 @@ struct BodyViewerViewModelTests {
         let gate = SleepGate()
         let flow = large("application/json")
         let model = model(flow, sleep: gate.sleep)
+        await model.prepare(flow, side: .response, mode: .pretty, sortKeys: false, path: "")
+        let earlier = model.prepared
+        #expect(earlier != nil)
         let preparing = Task { await model.prepare(flow, side: .response, mode: .pretty, sortKeys: false, path: "a") }
         #expect(await eventually { gate.waitingCount == 1 })
         preparing.cancel()
         gate.releaseOldest()
         await preparing.value
-        #expect(model.prepared == nil)
+        #expect(model.prepared?.text == earlier?.text)
     }
 
     @Test
@@ -174,9 +177,9 @@ struct BodyViewerViewModelTests {
 
     @Test
     func copyingGivesTheWholeBodyEvenWhenTheViewIsCut() {
-        let flow = large()
+        let flow = flow(Data(repeating: UInt8(ascii: "a"), count: BodyRendering.displayLimit + 1), type: "text/plain")
         let text = model(flow).fullText(flow, side: .response, mode: .pretty, sortKeys: false)
-        #expect(text.utf8.count == BodyViewerViewModel.instantLimit + 1)
+        #expect(text.utf8.count == BodyRendering.displayLimit + 1)
     }
 
     @Test

@@ -11,7 +11,7 @@ final class IconStore {
     @ObservationIgnored private var missingApps: Set<String> = []
     /// One observed slot per site, so an icon that arrives redraws only its own row, not every row of a long sidebar.
     @ObservationIgnored private var favicons: [String: FaviconSlot] = [:]
-    @ObservationIgnored private var requested: Set<String> = []
+    @ObservationIgnored private(set) var requested: Set<String> = []
 
     @ObservationIgnored private let preferences: any Preferences
     @ObservationIgnored private let files: FileAccess
@@ -89,8 +89,8 @@ final class IconStore {
 
     func favicon(for domain: String, fetch: Bool = true) -> NSImage? {
         let slot = slot(for: domain)
-        let isAddress = domain.allSatisfy { $0.isNumber || $0 == "." }
-        if slot.image == nil, fetch, preferences.websiteIconsEnabled, !isAddress, !requested.contains(domain) {
+        let hasNoSite = ToolValidation.isIPAddress(domain) || !domain.contains(".")
+        if slot.image == nil, fetch, preferences.websiteIconsEnabled, !hasNoSite, !requested.contains(domain) {
             requested.insert(domain)
             Task { [files, cacheFolder, download] in
                 let icon = await Self.loadFavicon(domain, files: files, cacheFolder: cacheFolder, download: download)

@@ -62,11 +62,10 @@ extension SessionFilesViewModelTests {
         }
 
         @Test
-        func aCancelledDataSaveWritesNothing() async {
+        func aCancelledDataSaveWritesNothing() {
             let panels = FilePanelsStub()
             let model = viewModel(panels)
             model.saveData(Data("x".utf8), suggestedName: "body.txt")
-            await settle(0.05)
             #expect(files.paths.isEmpty)
             #expect(notices.notice == nil)
             #expect(panels.saveRequests.map(\.suggestedName) == ["body.txt"])

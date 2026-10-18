@@ -60,7 +60,7 @@ enum ToolValidation {
         return list
     }
 
-    /// `~` and `~/x` start at the given home folder; a path that only has a tilde further in is left alone.
+    /// `~` and `~/x` start at the given home folder; a path that only has a tilde further in, or `~user`, is left alone on purpose.
     static func expandingTilde(_ path: String, homeDirectory: String) -> String {
         guard path == "~" || path.hasPrefix("~/") else { return path }
         return homeDirectory + path.dropFirst()

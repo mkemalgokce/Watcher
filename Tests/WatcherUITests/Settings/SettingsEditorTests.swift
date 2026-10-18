@@ -87,13 +87,12 @@ struct SettingsEditorTests {
     }
 
     @Test
-    func assigningTheValueItAlreadyHasCommitsAndAnnouncesNothing() async {
+    func assigningTheValueItAlreadyHasCommitsAndAnnouncesNothing() {
         let editor = editor()
         let changes = LockedBox(0)
         editor.onChange = { _, _ in changes.mutate { $0 += 1 } }
         editor.value = WatcherSettings()
         editor.port = editor.port
-        await settle(0.05)
         #expect(gate.waitingCount == 0)
         #expect(changes.value == 0)
         #expect(saved.value.isEmpty)

@@ -117,21 +117,32 @@ struct IconStoreTests {
         #expect(files.paths.isEmpty)
     }
 
-    @Test(arguments: ["10.0.0.1", "127.0.0.1"])
-    func anAddressIsNeverLookedUp(address: String) async {
+    @Test(arguments: ["10.0.0.1", "127.0.0.1", "::1", "fe80::1", "localhost", "my-nas"])
+    func anAddressOrSingleLabelHostIsNeverLookedUp(host: String) {
         let store = makeStore()
-        _ = store.favicon(for: address)
-        await settle(0.1)
-        #expect(requested.value.isEmpty)
+        _ = store.favicon(for: host)
+        #expect(store.requested.isEmpty)
+    }
+
+    @Test(arguments: [
+        ("Google Chrome Helper (Renderer)", "Google Chrome"),
+        ("Slack Helper (GPU)", "Slack"),
+        ("Safari Web Content", "Safari"),
+        ("com.apple.WebKit.Networking", "Safari"),
+        ("com.apple.WebKit", "Safari"),
+        ("curl", "curl"),
+        ("  Firefox  ", "Firefox"),
+    ])
+    func aProcessNameMapsToItsAppName(process: String, app: String) {
+        #expect(IconStore.appName(forProcess: process) == app)
     }
 
     @Test
-    func switchingWebsiteIconsOffFetchesNothing() async {
+    func switchingWebsiteIconsOffFetchesNothing() {
         preferences.websiteIconsEnabled = false
         let store = makeStore()
         _ = store.favicon(for: "site.example")
-        await settle(0.1)
-        #expect(requested.value.isEmpty)
+        #expect(store.requested.isEmpty)
     }
 
     @Test
@@ -140,7 +151,6 @@ struct IconStoreTests {
         _ = store.favicon(for: "site.example")
         _ = store.favicon(for: "site.example")
         #expect(await eventually { requested.value.count == 2 })
-        await settle(0.1)
-        #expect(requested.value.count == 2)
+        #expect(store.requested == ["site.example"])
     }
 }
