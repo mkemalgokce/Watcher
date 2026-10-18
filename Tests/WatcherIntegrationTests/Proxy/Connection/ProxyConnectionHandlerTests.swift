@@ -113,9 +113,7 @@ struct ProxyConnectionHandlerTests {
             try await client.send("CONNECT :443 HTTP/1.1\r\nHost: x\r\n\r\n")
             let reply = await client.received(containing: "\r\n\r\n")
             await client.close()
-            withKnownIssue("the empty host is dropped by split, so 443 is taken as the host and decrypted") {
-                #expect(reply.hasPrefix("HTTP/1.1 400"))
-            }
+            #expect(reply.hasPrefix("HTTP/1.1 400"))
         }
     }
 }

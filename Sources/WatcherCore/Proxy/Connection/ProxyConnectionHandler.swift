@@ -77,7 +77,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
     // MARK: CONNECT
 
     private func connect(_ context: ChannelHandlerContext, _ head: HTTPRequestHead) {
-        let parts = head.uri.split(separator: ":", maxSplits: 1)
+        let parts = head.uri.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
         guard let host = parts.first.map(String.init), !host.isEmpty else {
             return writer.respond(400, "Bad CONNECT target", to: context.channel, head: head)
         }
