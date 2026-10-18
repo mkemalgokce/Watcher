@@ -1,7 +1,9 @@
 import AsyncHTTPClient
+import Foundation
 import NIOHTTP1
 import Testing
 @testable import WatcherCore
+import WatcherTestSupport
 
 @Suite(.tags(.unit))
 struct ProxyServerTests {
@@ -14,6 +16,18 @@ struct ProxyServerTests {
     @Test
     func aResponseWithoutALengthIsStreamed() {
         #expect(ProxyServer.shouldStream(HTTPClientResponse(status: .ok)))
+    }
+
+    @Test
+    func theCertificatePageIsOfferedOnlyWithAnAuthority() async throws {
+        let authority = try CertificateAuthority(
+            directory: URL(fileURLWithPath: "/fake-home/.watcher"),
+            files: FileAccessFake().access
+        )
+        let with = ProxyServer(authority: authority), without = ProxyServer(authority: nil)
+        #expect(with.certificatePage != nil)
+        #expect(without.certificatePage == nil)
+        try await with.stop(); try await without.stop()
     }
 
     @Test

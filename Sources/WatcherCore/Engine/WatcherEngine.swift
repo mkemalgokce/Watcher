@@ -18,8 +18,16 @@ public final class WatcherEngine: @unchecked Sendable {
     private let previewers = PreviewerRunner()
     private var protobufSchema: (files: [String], schema: ProtobufSchema?) = ([], nil)
     private var loadedPAC: (location: String, evaluator: PACEvaluator)?
+    private let makeServer: @Sendable (FlowStore, CertificateAuthority) -> ProxyServer
 
-    public init(directory: URL = WatcherPaths.supportDirectory) throws {
+    /// `makeServer` builds the proxy for each start; tests pass one with their own TLS trust or app lookup.
+    public init(
+        directory: URL = WatcherPaths.supportDirectory,
+        makeServer: @escaping @Sendable (FlowStore, CertificateAuthority) -> ProxyServer = {
+            ProxyServer(store: $0, authority: $1)
+        }
+    ) throws {
+        self.makeServer = makeServer
         authority = try CertificateAuthority(directory: directory)
         settings = SettingsStore(url: directory.appendingPathComponent("settings.json"))
         workspaces = WorkspaceStore(directory: directory.appendingPathComponent("workspaces", isDirectory: true))
@@ -29,7 +37,7 @@ public final class WatcherEngine: @unchecked Sendable {
     @discardableResult
     public func start(port: Int? = nil) async throws -> Int {
         // A stopped ProxyServer cannot be restarted, so every start gets a fresh one.
-        let server = ProxyServer(store: store, authority: authority)
+        let server = makeServer(store, authority)
         let current = settings.value
         let host = current.listenOnAllInterfaces ? (current.listenOnIPv6 ? "::" : "0.0.0.0") : "127.0.0.1"
         let wanted = port ?? current.port

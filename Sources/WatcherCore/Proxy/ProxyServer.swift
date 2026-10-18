@@ -10,9 +10,12 @@ public final class ProxyServer: @unchecked Sendable {
 
     let authority: CertificateAuthority?
     /// Served for requests addressed to Watcher itself, so a device can download the root certificate.
-    var certificatePage: CertificatePage? {
-        authority.map(CertificatePage.init)
-    }
+    let certificatePage: CertificatePage?
+    /// The program behind a loopback client port, for attributing requests to apps.
+    let clientApp: @Sendable (Int) -> String?
+    /// The Mac's LAN addresses, so the certificate page also answers on them.
+    let localAddresses: @Sendable () -> Set<String>
+    let now: @Sendable () -> Date
 
     let upstream: UpstreamClients
     private let lock = NSLock()
@@ -25,6 +28,11 @@ public final class ProxyServer: @unchecked Sendable {
     private var preferHTTP2 = true
     private var accessControl = AccessControlSettings().compile()
     private var markModified = false
+    /// Whether answers name the tools that changed them in `X-Watcher-Applied`.
+    var marksModifiedTraffic: Bool {
+        lock.withLock { markModified }
+    }
+
     private var keyLog: KeyLogFile?
     private var keyLogPath = ""
     private var autoIgnorePinning = false
@@ -48,9 +56,14 @@ public final class ProxyServer: @unchecked Sendable {
         tools: ToolChain = ToolChain(),
         authority: CertificateAuthority?,
         sslProxying: HostFilter = HostFilter(),
-        upstreamTLS: TLSConfiguration = .makeClientConfiguration()
+        upstreamTLS: TLSConfiguration = .makeClientConfiguration(),
+        clientApp: @escaping @Sendable (Int) -> String? = ClientProcess.name(forLocalPort:),
+        localAddresses: @escaping @Sendable () -> Set<String> = { Set(LocalNetwork.ipv4Addresses().map(\.ip)) },
+        now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.store = store; self.tools = tools; self.authority = authority; filter = sslProxying
+        certificatePage = authority.map(CertificatePage.init)
+        self.clientApp = clientApp; self.localAddresses = localAddresses; self.now = now
         upstream = UpstreamClients(group: group, tls: upstreamTLS)
     }
 
@@ -190,112 +203,6 @@ public final class ProxyServer: @unchecked Sendable {
 
     func shouldIntercept(host: String) -> Bool {
         (authority != nil || hasCustomServerCertificate(for: host)) && sslProxying.allows(host)
-    }
-
-    /// What the connection handler should write back.
-    enum ClientResponse {
-        case buffered(ResponseRecord)
-        /// Body is relayed chunk by chunk; `complete` receives the captured prefix and any error when it ends.
-        case streamed(head: ResponseRecord, body: HTTPClientResponse.Body, complete: @Sendable (Data, Error?) -> Void)
-    }
-
-    /// shortcut: only this many bytes of a streamed body are kept in the session list.
-    static let maxCapturedStreamBytes = 1024 * 1024
-
-    /// Records the request, runs the tools, forwards upstream and returns the whole response (used by Compose).
-    public func process(_ original: RequestRecord, timeout: Int = 60) async -> ResponseRecord {
-        guard case let .buffered(response) = await serve(original, allowStreaming: false, upload: nil, timeout: timeout) else { fatalError("streaming was not allowed") }
-        return response
-    }
-
-    func serve(_ original: RequestRecord, allowStreaming: Bool, upload: Upload? = nil, connection: String? = nil, timeout: Int = 60) async -> ClientResponse {
-        var request = original
-        let flow = store.begin(request)
-        if let connection {
-            store.update(flow.id) { $0.clientTLS = connection }
-        }
-        let started = Date()
-
-        let markTools = lock.withLock { markModified }
-        func marked(_ response: ResponseRecord, _ tools: [String]) -> ResponseRecord {
-            guard markTools, !tools.isEmpty else { return response }
-            var copy = response
-            copy.headers.set("X-Watcher-Applied", tools.joined(separator: ", "))
-            return copy
-        }
-
-        func finish(_ response: ResponseRecord, state: Flow.State, tools: [String], error: String? = nil) -> ClientResponse {
-            let response = marked(response, tools)
-            store.update(flow.id) {
-                $0.request = request; $0.response = response; $0.state = state
-                $0.error = error; $0.appliedTools = tools
-                $0.duration = Date().timeIntervalSince(started)
-            }
-            return .buffered(response)
-        }
-
-        let (decision, requestTools) = await tools.applyRequest(&request)
-        switch decision {
-        case let .block(hidden):
-            if hidden {
-                store.discard(flow.id)
-            }
-            return finish(Self.message(403, "Blocked by Watcher"), state: .blocked, tools: requestTools)
-        case let .respond(response):
-            return finish(response, state: .completed, tools: requestTools)
-        case .forward:
-            do {
-                let sentAt = Date()
-                let upstreamResponse = try await send(request, upload: upload, timeout: timeout)
-                let firstByte = Date().timeIntervalSince(sentAt)
-                let version = upstreamResponse.version.major == 2 ? "HTTP/2" : "HTTP/\(upstreamResponse.version.major).\(upstreamResponse.version.minor)"
-                store.update(flow.id) { $0.timeToFirstByte = firstByte; $0.upstreamHTTPVersion = version }
-                var head = ResponseRecord(
-                    status: Int(upstreamResponse.status.code),
-                    headers: upstreamResponse.headers.compactMap { Self.hopByHop.contains($0.name.lowercased()) ? nil : Header($0.name, $0.value) }
-                )
-
-                if allowStreaming, !tools.inspectsResponses, Self.shouldStream(upstreamResponse) {
-                    head = marked(head, requestTools)
-                    store.update(flow.id) { $0.request = request; $0.response = head; $0.appliedTools = requestTools }
-                    return .streamed(head: head, body: upstreamResponse.body) { [store] captured, error in
-                        store.update(flow.id) {
-                            $0.response?.body = captured
-                            $0.state = error == nil ? .completed : .failed
-                            $0.error = error.map { "\($0)" }
-                            $0.duration = Date().timeIntervalSince(started)
-                        }
-                    }
-                }
-
-                var body = try await upstreamResponse.body.collect(upTo: Self.maxBodyBytes)
-                var response = head
-                response.body = Data(body.readBytes(length: body.readableBytes) ?? [])
-                let responseTools = await tools.applyResponse(&response, for: request)
-                return finish(response, state: .completed, tools: requestTools + responseTools)
-            } catch {
-                return finish(
-                    Self.message(502, "Watcher could not reach \(request.host): \(error)"),
-                    state: .failed,
-                    tools: requestTools,
-                    error: "\(error)"
-                )
-            }
-        }
-    }
-
-    private func send(_ request: RequestRecord, upload: Upload?, timeout: Int) async throws -> HTTPClientResponse {
-        var upstreamRequest = HTTPClientRequest(url: request.url)
-        upstreamRequest.method = .init(rawValue: request.method)
-        for header in request.headers where !Self.hopByHop.contains(header.name.lowercased()) {
-            upstreamRequest.headers.add(name: header.name, value: header.value)
-        }
-        if let upload {
-            upstreamRequest.body = .stream(upload.body, length: .known(Int64(upload.length)))
-        } else if !request.body.isEmpty {
-            upstreamRequest.body = .bytes(request.body)
-        }
-        return try await upstream.client(for: request).execute(upstreamRequest, timeout: .seconds(Int64(max(1, timeout))))
     }
 }
 

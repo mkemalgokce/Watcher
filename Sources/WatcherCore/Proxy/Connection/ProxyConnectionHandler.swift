@@ -23,7 +23,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
     private var tunnel: (scheme: String, host: String, port: Int)?
     /// Feeds a large upload to the upstream while it is still arriving.
     private var upload: AsyncStream<ByteBuffer>.Continuation?
-    private let clientApp = ClientAppResolver()
+    private let clientApp: ClientAppResolver
     private let details: ConnectionDetails
     private let writer: ResponseWriter
 
@@ -37,6 +37,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
     ) {
         self.details = details
         writer = ResponseWriter(isHTTP2: isHTTP2)
+        clientApp = ClientAppResolver(lookup: server.clientApp)
         self.server = server; self.codecs = codecs; self.origin = origin; self.tunnel = tunnel; self.isHTTP2 = isHTTP2
         decoder = codecs.count > 1 ? codecs[1] : nil
     }
@@ -148,7 +149,12 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
         let channel = context.channel
         let server = server
         if origin == nil, tunnel == nil, let page = server.certificatePage,
-           CertificatePage.isAddressed(host: record.host, port: record.port, proxyPort: channel.localAddress?.port)
+           CertificatePage.isAddressed(
+               host: record.host,
+               port: record.port,
+               proxyPort: channel.localAddress?.port,
+               localAddresses: server.localAddresses()
+           )
         {
             return writer.respond(page.response(forPath: record.path), to: channel, head: head)
         }

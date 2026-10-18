@@ -7,7 +7,7 @@ import WatcherTestSupport
 struct ClientAppAttributionTests {
     @Test(.enabled(if: ExternalTool.curl.isAvailable, "needs curl"))
     func requestsAreAttributedToTheProgramThatSentThemAndCanBeBlockedByIt() async throws {
-        try await withHarness { harness in
+        try await withHarness(clientApp: ClientProcess.name(forLocalPort:)) { harness in
             #expect(try curl(through: harness).hasPrefix("GET /by-app"))
             #expect(harness.engine.store.all.first?.request.clientApp == "curl")
 
