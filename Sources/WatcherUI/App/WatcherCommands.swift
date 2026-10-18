@@ -101,8 +101,8 @@ public struct WatcherCommands: Commands {
             CommandMenu("Proxy") {
                 Button(model.proxy.isRunning ? "Pause Recording" : "Record") { model.proxy.toggleRunning() }
                     .keyboardShortcut("e").disabled(model.proxy.isSwitchingProxy)
-                Toggle("System Proxy", isOn: Binding(get: { model.proxy.systemProxyOn }, set: model.proxy.setSystemProxy))
-                    .keyboardShortcut("y", modifiers: [.command, .shift]).disabled(!model.proxy.isRunning)
+                Toggle("System Proxy", isOn: model.proxy.systemProxyBinding)
+                    .keyboardShortcut("y", modifiers: [.command, .shift]).disabled(!model.proxy.canSwitchSystemProxy)
                 Divider()
                 Button("Breakpoints…") { model.router.show(.breakpoints) }.keyboardShortcut("b")
                 Button("Tools…") { model.router.show(.tools) }.keyboardShortcut("t")

@@ -14,7 +14,7 @@ final class ProxyController {
 
     @ObservationIgnored private var systemProxySwitch: Task<Void, Never>?
     /// What the Mac's proxy will be once every queued switch has run; a click flips this, not the state in between.
-    @ObservationIgnored private var systemProxyTarget = false
+    private(set) var systemProxyTarget = false
     @ObservationIgnored private var queuedSwitches = 0
     @ObservationIgnored private let runner: any ProxyRunning
     @ObservationIgnored private let systemProxy: any SystemProxying
@@ -43,6 +43,11 @@ final class ProxyController {
             return .switching
         }
         return isRunning ? .running : .stopped
+    }
+
+    /// A system-proxy switch needs a listening proxy that is not itself starting or stopping.
+    var canSwitchSystemProxy: Bool {
+        isRunning && !isSwitchingProxy
     }
 
     /// The port the proxy listens on: the one it bound while running, otherwise the configured one.
@@ -147,7 +152,7 @@ final class ProxyController {
     private func pause() async {
         isRunning = false
         let runner = runner
-        if systemProxyOn {
+        if systemProxyOn || systemProxyTarget {
             queueSystemProxy(false, then: { try? await runner.stop() })
         } else {
             try? await runner.stop()

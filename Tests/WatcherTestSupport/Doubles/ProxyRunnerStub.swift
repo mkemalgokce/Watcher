@@ -44,7 +44,9 @@ public final class ProxyRunnerStub: ProxyRunning, @unchecked Sendable {
     public func start(port requested: Int?) async throws -> Int {
         log.mutate { $0.append("start \(requested.map(String.init) ?? "any")") }
         if let failure = lock.withLock({ failure }) {
-            lock.withLock { running = runsDespiteFailure }
+            if runsDespiteFailure {
+                lock.withLock { running = true }
+            }
             throw failure
         }
         lock.withLock { running = true }

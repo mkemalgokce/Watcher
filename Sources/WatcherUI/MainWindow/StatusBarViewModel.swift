@@ -90,6 +90,7 @@ struct StatusBarViewModel {
 
     func toggleSystemProxy() {
         guard proxy.isRunning else { return notices.notify("Start the proxy first.", .error) }
+        guard proxy.canSwitchSystemProxy else { return }
         proxy.toggleSystemProxy()
     }
 

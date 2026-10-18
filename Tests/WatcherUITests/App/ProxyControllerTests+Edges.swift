@@ -88,6 +88,47 @@ extension ProxyControllerTests {
         }
 
         @Test
+        func aSystemProxyClickQueuedBeforePauseIsUndoneBeforeTheProxyStops() async {
+            let systemProxy = SystemProxySpy(log: log)
+            let (proxy, _) = controller(systemProxy: systemProxy)
+            proxy.toggleRunning()
+            #expect(await eventually { proxy.isRunning && !proxy.isSwitchingProxy })
+            proxy.toggleRunning()
+            proxy.toggleSystemProxy()
+            #expect(await eventually { log.value == ["start 9090", "enable 9123", "disable", "stop"] })
+            #expect(await eventually { !proxy.isSwitchingProxy })
+            #expect(!proxy.systemProxyOn)
+            #expect(!proxy.isRunning)
+        }
+
+        @Test
+        func twoQuickSetsOfTheOppositeOfTheTargetEndInTheStateOfTheLastOne() async {
+            let gate = DispatchSemaphore(value: 0)
+            let systemProxy = SystemProxySpy(log: log, enableGate: gate)
+            let (proxy, _) = controller(systemProxy: systemProxy)
+            proxy.setSystemProxy(!proxy.systemProxyTarget)
+            #expect(await eventually { systemProxy.enableCallsStarted == 1 })
+            proxy.setSystemProxy(!proxy.systemProxyTarget)
+            gate.signal()
+            #expect(await eventually { log.value == ["enable 9090", "disable"] })
+            #expect(await eventually { !proxy.systemProxyOn && !proxy.systemProxyTarget })
+        }
+
+        @Test
+        func theSystemProxyCanBeSwitchedOnlyWhileRecordingAndNotMidSwitch() async {
+            let (proxy, _) = controller(systemProxy: SystemProxySpy(log: log))
+            #expect(!proxy.canSwitchSystemProxy)
+            proxy.toggleRunning()
+            #expect(!proxy.canSwitchSystemProxy)
+            #expect(await eventually { proxy.isRunning && !proxy.isSwitchingProxy })
+            #expect(proxy.canSwitchSystemProxy)
+            proxy.toggleRunning()
+            #expect(!proxy.canSwitchSystemProxy)
+            #expect(await eventually { !proxy.isSwitchingProxy })
+            #expect(!proxy.canSwitchSystemProxy)
+        }
+
+        @Test
         func aClickAfterAFailedSwitchTriesTheSameSwitchAgain() async {
             let systemProxy = SystemProxySpy(log: log)
             systemProxy.failFromNowOn()

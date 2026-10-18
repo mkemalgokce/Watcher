@@ -11,8 +11,8 @@ public struct MenuBarMenu: View {
         Text(verbatim: model.statusLine)
         Button(proxy.isRunning ? "Pause Recording" : "Record") { proxy.toggleRunning() }
             .disabled(proxy.isSwitchingProxy)
-        Toggle("System Proxy", isOn: Binding(get: { proxy.systemProxyOn }, set: proxy.setSystemProxy))
-            .disabled(!proxy.isRunning)
+        Toggle("System Proxy", isOn: proxy.systemProxyBinding)
+            .disabled(!proxy.canSwitchSystemProxy)
         Divider()
         Button("Show Watcher") { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) }
         Button("Quit Watcher") { NSApp.terminate(nil) }.keyboardShortcut("q")
