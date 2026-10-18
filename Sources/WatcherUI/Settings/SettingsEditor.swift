@@ -19,16 +19,19 @@ final class SettingsEditor {
     @ObservationIgnored private let notices: NoticeCenter
     @ObservationIgnored private let persist: (WatcherSettings) throws -> Void
     @ObservationIgnored private let apply: (WatcherSettings) async -> Void
+    @ObservationIgnored private let suggestPort: () -> Int?
 
     init(
         initial: WatcherSettings,
         sleep: @escaping Sleep,
         notices: NoticeCenter,
         persist: @escaping (WatcherSettings) throws -> Void,
-        apply: @escaping (WatcherSettings) async -> Void
+        apply: @escaping (WatcherSettings) async -> Void,
+        suggestReversePort: (() -> Int?)? = nil
     ) {
         value = initial
         self.sleep = sleep; self.notices = notices; self.persist = persist; self.apply = apply
+        suggestPort = suggestReversePort ?? { nil }
     }
 
     /// Edits the engine's settings, which it saves to disk and applies to the running proxy.
@@ -38,8 +41,14 @@ final class SettingsEditor {
             sleep: sleep,
             notices: notices,
             persist: { [engine] in try engine.settings.replace(with: $0) },
-            apply: { [engine] in await engine.apply($0) }
+            apply: { [engine] in await engine.apply($0) },
+            suggestReversePort: { [engine] in engine.suggestReversePort() }
         )
+    }
+
+    /// A free local port for a new Reverse Proxy rule.
+    func suggestReversePort() -> Int? {
+        suggestPort()
     }
 
     subscript<Field>(dynamicMember field: KeyPath<WatcherSettings, Field>) -> Field {

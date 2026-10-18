@@ -119,6 +119,16 @@ let package = Package(
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(
+            name: "WatcherCLITests",
+            dependencies: [
+                "watcher-cli",
+                "WatcherCore",
+                "WatcherTestSupport",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .testTarget(
             name: "WatcherIntegrationTests",
             dependencies: ["WatcherCore", "WatcherUI", "WatcherTestSupport"],
             swiftSettings: [.swiftLanguageMode(.v5)]

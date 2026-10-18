@@ -2,7 +2,7 @@ import SwiftUI
 import WatcherCore
 
 struct PreviewsView: View {
-    @Environment(AppModel.self) private var model
+    @Environment(RequestActions.self) private var actions
     let flow: Flow
     @State private var outputs: [PreviewOutput]?
 
@@ -29,6 +29,6 @@ struct PreviewsView: View {
                 ProgressView("Running previewers…").controlSize(.small)
             }
         }
-        .task(id: flow.id) { outputs = nil; outputs = await model.engine.previews(for: flow) }
+        .task(id: flow.id) { outputs = nil; outputs = await actions.previews(for: flow) }
     }
 }

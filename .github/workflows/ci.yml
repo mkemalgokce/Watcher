@@ -59,6 +59,7 @@ jobs:
         run: |
           bash scripts/tests/check-commit-msg-test.sh
           bash scripts/tests/coverage-gate-test.sh
+          bash scripts/tests/package-release-test.sh
 
   swift:
     needs: changes
@@ -93,6 +94,7 @@ jobs:
           SNAPSHOT_TESTING_RECORD: never
         run: make test-snapshot
       - name: End-to-end tests
+        timeout-minutes: 5
         run: make test-e2e
       - name: Save build cache
         if: ${{ !cancelled() }}

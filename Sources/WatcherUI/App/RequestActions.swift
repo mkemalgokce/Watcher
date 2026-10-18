@@ -8,6 +8,7 @@ import WatcherCore
 final class RequestActions {
     private let store: FlowStore
     private let sender: any RequestSending
+    private let previewers: @Sendable (Flow) async -> [PreviewOutput]
     private let clipboard: any Clipboard
     private let workspace: any WorkspaceOpener
     private let paths: SupportPaths
@@ -20,6 +21,7 @@ final class RequestActions {
 
     struct Services {
         var sender: any RequestSending
+        var previews: @Sendable (Flow) async -> [PreviewOutput]
         var clipboard: any Clipboard
         var workspace: any WorkspaceOpener
         var paths: SupportPaths
@@ -35,8 +37,8 @@ final class RequestActions {
         list: FlowListViewModel,
         proxy: ProxyController
     ) {
-        sender = services.sender; clipboard = services.clipboard; workspace = services.workspace
-        paths = services.paths; files = services.files
+        sender = services.sender; previewers = services.previews; clipboard = services.clipboard
+        workspace = services.workspace; paths = services.paths; files = services.files
         self.store = store; self.settings = settings; self.notices = notices
         self.router = router; self.list = list; self.proxy = proxy
     }
@@ -188,6 +190,11 @@ final class RequestActions {
     private func addBlockRule(name: String, pattern: String) {
         settings.blockList.isEnabled = true
         settings.blockList.rules.append(BlockRule(name: name, matching: MatchingRule(pattern: pattern)))
+    }
+
+    /// Output of every enabled previewer whose URL pattern matches this request.
+    func previews(for flow: Flow) async -> [PreviewOutput] {
+        await previewers(flow)
     }
 
     func revealCertificate() {

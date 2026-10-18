@@ -44,16 +44,21 @@ final class WatcherCLIProcess {
 
     /// Sends Ctrl-C, which makes `start` write its files and exit, and waits for it to finish.
     func interrupt(timeout: TimeInterval = 15) async throws {
-        process.interrupt()
+        try await stop(with: SIGINT, timeout: timeout)
+    }
+
+    /// Sends `signal` and waits for the process to finish; one still running after `timeout` is killed.
+    func stop(with signal: Int32, timeout: TimeInterval = 15) async throws {
+        kill(process.processIdentifier, signal)
         guard await eventually(timeout: timeout, { !process.isRunning }) else {
-            process.terminate()
-            throw TestSupportError("watcher-cli did not exit within \(timeout) s of Ctrl-C")
+            kill(process.processIdentifier, SIGKILL)
+            throw TestSupportError("watcher-cli did not exit within \(timeout) s of signal \(signal)")
         }
     }
 
     deinit {
         if process.isRunning {
-            process.terminate()
+            kill(process.processIdentifier, SIGKILL)
         }
     }
 }

@@ -12,37 +12,68 @@ struct AndroidCommand: ParsableCommand {
 
     @Argument(help: "list | cert (copy to Downloads) | proxy (set) | unproxy (clear)") var action: Action = .list
     @Option(help: "adb serial; defaults to the only connected device.") var serial: String?
-    @Option(help: "Watcher port the device should use.") var port = 9090
+    @Option(help: "Watcher port the device should use (default: from settings, 9090).") var port: Int?
+
+    func validate() throws {
+        try PortOption.validate(port)
+    }
 
     func run() throws {
-        let devices = try AndroidDevice.list()
-        if action == .list {
-            if devices.isEmpty {
-                print("No Android device. Start an emulator or connect a phone with USB debugging.")
-            }
-            for device in devices {
-                print("\(device.serial)\t\(device.isEmulator ? "emulator" : "device")\t\(device.model ?? "")")
-            }
-            return
-        }
-        guard let device = serial.map({ wanted in devices.first { $0.serial == wanted } }) ?? (devices.count == 1 ? devices.first : nil) else {
-            throw ValidationError(devices.isEmpty ? "No Android device is connected." : "Several devices are connected; pass --serial.")
-        }
+        try run(in: .live)
+    }
+
+    func run(in environment: CLIEnvironment) throws {
+        let adb = environment.adb
+        let devices = try AndroidDevice.list(run: adb)
         switch action {
-        case .list: break
+        case .list:
+            Self.list(devices, to: environment.output)
         case .cert:
-            _ = try CertificateAuthority(directory: WatcherPaths.supportDirectory)
-            try device.pushCertificate(WatcherPaths.supportDirectory.appendingPathComponent("watcher-ca.pem"))
-            print("Copied to Download/watcher-ca.cer. On the device: Settings → Security → Install a certificate → CA certificate.")
+            try chosenDevice(from: devices).pushCertificate(environment.certificateAuthority().certificateURL, run: adb)
+            environment.output(Self.certificateCopied)
         case .proxy:
-            guard let endpoint = device.proxyEndpoint(port: port, lanAddress: LocalNetwork.ipv4Addresses().first?.ip) else {
+            let device = try chosenDevice(from: devices)
+            let lanAddress = environment.lanAddresses().first?.ip
+            let port = port ?? environment.settings.value.port
+            guard let endpoint = device.proxyEndpoint(port: port, lanAddress: lanAddress) else {
                 throw ValidationError("No network address found for this Mac.")
             }
-            try device.setProxy(endpoint)
-            print("Proxy set to \(endpoint)")
+            try device.setProxy(endpoint, run: adb)
+            environment.output("Proxy set to \(endpoint)")
         case .unproxy:
-            try device.setProxy(nil)
-            print("Proxy cleared")
+            try chosenDevice(from: devices).setProxy(nil, run: adb)
+            environment.output("Proxy cleared")
         }
+    }
+
+    private static let certificateCopied = "Copied to Download/watcher-ca.cer. "
+        + "On the device: Settings → Security → Install a certificate → CA certificate."
+
+    private static func list(_ devices: [AndroidDevice], to output: (String) -> Void) {
+        if devices.isEmpty {
+            output("No Android device. Start an emulator or connect a phone with USB debugging.")
+        }
+        for device in devices {
+            output("\(device.serial)\t\(device.isEmulator ? "emulator" : "device")\t\(device.model ?? "")")
+        }
+    }
+
+    /// `--serial` names the device; without it there must be exactly one.
+    private func chosenDevice(from devices: [AndroidDevice]) throws -> AndroidDevice {
+        if let serial {
+            if let named = devices.first(where: { $0.serial == serial }) {
+                return named
+            }
+            guard devices.isEmpty else { throw ValidationError("No device with serial \(serial) is connected.") }
+            throw Self.unchosen(devices)
+        }
+        guard devices.count == 1, let only = devices.first else { throw Self.unchosen(devices) }
+        return only
+    }
+
+    private static func unchosen(_ devices: [AndroidDevice]) -> ValidationError {
+        ValidationError(devices.isEmpty
+            ? "No Android device is connected."
+            : "Several devices are connected; pass --serial.")
     }
 }

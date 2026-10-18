@@ -148,10 +148,36 @@ extension WatcherEngineTests {
         func anEditMadeOutsideTheEngineIsPickedUpWhileRunning() async throws {
             let engine = try engine()
             _ = try await engine.start(port: 0)
-            let settingsFile = URL(fileURLWithPath: "/fake-home/.watcher/settings.json")
+            let settingsFile = WatcherPaths.settingsFile(in: URL(fileURLWithPath: "/fake-home/.watcher"))
             let outside = SettingsStore(url: settingsFile, files: files.access)
             try outside.update { $0.maxFlows = 7 }
             #expect(await eventually { engine.store.maxFlows == 7 })
+            try await engine.stop()
+        }
+
+        @Test
+        func notDecryptingHTTPSHoldsFromTheStartThroughEveryLaterApply() async throws {
+            let server = LockedBox<ProxyServer?>(nil)
+            let engine = try engine(makeServer: { store, authority in
+                let made = ProxyServer(store: store, authority: authority, clientApp: { _ in nil })
+                server.mutate { $0 = made }
+                return made
+            })
+            try engine.settings.update { $0.sslProxying.include = ["*"] }
+            engine.decryptsHTTPS = false
+            _ = try await engine.start(port: 0)
+            let proxy = try #require(server.value)
+            #expect(!proxy.sslProxying.allows("api.example.com"), "decrypted right after the start")
+
+            let settingsFile = WatcherPaths.settingsFile(in: URL(fileURLWithPath: "/fake-home/.watcher"))
+            let outside = SettingsStore(url: settingsFile, files: files.access)
+            try outside.update { $0.maxFlows = 7 }
+            #expect(await eventually { engine.store.maxFlows == 7 })
+            #expect(!proxy.sslProxying.allows("api.example.com"), "decrypted after the settings file changed")
+
+            try await engine.updateSettings { $0.sslProxying.exclude.append("pinned.test") }
+            #expect(!proxy.sslProxying.allows("api.example.com"), "decrypted after a settings update")
+            #expect(engine.settings.value.sslProxying.include == ["*"])
             try await engine.stop()
         }
 

@@ -25,7 +25,7 @@ public struct SystemProxy: Sendable {
 
     public init(
         run: @escaping Runner = SystemProxy.networksetup,
-        backupURL: URL = WatcherPaths.supportDirectory.appendingPathComponent("system-proxy-backup.json"),
+        backupURL: URL = WatcherPaths.systemProxyBackupFile(in: WatcherPaths.supportDirectory),
         files: FileAccess = .live
     ) {
         self.run = run; self.backupURL = backupURL; self.files = files
@@ -36,14 +36,6 @@ public struct SystemProxy: Sendable {
     /// True when an earlier run turned the system proxy on and never put the original back (crash, force quit).
     public var hasPendingRestore: Bool {
         files.fileExists(backupURL.path)
-    }
-
-    public static func enable(host: String = "127.0.0.1", port: Int) throws {
-        try shared.enable(host: host, port: port)
-    }
-
-    public static func disable() throws {
-        try shared.disable()
     }
 
     public func enable(host: String = "127.0.0.1", port: Int) throws {
@@ -106,7 +98,7 @@ public struct SystemProxy: Sendable {
 
     public static let networksetup: Runner = networksetup(using: LiveCommandRunner.run)
 
-    static func networksetup(using runner: @escaping CommandRunner) -> Runner {
+    public static func networksetup(using runner: @escaping CommandRunner) -> Runner {
         { arguments in
             let executable = URL(fileURLWithPath: "/usr/sbin/networksetup")
             return try Command(executable: executable, arguments: arguments, mergesErrorOutput: true)

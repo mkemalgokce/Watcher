@@ -33,7 +33,8 @@ struct RequestActionsTests {
     private func actions(sender: RequestSenderSpy = RequestSenderSpy()) -> RequestActions {
         RequestActions(
             services: .init(
-                sender: sender, clipboard: clipboard, workspace: workspace, paths: paths, files: files.access
+                sender: sender, previews: { _ in [] }, clipboard: clipboard, workspace: workspace,
+                paths: paths, files: files.access
             ),
             store: store, settings: settings, notices: notices, router: router, list: list, proxy: proxy
         )

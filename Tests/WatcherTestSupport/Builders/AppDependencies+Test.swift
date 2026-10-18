@@ -18,6 +18,7 @@ public extension AppDependencies {
         systemProxy: (any SystemProxying)? = nil,
         lifecycle: AppLifecycleSpy? = nil,
         sender: (any RequestSending)? = nil,
+        previews: (@Sendable (Flow) async -> [PreviewOutput])? = nil,
         workspace: WorkspaceOpenerSpy? = nil,
         loginItem: LoginItemStub? = nil,
         clock: ClockStub? = nil
@@ -37,6 +38,7 @@ public extension AppDependencies {
             systemProxy: systemProxy ?? SystemProxySpy(),
             onTerminate: (lifecycle ?? AppLifecycleSpy()).onTerminate,
             sender: sender ?? RequestSenderSpy(),
+            previews: previews ?? { [engine] in await engine.previews(for: $0) },
             workspace: workspace ?? WorkspaceOpenerSpy(),
             paths: SupportPaths(directory: URL(fileURLWithPath: "/fake-home/.watcher")),
             focusFilterField: {},

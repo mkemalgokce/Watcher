@@ -28,12 +28,4 @@ enum ExternalOpen {
         try data.write(to: url)
         return url
     }
-
-    /// Apps that say they can open this kind of file, the default one first.
-    static func apps(contentType: String?, data: Data) -> [URL] {
-        guard let type = UTType(filenameExtension: fileExtension(contentType: contentType, data: data)) else { return [] }
-        let all = NSWorkspace.shared.urlsForApplications(toOpen: type)
-        let preferred = NSWorkspace.shared.urlForApplication(toOpen: type)
-        return (preferred.map { [$0] } ?? []) + all.filter { $0 != preferred }.prefix(12)
-    }
 }

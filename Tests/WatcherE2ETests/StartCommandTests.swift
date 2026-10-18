@@ -6,7 +6,7 @@ import WatcherTestSupport
 @Suite(.timeLimit(.minutes(1)), .tags(.e2e, .network, .externalTool))
 struct StartCommandTests {
     @Test(.enabled(if: ExternalTool.curl.isAvailable, "needs curl"))
-    func proxiesACurlRequestAndWritesItToTheHARFileOnCtrlC() async throws {
+    func proxiesACurlRequestAndWritesItToTheHARAndCSVFilesOnCtrlC() async throws {
         let origin = TestUpstream()
         try await origin.start()
         do {
@@ -18,12 +18,32 @@ struct StartCommandTests {
         await origin.stop()
     }
 
+    @Test(arguments: [SIGINT, SIGTERM, SIGHUP])
+    func everyStopSignalSavesTheSessionAndExitsCleanly(signal: Int32) async throws {
+        let home = try TemporaryDirectory(prefix: "watcher-e2e")
+        let csv = home.appending("session.csv")
+        let cli = try WatcherCLIProcess(
+            binary: WatcherCLIBinary.locate(),
+            arguments: ["start", "--port", "0", "--csv", csv.path],
+            home: home.url
+        )
+        try cli.run()
+        _ = try await cli.listeningPort()
+
+        try await cli.stop(with: signal)
+
+        #expect(cli.terminationStatus == 0)
+        #expect(cli.printed.hasSuffix("Saved \(csv.path)\n"))
+        #expect(FileManager.default.fileExists(atPath: csv.path))
+    }
+
     private func proxyACurlRequest(to origin: TestUpstream) async throws {
         let home = try TemporaryDirectory(prefix: "watcher-e2e")
         let har = home.appending("session.har")
+        let csv = home.appending("session.csv")
         let cli = try WatcherCLIProcess(
             binary: WatcherCLIBinary.locate(),
-            arguments: ["start", "--port", "0", "--har", har.path],
+            arguments: ["start", "--port", "0", "--har", har.path, "--csv", csv.path],
             home: home.url
         )
         try cli.run()
@@ -37,6 +57,8 @@ struct StartCommandTests {
         #expect(body.hasPrefix("GET /e2e?run=1 "))
         #expect(printedTheFlow, "the CLI prints each finished request: \(cli.printed)")
         #expect(cli.terminationStatus == 0)
+        #expect(cli.printed.hasSuffix("Saved \(har.path)\nSaved \(csv.path)\n"))
+        #expect(try String(contentsOf: csv, encoding: .utf8).contains(url))
         let flows = try HAR.flows(from: Data(contentsOf: har))
         let flow = try #require(flows.first)
         #expect(flows.count == 1)

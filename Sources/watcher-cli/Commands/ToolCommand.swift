@@ -11,8 +11,11 @@ struct Tool: ParsableCommand {
     @Argument var state: State
 
     func run() throws {
-        let store = SettingsStore(url: WatcherPaths.supportDirectory.appendingPathComponent("settings.json"))
-        try store.update { tool.set(state == .on, in: &$0) }
-        print("\(tool.rawValue): \(state.rawValue)")
+        try run(in: .live)
+    }
+
+    func run(in environment: CLIEnvironment) throws {
+        try environment.settings.update { tool.set(state == .on, in: &$0) }
+        environment.output("\(tool.rawValue): \(state.rawValue)")
     }
 }

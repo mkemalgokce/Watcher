@@ -11,6 +11,9 @@ public final class WatcherEngine: @unchecked Sendable {
     /// Receives script `console.log` output and non-fatal problems (e.g. a busy reverse-proxy port).
     public var onLog: @Sendable (String) -> Void = { _ in }
 
+    /// False tunnels all HTTPS untouched whatever the stored settings say, without changing them; set it before `start`.
+    public var decryptsHTTPS = true
+
     /// Guards `server`, `bound`, `protobufSchema` and `loadedPAC`, which callers reach from any thread.
     private let lock = NSLock()
     private var server: ProxyServer?
@@ -44,7 +47,7 @@ public final class WatcherEngine: @unchecked Sendable {
         self.files = files; self.sleep = sleep; self.now = now; self.makeServer = makeServer
         self.pacLoader = pacLoader ?? { try await PACEvaluator.load(from: $0) }
         authority = try CertificateAuthority(directory: directory, files: files)
-        settings = SettingsStore(url: directory.appendingPathComponent("settings.json"), files: files)
+        settings = SettingsStore(url: WatcherPaths.settingsFile(in: directory), files: files)
         workspaces = WorkspaceStore(
             directory: directory.appendingPathComponent("workspaces", isDirectory: true),
             files: files
@@ -163,7 +166,8 @@ public final class WatcherEngine: @unchecked Sendable {
         }
         server.updatePolicies(settings)
         store.maxFlows = settings.maxFlows
-        server.sslProxying = HostFilter(include: settings.sslProxying.include, exclude: settings.sslProxying.exclude)
+        let decrypted = settings.sslProxying
+        server.sslProxying = HostFilter(include: decryptsHTTPS ? decrypted.include : [], exclude: decrypted.exclude)
         server.updateUpstream(
             external: settings.externalProxy,
             pac: pac,
@@ -183,10 +187,6 @@ public final class WatcherEngine: @unchecked Sendable {
                 log(failure)
             }
         }
-    }
-
-    private static func listenHost(for settings: WatcherSettings) -> String {
-        settings.listenOnAllInterfaces ? (settings.listenOnIPv6 ? "::" : "0.0.0.0") : "127.0.0.1"
     }
 
     public func saveWorkspace(named name: String) throws {
@@ -294,5 +294,11 @@ public final class WatcherEngine: @unchecked Sendable {
             onLog("PAC: \(error)")
             return nil
         }
+    }
+}
+
+private extension WatcherEngine {
+    static func listenHost(for settings: WatcherSettings) -> String {
+        settings.listenOnAllInterfaces ? (settings.listenOnIPv6 ? "::" : "0.0.0.0") : "127.0.0.1"
     }
 }

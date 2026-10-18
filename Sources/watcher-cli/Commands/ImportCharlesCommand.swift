@@ -12,11 +12,28 @@ struct ImportCharles: ParsableCommand {
     @Option(help: "append (add to existing rules) or override (replace the tool rules; port, SSL and other settings are kept).") var mode = "append"
 
     func run() throws {
+        try run(in: .live)
+    }
+
+    func run(in environment: CLIEnvironment) throws {
         guard let importMode = WatcherSettings.ImportMode(rawValue: mode) else { throw ValidationError("mode must be append or override") }
-        let source = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
-        let incoming = try CharlesSettings.importSettings(from: Data(contentsOf: source))
-        let store = SettingsStore(url: WatcherPaths.supportDirectory.appendingPathComponent("settings.json"))
-        try store.replace(with: importMode == .override ? store.value.replacingToolRules(with: incoming) : store.value.importing(incoming, mode: .append))
-        print("[Import] Charles settings from \(source.path): block \(incoming.blockList.rules.count), allow \(incoming.allowList.rules.count), map local \(incoming.mapLocal.rules.count), map remote \(incoming.mapRemote.rules.count), breakpoints \(incoming.breakpoints.rules.count), DNS \(incoming.dnsSpoofing.rules.count), reverse proxies \(incoming.reverseProxy.rules.count)")
+        let source = environment.url(forPath: path)
+        let incoming = try CharlesSettings.importSettings(from: environment.files.read(source))
+        let store = environment.settings
+        let merged = importMode == .override
+            ? store.value.replacingToolRules(with: incoming)
+            : store.value.importing(incoming, mode: .append)
+        try store.replace(with: merged)
+        environment.output("[Import] Charles settings from \(source.path): \(Self.counts(of: incoming))")
+    }
+
+    private static func counts(of settings: WatcherSettings) -> String {
+        let counts: [(String, Int)] = [
+            ("block", settings.blockList.rules.count), ("allow", settings.allowList.rules.count),
+            ("map local", settings.mapLocal.rules.count), ("map remote", settings.mapRemote.rules.count),
+            ("breakpoints", settings.breakpoints.rules.count), ("DNS", settings.dnsSpoofing.rules.count),
+            ("reverse proxies", settings.reverseProxy.rules.count),
+        ]
+        return counts.map { "\($0) \($1)" }.joined(separator: ", ")
     }
 }

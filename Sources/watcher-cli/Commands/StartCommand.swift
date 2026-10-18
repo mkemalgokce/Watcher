@@ -3,6 +3,8 @@ import Foundation
 import WatcherCore
 
 struct Start: AsyncParsableCommand {
+    typealias Output = @Sendable (String) -> Void
+
     static let configuration = CommandConfiguration(abstract: "Run the proxy and print traffic live.")
 
     @Option(help: "Port to listen on (default: from settings, 9090).") var port: Int?
@@ -11,64 +13,101 @@ struct Start: AsyncParsableCommand {
     @Option(help: "Write the session to this CSV file when you press Ctrl-C.") var csv: String?
     @Flag(help: "Point the macOS system proxy at Watcher while running.") var systemProxy = false
 
+    func validate() throws {
+        try PortOption.validate(port, allowsAny: true)
+    }
+
     func run() async throws {
-        setvbuf(stdout, nil, _IOLBF, 0)
-        let engine = try WatcherEngine()
-        engine.onLog = { print("[log] \($0)") }
-        let bound = try await engine.start(port: port)
-        print("Watcher listening on 127.0.0.1:\(bound)")
+        try await run(in: .live)
+    }
+
+    func run(in environment: CLIEnvironment) async throws {
+        let output = environment.output
+        let (engine, bound) = try await environment.startEngine(port: port, decryptsHTTPS: !noDecrypt) {
+            output("[log] \($0)")
+        }
+        output("Watcher listening on 127.0.0.1:\(bound)")
+        if !systemProxy {
+            environment.restoreLeftoverSystemProxy(report: output)
+        }
         if engine.settings.value.listenOnAllInterfaces {
-            for address in LocalNetwork.ipv4Addresses() {
-                print("  reachable from devices at \(address.ip):\(bound)  (\(address.interface))")
+            for address in environment.lanAddresses() {
+                output("  reachable from devices at \(address.ip):\(bound)  (\(address.interface))")
             }
         }
-
-        if noDecrypt {
-            var settings = engine.settings.value
-            settings.sslProxying.include = []
-            await engine.apply(settings)
-        }
+        let tasks = [
+            Self.continueBreakpoints(of: engine, output: output), Self.printFinishedFlows(of: engine, output: output),
+        ]
+        // Caught before the system proxy is pointed at Watcher, so a stop from then on still puts it back.
+        let stopRequests = environment.shutdownSignal()
         if systemProxy {
-            try SystemProxy.enable(port: bound)
+            try environment.systemProxy.enable(port: bound)
         }
+        for await _ in stopRequests {
+            break
+        }
+        tasks.forEach { $0.cancel() }
+        try await shutDown(engine, in: environment)
+    }
 
-        // Headless sessions cannot edit a held message, so breakpoints just continue unchanged.
-        let breakpointTask = Task {
-            for await _ in engine.breakpoints.changes() {
+    /// Headless sessions cannot edit a held message, so breakpoints just continue unchanged.
+    private static func continueBreakpoints(
+        of engine: any EngineControlling,
+        output: @escaping Output
+    ) -> Task<Void, Never> {
+        let changes = engine.breakpoints.changes()
+        return Task {
+            for await _ in changes {
                 for hit in engine.breakpoints.pending {
-                    print("[breakpoint] \(hit.phase.rawValue) \(hit.request.method) \(hit.request.url) (continued; use the app to edit)")
-                    engine.breakpoints.resolve(hit.id, with: .proceed(request: hit.request, response: hit.response))
+                    let request = hit.request
+                    let held = "\(hit.phase.rawValue) \(request.method) \(request.url)"
+                    output("[breakpoint] \(held) (continued; use the app to edit)")
+                    engine.breakpoints.resolve(hit.id, with: .proceed(request: request, response: hit.response))
                 }
             }
         }
+    }
 
-        let interrupt = DispatchSource.makeSignalSource(signal: SIGINT)
-        signal(SIGINT, SIG_IGN)
-        interrupt.setEventHandler {
-            Task {
-                if systemProxy {
-                    try? SystemProxy.disable()
+    private static func printFinishedFlows(
+        of engine: any EngineControlling,
+        output: @escaping Output
+    ) -> Task<Void, Never> {
+        let events = engine.store.events()
+        return Task {
+            var lines = FinishedFlowLines()
+            for await event in events {
+                if let line = lines.line(for: event) {
+                    output(line)
                 }
-                if let har {
-                    try? HAR.export(engine.store.all).write(to: URL(fileURLWithPath: (har as NSString).expandingTildeInPath)); print("Saved \(har)")
-                }
-                if let csv {
-                    try? CSVExporter.export(engine.store.all).write(to: URL(fileURLWithPath: (csv as NSString).expandingTildeInPath)); print("Saved \(csv)")
-                }
-                breakpointTask.cancel()
-                try? await engine.stop()
-                Foundation.exit(0)
             }
         }
-        interrupt.resume()
+    }
 
-        var printed = Set<Flow.ID>()
-        for await event in engine.store.events() {
-            // Flows update several times (streamed headers, WebSocket messages); print each once it has finished.
-            guard case let .updated(flow) = event, flow.state != .pending, let response = flow.response, printed.insert(flow.id).inserted else { continue }
-            let milliseconds = Int((flow.duration ?? 0) * 1000)
-            let tools = flow.appliedTools.isEmpty ? "" : "  [\(flow.appliedTools.joined(separator: ", "))]"
-            print("\(flow.sequence)  \(response.status)  \(flow.request.method)  \(flow.request.url)  \(milliseconds)ms\(tools)")
+    private func shutDown(_ engine: any EngineControlling, in environment: CLIEnvironment) async throws {
+        if systemProxy {
+            try? environment.systemProxy.disable()
+        }
+        let flows = engine.store.all
+        let savedHAR = save(try HAR.export(flows), to: har, in: environment)
+        let savedCSV = save(CSVExporter.export(flows), to: csv, in: environment)
+        try? await engine.stop()
+        guard savedHAR, savedCSV else { throw ExitCode.failure }
+    }
+
+    /// False when `path` was given but could not be written.
+    private func save(
+        _ data: @autoclosure () throws -> Data,
+        to path: String?,
+        in environment: CLIEnvironment
+    ) -> Bool {
+        guard let path else { return true }
+        do {
+            try environment.files.writeAtomically(data(), environment.url(forPath: path))
+            environment.output("Saved \(path)")
+            return true
+        } catch {
+            environment.errorOutput("Could not save \(path): \(error.localizedDescription)")
+            return false
         }
     }
 }

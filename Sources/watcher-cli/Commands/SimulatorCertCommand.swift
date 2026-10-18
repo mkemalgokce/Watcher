@@ -8,9 +8,12 @@ struct SimulatorCert: ParsableCommand {
     @Option(help: "`booted`, `all` or a simulator UDID.") var device = "booted"
 
     func run() throws {
-        let authority = try CertificateAuthority(directory: WatcherPaths.supportDirectory)
-        _ = authority
-        try SimulatorCertificate.install(certificate: WatcherPaths.supportDirectory.appendingPathComponent("watcher-ca.pem"), device: device)
-        print("Installed in \(device)")
+        try run(in: .live)
+    }
+
+    func run(in environment: CLIEnvironment) throws {
+        let certificate = try environment.certificateAuthority().certificateURL
+        try SimulatorCertificate.install(certificate: certificate, device: device, run: environment.xcrun)
+        environment.output("Installed in \(device)")
     }
 }

@@ -1,4 +1,5 @@
 import Observation
+import WatcherCore
 
 /// What the General settings pane says about the listener and the port, the login item macOS owns, and the website
 /// icon switch.
