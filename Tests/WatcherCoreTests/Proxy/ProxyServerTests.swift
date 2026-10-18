@@ -31,6 +31,21 @@ struct ProxyServerTests {
     }
 
     @Test
+    func reapplyingUnchangedSettingsKeepsTheUpstreamClients() async throws {
+        let server = ProxyServer(authority: nil)
+        let settings = WatcherSettings()
+        func apply() {
+            server.updatePolicies(settings)
+            server.updateUpstream(external: settings.externalProxy, pac: nil, dnsRules: [], certificates: [])
+        }
+        apply()
+        let first = server.upstream.client(for: .fixture(host: "a.test"))
+        apply()
+        #expect(server.upstream.client(for: .fixture(host: "a.test")) === first)
+        try await server.stop()
+    }
+
+    @Test
     func anEventStreamIsStreamedWhateverItsLength() {
         let headers: HTTPHeaders = ["Content-Type": "text/event-stream", "Content-Length": "1"]
         #expect(ProxyServer.shouldStream(HTTPClientResponse(status: .ok, headers: headers)))

@@ -22,10 +22,13 @@ final class UpstreamClients: UpstreamSending, @unchecked Sendable {
 
     func update(external: ExternalProxySettings, pac: PACEvaluator?, dnsRules: [DNSSpoofRule], clientCertificates: [CustomCertificateRule]) {
         Self.shutDown(lock.withLock {
+            let changed = external != self.external || pac !== self.pac
+                || dnsRules != spoofs || clientCertificates != self.clientCertificates
             self.external = external; self.pac = pac
             bypass = HostList(["localhost", "127.0.0.1", "::1"] + external.bypass)
             spoofs = dnsRules; self.clientCertificates = clientCertificates
-            return takeCachedLocked()
+            // Shutting a client down cancels its requests in flight, so only a real change replaces them.
+            return changed ? takeCachedLocked() : []
         })
     }
 

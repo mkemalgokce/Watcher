@@ -87,15 +87,17 @@ public final class ProxyServer: @unchecked Sendable {
         let path = settings.tlsKeyLogFile.trimmingCharacters(in: .whitespaces)
         let sink: KeyLogFile? = lock.withLock { keyLogPath == path ? keyLog : nil }
         let activeSink = sink ?? (path.isEmpty ? nil : KeyLogFile(path: path))
-        lock.withLock {
+        let keyLogChanged = lock.withLock {
             preferHTTP2 = settings.preferHTTP2; accessControl = settings.accessControl.compile()
             autoIgnorePinning = settings.autoIgnoreSSLPinning; markModified = settings.markModifiedTraffic
-            if keyLogPath != path {
-                keyLog = activeSink; keyLogPath = path
-            }
+            defer { keyLog = activeSink; keyLogPath = path }
+            return keyLogPath != path
         }
+        // The authority outlives this server, so it always takes the current sink.
         authority?.setKeyLog(activeSink?.callback)
-        upstream.setKeyLog(activeSink?.callback)
+        if keyLogChanged {
+            upstream.setKeyLog(activeSink?.callback)
+        }
     }
 
     func allowsClient(_ channel: Channel) -> Bool {
