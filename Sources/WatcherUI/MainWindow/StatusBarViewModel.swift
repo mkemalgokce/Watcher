@@ -56,7 +56,7 @@ struct StatusBarViewModel {
     }
 
     var activeTools: [String] {
-        ToolsView.Tool.activeNames(in: settings.value)
+        ToolPage.activeNames(in: settings.value)
     }
 
     var toolsText: String {

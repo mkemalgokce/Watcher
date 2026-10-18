@@ -25,7 +25,7 @@ extension RuleSet {
     }
 }
 
-extension ToolsView.Tool {
+extension ToolPage {
     /// The tools that change traffic, in the order the status bar names them; the others only inspect it.
     private static let changingTraffic: [Self] = [
         .mapLocal, .mapRemote, .block, .allow, .breakpoint, .scripting, .dns, .reverse, .throttling, .externalProxy,

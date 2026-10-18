@@ -124,8 +124,11 @@ private struct RuleRow: View {
         HStack(spacing: 8) {
             Toggle("Enabled", isOn: $rule.isEnabled).toggleStyle(.switch).controlSize(.mini).labelsHidden()
             VStack(alignment: .leading, spacing: 1) {
-                Text(rule.name.isEmpty ? "Untitled" : rule.name).lineLimit(1)
-                Text(rule.matching.pattern).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                Text(rule.displayName).lineLimit(1)
+                if !rule.name.isEmpty {
+                    Text(rule.matching.pattern).font(.caption.monospaced()).foregroundStyle(.secondary)
+                        .lineLimit(1).truncationMode(.middle)
+                }
             }
             .opacity(rule.isEnabled ? 1 : 0.5)
             .help("Stops the \(rule.phaseSummary)")

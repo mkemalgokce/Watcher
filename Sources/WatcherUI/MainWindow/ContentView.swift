@@ -95,7 +95,7 @@ private struct WatcherToolbar: ToolbarContent {
                 .help("Remove every request from the list; Undo brings them back (⌘K)")
         }
         ToolbarItemGroup(placement: .primaryAction) {
-            let activeTools = ToolsView.Tool.activeRuleCount(in: model.settings.value)
+            let activeTools = ToolPage.activeRuleCount(in: model.settings.value)
             Button { router.show(.breakpoints) } label: {
                 Label("Breakpoints", systemImage: breakpoints.hits.isEmpty ? "pause.circle" : "pause.circle.fill")
             }

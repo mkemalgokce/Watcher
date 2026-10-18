@@ -18,11 +18,11 @@ extension ViewModelTextSnapshotTests {
                 ReverseProxyRule(localPort: 9191, remoteHost: "example.com"),
             ])
             let tools = model.toolsViewModel()
-            var lines = ToolsView.Tool.groups.flatMap { title, group in
+            var lines = ToolPage.groups.flatMap { title, group in
                 ["[\(title)]"] + group.map { "\($0.rawValue): \(tools.summary($0))" }
             }
-            lines.append("status bar: " + ToolsView.Tool.activeNames(in: model.settings.value).joined(separator: ", "))
-            lines.append("toolbar badge: \(ToolsView.Tool.activeRuleCount(in: model.settings.value))")
+            lines.append("status bar: " + ToolPage.activeNames(in: model.settings.value).joined(separator: ", "))
+            lines.append("toolbar badge: \(ToolPage.activeRuleCount(in: model.settings.value))")
             assertSnapshot(of: lines.joined(separator: "\n"), as: .lines)
         }
     }

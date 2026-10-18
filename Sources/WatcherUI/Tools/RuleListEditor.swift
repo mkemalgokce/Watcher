@@ -3,7 +3,7 @@ import WatcherCore
 
 /// Title, what the tool does, and its master switch.
 struct ToolHeader<Accessory: View>: View {
-    let tool: ToolsView.Tool
+    let tool: ToolPage
     @ViewBuilder var accessory: Accessory
 
     var body: some View {
@@ -23,7 +23,7 @@ struct ToolHeader<Accessory: View>: View {
 }
 
 extension ToolHeader where Accessory == AnyView {
-    init(tool: ToolsView.Tool, isOn: Binding<Bool>) {
+    init(tool: ToolPage, isOn: Binding<Bool>) {
         self.tool = tool
         accessory = AnyView(Toggle("Turn \(tool.rawValue) on", isOn: isOn).toggleStyle(.switch).labelsHidden()
             .help(isOn.wrappedValue ? "On: rules below take effect" : "Off: rules are kept but do nothing"))
@@ -32,7 +32,7 @@ extension ToolHeader where Accessory == AnyView {
 
 /// Master switch, a compact list of rules on the left and the selected rule's fields on the right.
 struct RuleListEditor<Rule: ToolRule, Row: View>: View {
-    let tool: ToolsView.Tool
+    let tool: ToolPage
     @Binding var set: RuleSet<Rule>
     /// One line that identifies a rule in the list.
     let title: (Rule) -> String
