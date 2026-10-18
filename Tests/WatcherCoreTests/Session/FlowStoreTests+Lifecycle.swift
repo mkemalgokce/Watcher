@@ -57,3 +57,51 @@ extension FlowStoreTests {
         }
     }
 }
+
+private func removedID(_ events: inout AsyncStream<FlowEvent>.Iterator) async -> UUID? {
+    guard case let .removed(id)? = await events.next() else { return nil }
+    return id
+}
+
+extension FlowStoreTests.Lifecycle {
+    @Test
+    func loweringTheLimitTrimsAtOnceAndPublishesWhatWasDropped() async {
+        let store = FlowStore()
+        let flows = (1 ... 5).map { store.begin(.fixture(path: "/\($0)")) }
+        var events = store.events().makeAsyncIterator()
+        store.maxFlows = 3
+        #expect(store.all.map(\.request.path) == ["/3", "/4", "/5"])
+        #expect(await removedID(&events) == flows[0].id)
+        #expect(await removedID(&events) == flows[1].id)
+    }
+
+    @Test
+    func raisingOrClearingTheLimitDropsNothing() {
+        let store = FlowStore()
+        store.maxFlows = 2
+        _ = (1 ... 2).map { store.begin(.fixture(path: "/\($0)")) }
+        store.maxFlows = 10
+        store.maxFlows = 0
+        store.maxFlows = -4
+        #expect(store.all.count == 2)
+    }
+
+    @Test
+    func discardingAnUnknownFlowPublishesNothing() async {
+        let store = FlowStore()
+        let kept = store.begin(.fixture())
+        var events = store.events().makeAsyncIterator()
+        store.discard(UUID())
+        store.discard(kept.id)
+        #expect(await removedID(&events) == kept.id)
+    }
+
+    @Test
+    func aFlowBegunWhilePausedStillTakesASequenceNumber() {
+        let store = FlowStore()
+        store.isRecording = false
+        _ = store.begin(.fixture())
+        store.isRecording = true
+        #expect(store.begin(.fixture()).sequence == 2)
+    }
+}

@@ -9,7 +9,10 @@ public final class WatcherEngine: @unchecked Sendable {
     public let workspaces: WorkspaceStore
 
     /// Receives script `console.log` output and non-fatal problems (e.g. a busy reverse-proxy port).
-    public var onLog: @Sendable (String) -> Void = { _ in }
+    public var onLog: @Sendable (String) -> Void {
+        get { lock.withLock { logHandler } }
+        set { lock.withLock { logHandler = newValue } }
+    }
 
     /// False tunnels all HTTPS untouched whatever the stored settings say, without changing them; set it before `start`.
     public var decryptsHTTPS = true
@@ -18,6 +21,8 @@ public final class WatcherEngine: @unchecked Sendable {
     private let lock = NSLock()
     private var server: ProxyServer?
     private var bound: Int?
+    private var logHandler: @Sendable (String) -> Void = { _ in }
+    private var hostsReportedAbandoned: Set<String> = []
     /// The last queued start, stop or apply; each one waits for it, so they never interleave.
     private var lastStep: Task<Void, Never>?
     private var watcher: Task<Void, Never>?
@@ -66,12 +71,29 @@ public final class WatcherEngine: @unchecked Sendable {
         }
     }
 
+    /// Once per host, so clients that never trust the CA do not flood the log.
+    private func reportAbandonedHandshake(of host: String) {
+        guard lock.withLock({ hostsReportedAbandoned.insert(host).inserted }) else { return }
+        onLog("\(host) abandoned the TLS handshake")
+    }
+
     private func startNow(port: Int?, pac: PACEvaluator?) async throws -> Int {
         // A stopped ProxyServer cannot be restarted, so every start gets a fresh one.
         let server = makeServer(store, authority)
         let current = settings.value
         let host = Self.listenHost(for: current)
         let wanted = port ?? current.port
+        server.onPinningSuspected = { [weak self] host in
+            Task {
+                try? await self?.updateSettings {
+                    if !$0.sslProxying.exclude.contains(host) {
+                        $0.sslProxying.exclude.append(host)
+                    }
+                }
+                self?.onLog("\(host) rejected Watcher's certificate (pinning?); it is no longer decrypted")
+            }
+        }
+        server.onHandshakeAbandoned = { [weak self] in self?.reportAbandonedHandshake(of: $0) }
         let bound: Int
         do {
             do {
@@ -84,16 +106,6 @@ public final class WatcherEngine: @unchecked Sendable {
             throw error
         }
         lock.withLock { self.server = server; self.bound = bound }
-        server.onPinningSuspected = { [weak self] host in
-            Task {
-                try? await self?.updateSettings {
-                    if !$0.sslProxying.exclude.contains(host) {
-                        $0.sslProxying.exclude.append(host)
-                    }
-                }
-                self?.onLog("\(host) rejected Watcher's certificate (pinning?); it is no longer decrypted")
-            }
-        }
         appliedReverseProxies = nil; appliedSocks = nil
         await applyNow(settings.value, pac: pac)
         watcher = Task { [weak self, sleep] in
@@ -230,19 +242,8 @@ public final class WatcherEngine: @unchecked Sendable {
         let seconds = timeout ?? settings.value.composeTimeoutSeconds
         var response = await server.process(current, timeout: seconds)
         for _ in 0 ..< 10 where followRedirects {
-            guard [301, 302, 303, 307, 308].contains(response.status),
-                  let location = response.headers.value(for: "location"),
-                  let target = URL(string: location, relativeTo: URL(string: current.url)),
-                  let components = URLComponents(url: target.absoluteURL, resolvingAgainstBaseURL: true), let host = components.host else { break }
-            let scheme = components.scheme ?? current.scheme
-            let changesMethod = response.status == 303 || ((response.status == 301 || response.status == 302) && current.method == "POST")
-            current = RequestRecord(
-                method: changesMethod ? "GET" : current.method, scheme: scheme, host: host,
-                port: components.port ?? RequestRecord.defaultPort(for: scheme),
-                path: (components.percentEncodedPath.isEmpty ? "/" : components.percentEncodedPath) + (components.percentEncodedQuery.map { "?\($0)" } ?? ""),
-                headers: current.headers.filter { $0.name.lowercased() != "host" && !(changesMethod && $0.name.lowercased().hasPrefix("content-")) },
-                body: changesMethod ? Data() : current.body
-            )
+            guard let next = RedirectHop.next(after: response, from: current) else { break }
+            current = next
             response = await server.process(current, timeout: seconds)
         }
         return response

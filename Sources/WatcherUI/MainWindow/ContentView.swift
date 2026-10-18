@@ -104,7 +104,7 @@ private struct WatcherToolbar: ToolbarContent {
             )
             Button { router.show(.tools) } label: { Label("Tools", systemImage: "wrench.and.screwdriver") }
                 .badge(activeTools)
-                .help(activeTools > 0 ? "\(activeTools) tool rules are changing traffic (⌘T)" : "Map Local, Block List, Scripting and the other tools (⌘T)")
+                .help(StatusBarText.toolRulesHelp(activeTools))
         }
         ToolbarItem(placement: .primaryAction) {
             Menu {

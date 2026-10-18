@@ -41,6 +41,6 @@ struct ShortcutTests {
                 missing.append(symbol)
             }
         }
-        #expect(missing == [], "Add these to Shortcut.groups in HelpView.swift")
+        #expect(missing == [], "Add these to Shortcut.groups in Shortcut.swift")
     }
 }

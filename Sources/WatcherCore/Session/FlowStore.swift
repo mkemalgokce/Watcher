@@ -33,7 +33,12 @@ public final class FlowStore: @unchecked Sendable {
     /// Oldest requests are dropped beyond this many; 0 keeps everything.
     public var maxFlows: Int {
         get { lock.withLock { _maxFlows } }
-        set { lock.withLock { _maxFlows = max(0, newValue) } }
+        set {
+            lock.withLock {
+                _maxFlows = max(0, newValue)
+                trimLocked().forEach { publishLocked(.removed($0)) }
+            }
+        }
     }
 
     public var all: [Flow] {
@@ -106,8 +111,9 @@ public final class FlowStore: @unchecked Sendable {
     /// One pass over the order for any number of flows; removing them one by one was quadratic for a large selection.
     public func discard(_ ids: Set<UUID>) {
         lock.withLock {
-            ids.forEach { flows.removeValue(forKey: $0) }; order.removeAll { ids.contains($0) }
-            ids.forEach { publishLocked(.removed($0)) }
+            let existing = ids.filter { flows.removeValue(forKey: $0) != nil }
+            order.removeAll { ids.contains($0) }
+            existing.forEach { publishLocked(.removed($0)) }
         }
     }
 

@@ -11,10 +11,8 @@ extension StartCommandTests {
         @Test
         func theSystemProxyPointsAtTheBoundPortUntilTheProxyStops() async throws {
             let log = LockedBox<[String]>([])
-            let networkSetup = NetworkSetupSpy()
-            let commands = CommandRunnerSpy(respond: { command in
+            let commands = CommandRunnerSpy.networkSetup(onRun: { command in
                 log.mutate { $0.append(command.arguments[0]) }
-                return CommandResult(status: 0, output: Data(networkSetup.run(command.arguments).utf8))
             })
             let cli = CLIHarness(commands: commands, engine: { EngineFake(settings: $0, log: log) })
 
@@ -67,12 +65,10 @@ extension StartCommandTests {
         @Test
         func aStopRequestedWhileTheSystemProxyIsBeingSetStillPutsItBack() async throws {
             let shutdown = ShutdownTrigger()
-            let networkSetup = NetworkSetupSpy()
-            let commands = CommandRunnerSpy(respond: { command in
+            let commands = CommandRunnerSpy.networkSetup(onRun: { command in
                 if command.arguments[0] == "-setwebproxy" {
                     shutdown.fire()
                 }
-                return CommandResult(status: 0, output: Data(networkSetup.run(command.arguments).utf8))
             })
             let cli = CLIHarness(commands: commands, shutdown: shutdown)
 
@@ -80,6 +76,32 @@ extension StartCommandTests {
 
             #expect(cli.commands.calls.last == "networksetup -setsecurewebproxystate Wi-Fi off")
             #expect(!cli.files.paths.contains(cli.supportFile("system-proxy-backup.json")))
+            #expect(cli.engine.calls == ["start any", "stop"])
+        }
+
+        private func failing(_ argument: String) -> CLIHarness {
+            CLIHarness(commands: .networkSetup(failing: argument))
+        }
+
+        @Test
+        func aSystemProxyThatFailsHalfwayIsPutBackAndTheEngineStopped() async throws {
+            let cli = failing("-setsecurewebproxy")
+
+            await #expect(throws: (any Error).self) { try await StartCommandTests.run(["--system-proxy"], in: cli) }
+
+            #expect(cli.commands.calls.contains("networksetup -setwebproxystate Wi-Fi off"))
+            #expect(cli.commands.calls.last == "networksetup -setsecurewebproxystate Wi-Fi off")
+            #expect(!cli.files.paths.contains(cli.supportFile("system-proxy-backup.json")))
+            #expect(cli.engine.calls == ["start any", "stop"])
+        }
+
+        @Test
+        func aSystemProxyThatFailsBeforeChangingAnythingStillStopsTheEngine() async throws {
+            let cli = failing("-listallnetworkservices")
+
+            await #expect(throws: (any Error).self) { try await StartCommandTests.run(["--system-proxy"], in: cli) }
+
+            #expect(!cli.commands.calls.contains { $0.contains("-set") })
             #expect(cli.engine.calls == ["start any", "stop"])
         }
 
@@ -109,11 +131,9 @@ extension StartCommandTests {
         func aSessionThatCannotBeSavedIsReportedAndFailsTheCommand() async throws {
             let cli = CLIHarness()
             cli.files.fail(.writeAtomically)
-            let command = try Start.parse(["--har", "/tmp/s.har", "--csv", "/tmp/s.csv"])
-            let running = Task { [environment = cli.environment] in try await command.run(in: environment) }
-            #expect(await eventually(timeout: 30) { cli.shutdown.isAwaited })
-            cli.shutdown.fire()
-            await #expect(throws: ExitCode.failure) { try await running.value }
+            await #expect(throws: ExitCode.failure) {
+                try await StartCommandTests.run(["--har", "/tmp/s.har", "--csv", "/tmp/s.csv"], in: cli)
+            }
             #expect(!cli.printed.contains { $0.hasPrefix("Saved") })
             #expect(cli.printedToErrorOutput.count == 2)
             #expect(cli.printedToErrorOutput.allSatisfy { $0.hasPrefix("Could not save /tmp/s.") })
@@ -123,12 +143,7 @@ extension StartCommandTests {
         @Test
         func aSecondCtrlCDuringShutdownDoesNotShutDownAgain() async throws {
             let cli = CLIHarness()
-            let command = try Start.parse(["--csv", "/tmp/s.csv"])
-            let running = Task { [environment = cli.environment] in try await command.run(in: environment) }
-            #expect(await eventually(timeout: 30) { cli.shutdown.isAwaited })
-            cli.shutdown.fire()
-            cli.shutdown.fire()
-            try await running.value
+            try await StartCommandTests.run(["--csv", "/tmp/s.csv"], in: cli, ctrlC: 2)
             #expect(cli.engine.calls == ["start any", "stop"])
             #expect(cli.printed.filter { $0.hasPrefix("Saved") } == ["Saved /tmp/s.csv"])
         }

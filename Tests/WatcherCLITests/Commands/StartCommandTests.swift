@@ -42,21 +42,32 @@ struct StartCommandTests {
     }
 
     /// Runs `start` until it waits for Ctrl-C, then runs `whileRunning`, waits for `until`, and presses Ctrl-C.
+    /// Runs `start` until it waits for Ctrl-C (or ends by itself), then presses Ctrl-C `ctrlC` times.
     static func run(
         _ arguments: [String],
         in cli: CLIHarness,
+        ctrlC: Int = 1,
         until done: @escaping () -> Bool = { true },
         whileRunning: () -> Void = {}
     ) async throws {
         let command = try Start.parse(arguments)
         let environment = cli.environment
-        let running = Task { try await command.run(in: environment) }
-        let waiting = await eventually(timeout: 30) { cli.shutdown.isAwaited }
+        let ended = LockedBox(false)
+        let running = Task {
+            defer { ended.mutate { $0 = true } }
+            try await command.run(in: environment)
+        }
+        let waiting = await eventually(timeout: 30) { cli.shutdown.isAwaited || ended.value }
+        if !waiting {
+            running.cancel()
+        }
+        try #require(waiting, "start never waited for Ctrl-C: \(cli.printed)")
         whileRunning()
         let finished = await eventually(timeout: 30, done)
-        cli.shutdown.fire()
+        for _ in 0 ..< ctrlC {
+            cli.shutdown.fire()
+        }
         try await running.value
-        #expect(waiting, "start never waited for Ctrl-C")
         #expect(finished, "start never got there: \(cli.printed)")
     }
 }

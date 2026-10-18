@@ -10,11 +10,10 @@ enum WatcherCLIRun {
         input: String? = nil,
         includingErrorOutput: Bool = false
     ) throws -> CommandResult {
-        let environment = ProcessInfo.processInfo.environment.merging(["WATCHER_HOME": home.path]) { $1 }
         let command = try Command(
             executable: WatcherCLIBinary.locate(),
             arguments: arguments,
-            environment: environment,
+            environment: WatcherCLIBinary.environment(home: home),
             input: input.map { Data($0.utf8) },
             timeout: 30,
             mergesErrorOutput: includingErrorOutput

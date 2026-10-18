@@ -28,9 +28,9 @@ struct KeyValueEditor: View {
                     .help("Edit as text, one “name: value” per line")
                     .onChange(of: bulk) { _, on in
                         if on {
-                            bulkText = rows.filter { $0.file == nil }.map { "\($0.isEnabled ? "" : "// ")\($0.name): \($0.value)" }.joined(separator: "\n")
+                            bulkText = BulkKeyValueText.text(for: rows)
                         } else {
-                            rows = Self.parse(bulkText) + rows.filter { $0.file != nil }
+                            rows = BulkKeyValueText.apply(bulkText, to: rows)
                         }
                     }
             }
@@ -73,21 +73,6 @@ struct KeyValueEditor: View {
                     Button("Add", systemImage: "plus.circle") { rows.append(KeyValue()) }.buttonStyle(.borderless).frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-        }
-    }
-
-    /// `Name: value` lines (or `name=value` for forms); `//` keeps a row switched off.
-    static func parse(_ text: String) -> [KeyValue] {
-        text.components(separatedBy: "\n").compactMap { raw in
-            var line = raw.trimmingCharacters(in: .whitespaces)
-            guard !line.isEmpty else { return nil }
-            let enabled = !line.hasPrefix("//")
-            if !enabled {
-                line = String(line.dropFirst(2)).trimmingCharacters(in: .whitespaces)
-            }
-            let separator = line.firstIndex(of: ":") ?? line.firstIndex(of: "=")
-            guard let separator else { return KeyValue(line, "", isEnabled: enabled) }
-            return KeyValue(line[..<separator].trimmingCharacters(in: .whitespaces), line[line.index(after: separator)...].trimmingCharacters(in: .whitespaces), isEnabled: enabled)
         }
     }
 

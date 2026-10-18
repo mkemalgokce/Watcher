@@ -27,6 +27,19 @@ public final class CommandRunnerSpy: @unchecked Sendable {
         self.respond = respond
     }
 
+    /// Answers like `networksetup` through `spy`, exiting 1 for the subcommand named `failing`.
+    public static func networkSetup(
+        _ spy: NetworkSetupSpy = NetworkSetupSpy(),
+        failing subcommand: String? = nil,
+        onRun: @escaping @Sendable (Command) -> Void = { _ in }
+    ) -> CommandRunnerSpy {
+        CommandRunnerSpy(respond: { command in
+            onRun(command)
+            let failed = command.arguments.first == subcommand
+            return CommandResult(status: failed ? 1 : 0, output: Data(spy.run(command.arguments).utf8))
+        })
+    }
+
     public var commands: [Command] {
         lock.withLock { recorded }
     }

@@ -17,3 +17,21 @@ public final class TemporaryDirectory {
         try? FileManager.default.removeItem(at: url)
     }
 }
+
+/// Keeps the directory alive for the whole body, even when the body only touches URLs derived from it.
+public func withTemporaryDirectory<R>(
+    prefix: String = "watcher-test",
+    _ body: (TemporaryDirectory) throws -> R
+) throws -> R {
+    let directory = try TemporaryDirectory(prefix: prefix)
+    return try withExtendedLifetime(directory) { try body(directory) }
+}
+
+public func withTemporaryDirectory<R>(
+    prefix: String = "watcher-test",
+    _ body: (TemporaryDirectory) async throws -> R
+) async throws -> R {
+    let directory = try TemporaryDirectory(prefix: prefix)
+    defer { withExtendedLifetime(directory) {} }
+    return try await body(directory)
+}

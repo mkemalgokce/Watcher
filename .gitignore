@@ -11,3 +11,4 @@ coverage.lcov
 graphify-out/
 dist/
 .tools/
+*.profraw

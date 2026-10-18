@@ -5,8 +5,8 @@ import WatcherTestSupport
 
 @Suite(.tags(.unit))
 struct MCPServerTests {
-    private let engine: WatcherEngine
-    private let server: MCPServer
+    let engine: WatcherEngine
+    let server: MCPServer
 
     init() throws {
         engine = try WatcherEngine.inMemory()
@@ -86,19 +86,28 @@ struct MCPServerTests {
         #expect(status == "running: false, port: -, requests captured: 0, lan: 192.168.1.5, 10.0.0.2")
     }
 
-    private func callTool(_ name: String, arguments: String) async throws -> [String: Any] {
+    func callTool(_ name: String, arguments: String) async throws -> [String: Any] {
         try await json(server.handle(
             #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"\#(name)","arguments":\#(arguments)}}"#
         ))
     }
 
-    private func json(_ line: String?) throws -> [String: Any] {
+    func json(_ line: String?) throws -> [String: Any] {
         let reply = try #require(line)
         return try #require(JSONSerialization.jsonObject(with: Data(reply.utf8)) as? [String: Any])
     }
 
-    private func text(of reply: [String: Any]) -> String {
+    func text(of reply: [String: Any]) -> String {
         let content = (reply["result"] as? [String: Any])?["content"] as? [[String: Any]]
         return (content?.first?["text"] as? String) ?? ""
+    }
+}
+
+extension MCPServerTests {
+    @Test
+    func theCertificateStatusReportsTheEnginesOwnCertificate() async throws {
+        let status = try await text(of: callTool("get_certificate_status", arguments: "{}"))
+        #expect(status == engine.authority.certificateURL.path)
+        #expect(status.hasPrefix("/fake-home/"))
     }
 }

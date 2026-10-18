@@ -50,6 +50,28 @@ struct BreakpointsViewModelTests {
     }
 
     @Test
+    func aNewPauseIsAnnouncedEvenWhenAnotherWasReleasedInTheSameChange() {
+        let breakpoints = viewModel()
+        let first = hit("/a"), second = hit("/b")
+        breakpoints.changed([first])
+        notices.dismiss()
+        breakpoints.changed([second])
+        #expect(notices.notice?.message == "1 paused at a breakpoint. Review with ⌘B, or remove the breakpoint there.")
+        #expect(breakpoints.hits.map(\.id) == [second.id])
+    }
+
+    @Test
+    func releasingSomePausesAnnouncesNothing() {
+        let breakpoints = viewModel()
+        let first = hit("/a"), second = hit("/b")
+        breakpoints.changed([first, second])
+        notices.dismiss()
+        breakpoints.changed([second])
+        breakpoints.changed([second])
+        #expect(notices.notice == nil)
+    }
+
+    @Test
     func theListFollowsTheCenter() async {
         let breakpoints = viewModel()
         breakpoints.observe()

@@ -17,6 +17,13 @@ extension RequestRecordTests {
             #expect(RequestRecord.fixture(scheme: scheme, host: "h", port: port, path: "/p").url == url)
         }
 
+        @Test(arguments: [
+            ("::1", "https://[::1]/p"), ("fe80::1", "https://[fe80::1]/p"), ("a.test", "https://a.test/p"),
+        ])
+        func anIPv6HostIsBracketedInTheURL(host: String, url: String) {
+            #expect(RequestRecord.fixture(host: host, path: "/p").url == url)
+        }
+
         @Test(arguments: [("https", 443), ("wss", 443), ("http", 80), ("ws", 80), ("", 80)])
         func theDefaultPortIs443ForTLSSchemesAnd80Otherwise(scheme: String, port: Int) {
             #expect(RequestRecord.defaultPort(for: scheme) == port)

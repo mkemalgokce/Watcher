@@ -14,14 +14,19 @@ public final class UpstreamStub: UpstreamSending, @unchecked Sendable {
 
     private let lock = NSLock()
     private var recorded: [Sent] = []
-    private let response: @Sendable () -> HTTPClientResponse
+    private let response: @Sendable (RequestRecord) -> HTTPClientResponse
     private let failure: (any Error)?
 
     public init(
         response: @escaping @Sendable () -> HTTPClientResponse = { HTTPClientResponse(status: .ok) },
         failure: (any Error)? = nil
     ) {
-        self.response = response; self.failure = failure
+        self.response = { _ in response() }; self.failure = failure
+    }
+
+    /// Answers each request by looking at it, for a script of redirects.
+    public init(answering response: @escaping @Sendable (RequestRecord) -> HTTPClientResponse) {
+        self.response = response; failure = nil
     }
 
     public var sent: [Sent] {
@@ -37,6 +42,6 @@ public final class UpstreamStub: UpstreamSending, @unchecked Sendable {
         if let failure {
             throw failure
         }
-        return response()
+        return response(record)
     }
 }

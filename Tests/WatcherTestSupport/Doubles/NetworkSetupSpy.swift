@@ -4,12 +4,22 @@ import Foundation
 /// one service, Wi-Fi, whose proxies are off.
 public final class NetworkSetupSpy: @unchecked Sendable {
     private let delay: TimeInterval
+    private let gate = DispatchGroup()
     private let lock = NSLock()
     private var calls: [(arguments: [String], onMain: Bool)] = []
 
     /// A real write takes about 0.1 s; pass that as `delay` to check a caller does not wait for it.
     public init(delay: TimeInterval = 0) {
         self.delay = delay
+    }
+
+    /// Makes every call wait until `release()`, to check a caller does not wait for it. A call gives up after 30 s.
+    public func hold() {
+        gate.enter()
+    }
+
+    public func release() {
+        gate.leave()
     }
 
     public var arguments: [[String]] {
@@ -22,6 +32,7 @@ public final class NetworkSetupSpy: @unchecked Sendable {
 
     public func run(_ arguments: [String]) -> String {
         lock.withLock { calls.append((arguments, Thread.isMainThread)) }
+        _ = gate.wait(timeout: .now() + 30)
         Thread.sleep(forTimeInterval: delay)
         switch arguments.first {
         case "-listallnetworkservices": return "An asterisk (*) denotes a disabled service.\nWi-Fi\n"

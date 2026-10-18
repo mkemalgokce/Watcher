@@ -12,7 +12,7 @@ public struct RequestRecord: Codable, Equatable, Sendable {
     public var clientApp: String?
 
     public var url: String {
-        "\(scheme)://\(host)\(usesDefaultPort ? "" : ":\(port)")\(path)"
+        "\(scheme)://\(host.contains(":") ? "[\(host)]" : host)\(usesDefaultPort ? "" : ":\(port)")\(path)"
     }
 
     /// What clients assume when a URL names no port.

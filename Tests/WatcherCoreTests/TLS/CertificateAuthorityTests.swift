@@ -87,6 +87,8 @@ struct CertificateAuthorityTests {
 
     @Test(arguments: [
         ("192.168.1.5", GeneralName.ipAddress(.init(contentBytes: [192, 168, 1, 5]))),
+        ("::1", GeneralName.ipAddress(.init(contentBytes: zeros(15) + [1]))),
+        ("fe80::1:2", GeneralName.ipAddress(.init(contentBytes: [0xFE, 0x80] + zeros(10) + [0, 1, 0, 2]))),
         ("api.example.com", GeneralName.dnsName("api.example.com")),
         ("1.2.3", GeneralName.dnsName("1.2.3")),
     ])
@@ -104,4 +106,8 @@ struct CertificateAuthorityTests {
         authority.setKeyLog(nil)
         #expect(try authority.serverContext(for: "a.test") !== first)
     }
+}
+
+private func zeros(_ count: Int) -> [UInt8] {
+    [UInt8](repeating: 0, count: count)
 }

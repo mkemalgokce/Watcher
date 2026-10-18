@@ -90,4 +90,14 @@ struct UpstreamClientsTests {
             #expect(clients.client(for: .fixture(host: "a.test")) !== first)
         }
     }
+
+    @Test(arguments: 0 ..< 20)
+    func stoppingRightAfterASettingsChangeNeverLeavesAClientRunning(round _: Int) async throws {
+        let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        let clients = UpstreamClients(group: group, tls: .makeClientConfiguration())
+        _ = clients.client(for: .fixture(host: "a.test"))
+        clients.update(external: Self.proxy, pac: nil, dnsRules: [], clientCertificates: [])
+        await clients.shutdown()
+        try await group.shutdownGracefully()
+    }
 }

@@ -77,11 +77,10 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
     // MARK: CONNECT
 
     private func connect(_ context: ChannelHandlerContext, _ head: HTTPRequestHead) {
-        let parts = head.uri.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
-        guard let host = parts.first.map(String.init), !host.isEmpty else {
+        guard let target = HostPort(head.uri, defaultPort: 443) else {
             return writer.respond(400, "Bad CONNECT target", to: context.channel, head: head)
         }
-        let port = parts.count > 1 ? Int(parts[1]) ?? 443 : 443
+        let (host, port) = (target.host, target.port)
 
         if server.shouldIntercept(host: host) {
             do {
@@ -250,7 +249,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
             scheme = url.scheme ?? "http"; host = urlHost
             port = url.port ?? RequestRecord.defaultPort(for: scheme)
             path = (url.percentEncodedPath.isEmpty ? "/" : url.percentEncodedPath) + (url.percentEncodedQuery.map { "?\($0)" } ?? "")
-        } else if let named = head.headers.first(name: "Host").flatMap(Self.hostAndPort) {
+        } else if let named = head.headers.first(name: "Host").flatMap({ HostPort($0, defaultPort: 80) }) {
             (scheme, host, port, path) = ("http", named.host, named.port, head.uri)
         } else {
             return nil
@@ -264,13 +263,6 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
             headers: headers,
             body: body
         )
-    }
-
-    /// The host and port a `Host` header names, port 80 when absent or unreadable; nil when it names no host.
-    private static func hostAndPort(_ header: String) -> (host: String, port: Int)? {
-        let parts = header.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
-        guard !parts[0].isEmpty else { return nil }
-        return (String(parts[0]), parts.count > 1 ? Int(parts[1]) ?? 80 : 80)
     }
 
     func errorCaught(context: ChannelHandlerContext, error _: Error) {
