@@ -32,8 +32,12 @@ extension AppDependencies {
     /// settings, defaults or clipboard.
     static func preview() -> AppDependencies {
         let name = "watcher-preview-\(UUID().uuidString)"
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(name)
-        let clipboard = LiveClipboard(NSPasteboard(name: .init(name)))
+        return preview(in: FileManager.default.temporaryDirectory.appendingPathComponent(name))
+    }
+
+    /// The preview wiring over `directory`, which the caller owns and removes.
+    static func preview(in directory: URL) -> AppDependencies {
+        let clipboard = LiveClipboard(NSPasteboard(name: .init(directory.lastPathComponent)))
         let engine = makeEngine(in: directory)
         return AppDependencies(
             engine: engine,
