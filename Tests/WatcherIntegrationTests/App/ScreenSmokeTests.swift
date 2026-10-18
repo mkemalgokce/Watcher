@@ -13,19 +13,17 @@ import WatcherTestSupport
 struct ScreenSmokeTests {
     private static let size = CGSize(width: 900, height: 640)
 
-    private static let screens: [(String, @MainActor (AppModel) -> AnyView)] = [
+    /// Built from the app's own sheet mapping, so a new sheet is hosted here without anyone remembering to add it.
+    private static let sheets: [(String, @MainActor (AppModel) -> AnyView)] = WindowRouter.Sheet.allCases.map { sheet in
+        ("\(sheet) sheet", { model in AnyView(SheetContent(sheet: sheet).environment(model)) })
+    }
+
+    private static let screens: [(String, @MainActor (AppModel) -> AnyView)] = sheets + [
         ("sidebar", { model in AnyView(SidebarView().environment(model)) }),
         ("flow list", { model in AnyView(FlowListView().environment(model)) }),
         ("inspector", { model in AnyView(FlowDetailView().environment(model)) }),
         ("status bar", { model in AnyView(StatusBar(viewModel: model.statusBar).environment(model)) }),
         ("notices", { model in AnyView(NoticeBanner().environment(model)) }),
-        ("tools", { model in AnyView(ToolsView().environment(model)) }),
-        ("breakpoints", { model in AnyView(BreakpointsView().environment(model)) }),
-        ("compose", { model in AnyView(ComposeView(now: model.now).environment(model)) }),
-        ("devices", { model in AnyView(DeviceSetupView().environment(model)) }),
-        ("welcome", { model in AnyView(WelcomeView().environment(model)) }),
-        ("converter", { model in AnyView(ConverterView().environment(model)) }),
-        ("help", { model in AnyView(HelpView().environment(model)) }),
         ("compare", { model in AnyView(CompareWindow().environment(model)) }),
         ("about", { model in AnyView(AboutView().environment(model)) }),
         ("settings", { model in AnyView(SettingsView().environment(model)) }),
@@ -43,10 +41,5 @@ struct ScreenSmokeTests {
         let content = try #require(window.contentView)
         content.layoutSubtreeIfNeeded()
         #expect(content.frame.size == Self.size, "\(name) laid out")
-    }
-
-    @Test
-    func everySheetTheRouterCanShowIsHostedAbove() {
-        #expect(WindowRouter.Sheet.allCases.count == 7, "add the new sheet to the screens above")
     }
 }
