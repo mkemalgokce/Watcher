@@ -13,6 +13,9 @@ final class ProxyController {
     private(set) var systemProxyOn = false
 
     @ObservationIgnored private var systemProxySwitch: Task<Void, Never>?
+    /// What the Mac's proxy will be once every queued switch has run; a click flips this, not the state in between.
+    @ObservationIgnored private var systemProxyTarget = false
+    @ObservationIgnored private var queuedSwitches = 0
     @ObservationIgnored private let runner: any ProxyRunning
     @ObservationIgnored private let systemProxy: any SystemProxying
     @ObservationIgnored private let notices: NoticeCenter
@@ -99,7 +102,11 @@ final class ProxyController {
     }
 
     func setSystemProxy(_ enabled: Bool) {
-        Task { await switchSystemProxy(enabled) }
+        queueSystemProxy(enabled)
+    }
+
+    func toggleSystemProxy() {
+        setSystemProxy(!systemProxyTarget)
     }
 
     /// A proxy setting left behind by a crashed run would cut the Mac off from the network.
@@ -121,7 +128,7 @@ final class ProxyController {
             _ = try await runner.start(port: settings.port)
             isRunning = true
             if settings.autoSystemProxy {
-                systemProxySwitch = Task { await switchSystemProxy(true) }
+                queueSystemProxy(true)
             }
             notices.notify("Recording on 127.0.0.1:\(port)", .success)
         } catch {
@@ -141,14 +148,27 @@ final class ProxyController {
         isRunning = false
         let runner = runner
         if systemProxyOn {
-            systemProxySwitch = Task {
-                await switchSystemProxy(false)
-                try? await runner.stop()
-            }
+            queueSystemProxy(false, then: { try? await runner.stop() })
         } else {
             try? await runner.stop()
         }
         notices.notify("Recording paused; the proxy is off")
+    }
+
+    /// Switches run one after the other in the order asked, so the last click decides where the setting ends up.
+    private func queueSystemProxy(_ enable: Bool, then followUp: (@Sendable () async -> Void)? = nil) {
+        systemProxyTarget = enable
+        queuedSwitches += 1
+        let previous = systemProxySwitch
+        systemProxySwitch = Task {
+            await previous?.value
+            await switchSystemProxy(enable)
+            queuedSwitches -= 1
+            if queuedSwitches == 0 {
+                systemProxyTarget = systemProxyOn
+            }
+            await followUp?()
+        }
     }
 
     /// networksetup runs once per setting and service, so it runs off the main thread to keep the window responsive.
