@@ -54,8 +54,8 @@ public enum BodyDecoder {
     }
 
     private static func decompress(_ data: Data, algorithm: compression_algorithm) -> Data? {
-        var capacity = max(64 * 1024, data.count * 8)
-        while capacity <= maxOutput {
+        var capacity = min(maxOutput, max(64 * 1024, data.count * 8))
+        while true {
             var output = [UInt8](repeating: 0, count: capacity)
             let written = data.withUnsafeBytes { source -> Int in
                 guard let base = source.bindMemory(to: UInt8.self).baseAddress else { return 0 }
@@ -67,8 +67,8 @@ public enum BodyDecoder {
             if written < capacity {
                 return Data(output[..<written])
             }
-            capacity *= 4 // output filled the buffer: it may have been cut off, retry larger
+            guard capacity < maxOutput else { return nil }
+            capacity = min(maxOutput, capacity * 4) // output filled the buffer: it may have been cut off, retry larger
         }
-        return nil
     }
 }

@@ -12,40 +12,87 @@ public enum Converter {
 
     public struct Failure: Error, CustomStringConvertible { public let description: String }
 
-    public static func run(_ operation: Operation, _ input: String) throws -> String {
+    /// `now`, `locale` and `timeZone` decide how dates are written and whether a token has expired.
+    public static func run(
+        _ operation: Operation,
+        _ input: String,
+        now: Date = Date(),
+        locale: Locale = .current,
+        timeZone: TimeZone = .current
+    ) throws -> String {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { throw Failure(description: "Enter some text first.") }
+        let dates = DateWriter(locale: locale, timeZone: timeZone)
         switch operation {
-        case .base64Decode:
-            guard let data = Base64Finder.decode(text) else { throw Failure(description: "This is not valid Base64.") }
-            return String(data: data, encoding: .utf8).map { JSONFormatter.looksLikeJSON($0) ? JSONFormatter.pretty($0) : $0 } ?? BodyFormatter.hexDump(data)
         case .base64Encode: return Data(input.utf8).base64EncodedString()
-        case .urlDecode:
-            guard let decoded = text.replacingOccurrences(of: "+", with: " ").removingPercentEncoding else { throw Failure(description: "Invalid percent-encoding.") }
-            return decoded
-        case .urlEncode: return input.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-._~"))) ?? input
-        case .hexDecode:
-            let hex = text.filter { !$0.isWhitespace && $0 != ":" }
-            guard hex.count % 2 == 0, !hex.isEmpty, hex.allSatisfy(\.isHexDigit) else { throw Failure(description: "Enter an even number of hex digits.") }
-            let bytes = stride(from: 0, to: hex.count, by: 2).map { i -> UInt8 in
-                let start = hex.index(hex.startIndex, offsetBy: i); return UInt8(hex[start ..< hex.index(start, offsetBy: 2)], radix: 16)!
-            }
-            return String(data: Data(bytes), encoding: .utf8) ?? BodyFormatter.hexDump(Data(bytes))
-        case .hexEncode: return Data(input.utf8).map { String(format: "%02x", $0) }.joined()
-        case .timestamp:
-            guard let value = Double(text) else { throw Failure(description: "Enter seconds or milliseconds since 1970.") }
-            let seconds = value > 100_000_000_000 ? value / 1000 : value // 13 digits are milliseconds
-            let date = Date(timeIntervalSince1970: seconds)
-            return "\(ISO8601DateFormatter().string(from: date))\n\(date.formatted(date: .complete, time: .standard))"
-        case .jsonPretty:
-            guard (try? JSONSerialization.jsonObject(with: Data(text.utf8), options: .fragmentsAllowed)) != nil else { throw Failure(description: "This is not valid JSON.") }
-            return JSONFormatter.pretty(text)
-        case .jsonMinify:
-            guard (try? JSONSerialization.jsonObject(with: Data(text.utf8), options: .fragmentsAllowed)) != nil else { throw Failure(description: "This is not valid JSON.") }
-            return JSONFormatter.minify(text)
-        case .jwt:
-            guard let token = JWT(text.replacingOccurrences(of: "Bearer ", with: "")) else { throw Failure(description: "This is not a JWT (three Base64 parts, a JSON header with alg).") }
-            return "// header\n\(token.header)\n\n// payload\n\(token.payload)" + (token.expiresAt.map { "\n\n// \($0 < Date() ? "expired" : "expires") \($0.formatted(date: .abbreviated, time: .standard))" } ?? "")
+        case .urlEncode: return input.addingPercentEncoding(withAllowedCharacters: unreserved) ?? input
+        case .hexEncode: return Data(input.utf8).hexDigits()
+        case .base64Decode: return try base64Decode(text)
+        case .urlDecode: return try urlDecode(text)
+        case .hexDecode: return try hexDecode(text)
+        case .jsonPretty, .jsonMinify: return try json(text, minify: operation == .jsonMinify)
+        case .timestamp: return try timestamp(text, dates: dates)
+        case .jwt: return try jwt(text, now: now, dates: dates)
         }
+    }
+
+    private struct DateWriter {
+        let locale: Locale
+        let timeZone: TimeZone
+
+        func callAsFunction(_ date: Date, _ day: Date.FormatStyle.DateStyle) -> String {
+            date.formatted(Date.FormatStyle(date: day, time: .standard, locale: locale, timeZone: timeZone))
+        }
+    }
+
+    private static let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+
+    private static func base64Decode(_ text: String) throws -> String {
+        guard let data = Base64Finder.decode(text) else { throw Failure(description: "This is not valid Base64.") }
+        guard let text = String(data: data, encoding: .utf8) else { return BodyFormatter.hexDump(data) }
+        return JSONFormatter.looksLikeJSON(text) ? JSONFormatter.pretty(text) : text
+    }
+
+    private static func urlDecode(_ text: String) throws -> String {
+        guard let decoded = text.replacingOccurrences(of: "+", with: " ").removingPercentEncoding else {
+            throw Failure(description: "Invalid percent-encoding.")
+        }
+        return decoded
+    }
+
+    private static func hexDecode(_ text: String) throws -> String {
+        let hex = text.filter { !$0.isWhitespace && $0 != ":" }
+        guard hex.count % 2 == 0, !hex.isEmpty, hex.allSatisfy(\.isHexDigit) else {
+            throw Failure(description: "Enter an even number of hex digits.")
+        }
+        let bytes = stride(from: 0, to: hex.count, by: 2).compactMap { offset -> UInt8? in
+            let start = hex.index(hex.startIndex, offsetBy: offset)
+            return UInt8(hex[start ..< hex.index(start, offsetBy: 2)], radix: 16)
+        }
+        return String(data: Data(bytes), encoding: .utf8) ?? BodyFormatter.hexDump(Data(bytes))
+    }
+
+    private static func json(_ text: String, minify: Bool) throws -> String {
+        guard (try? JSONSerialization.jsonObject(with: Data(text.utf8), options: .fragmentsAllowed)) != nil else {
+            throw Failure(description: "This is not valid JSON.")
+        }
+        return minify ? JSONFormatter.minify(text) : JSONFormatter.pretty(text)
+    }
+
+    private static func timestamp(_ text: String, dates: DateWriter) throws -> String {
+        guard let value = Double(text) else { throw Failure(description: "Enter seconds or milliseconds since 1970.") }
+        let seconds = value > 100_000_000_000 ? value / 1000 : value // 13 digits are milliseconds
+        let date = Date(timeIntervalSince1970: seconds)
+        return "\(ISO8601DateFormatter().string(from: date))\n\(dates(date, .complete))"
+    }
+
+    private static func jwt(_ text: String, now: Date, dates: DateWriter) throws -> String {
+        guard let token = JWT(text.replacingOccurrences(of: "Bearer ", with: "")) else {
+            throw Failure(description: "This is not a JWT (three Base64 parts, a JSON header with alg).")
+        }
+        let expiry = token.expiresAt.map {
+            "\n\n// \(token.isExpired(at: now) ? "expired" : "expires") \(dates($0, .abbreviated))"
+        }
+        return "// header\n\(token.header)\n\n// payload\n\(token.payload)" + (expiry ?? "")
     }
 }

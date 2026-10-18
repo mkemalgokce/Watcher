@@ -159,7 +159,11 @@ struct CharlesSettingsTests {
     private let imported: WatcherSettings
 
     init() throws {
-        imported = try CharlesSettings.importSettings(from: Data(realExport.utf8))
+        let files = FileAccessFake(directories: ["/tmp"])
+        imported = try CharlesSettings.importSettings(
+            from: Data(realExport.utf8),
+            isDirectory: files.access.isDirectory
+        )
     }
 
     @Test
@@ -188,7 +192,7 @@ struct CharlesSettingsTests {
         #expect(local.isEnabled)
         #expect(
             local.rules.map(\.source) == [.file("/tmp/users.json"), .directory("/tmp")],
-            "an existing folder becomes a directory mapping"
+            "a folder on this Mac becomes a directory mapping"
         )
         #expect(local.rules.map(\.isEnabled) == [true, false])
         #expect(local.rules[0].matching.compile().matches(.fixture(host: "api.example.com", path: "/v1/users")))
@@ -254,6 +258,25 @@ struct CharlesSettingsTests {
         let empty = try CharlesSettings.importSettings(from: configuration(entry: "Block List", "<blacklist />"))
         #expect(!empty.blockList.isEnabled); #expect(empty.blockList.rules.isEmpty)
         #expect(throws: (any Error).self) { try CharlesSettings.importSettings(from: Data("not xml <<<".utf8)) }
+    }
+
+    @Test(arguments: [
+        ("/mocks", ["/mocks"], .directory("/mocks")),
+        ("/mocks", [], .file("/mocks")),
+        ("~/mocks", [NSString(string: "~/mocks").expandingTildeInPath], .directory("~/mocks")),
+    ] as [(String, Set<String>, MapLocalRule.Source)])
+    func aDestinationIsADirectoryOnlyWhenThisMacHasThatFolder(
+        dest: String,
+        folders: Set<String>,
+        source: MapLocalRule.Source
+    ) throws {
+        let mapping = "<mapLocal><toolEnabled>true</toolEnabled><mappings><mapLocalMapping>"
+            + "<sourceLocation><host>h</host></sourceLocation><dest>\(dest)</dest>"
+            + "</mapLocalMapping></mappings></mapLocal>"
+        let files = FileAccessFake(directories: folders)
+        let data = configuration(entry: "Map Local", mapping)
+        let settings = try CharlesSettings.importSettings(from: data, isDirectory: files.access.isDirectory)
+        #expect(settings.mapLocal.rules.map(\.source) == [source])
     }
 
     private func configuration(entry name: String, _ tool: String) -> Data {

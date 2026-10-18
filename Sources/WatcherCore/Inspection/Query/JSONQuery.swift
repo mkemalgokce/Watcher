@@ -39,10 +39,11 @@ public enum JSONQuery {
                     steps.append(name == "*" ? .wildcard : .key(String(name)))
                 }
                 index = text.index(index, offsetBy: name.count)
-            } else if text[index] == "[", let close = text[index...].firstIndex(of: "]") {
+            } else if text[index] == "[" {
+                let close = text[index...].firstIndex(of: "]") ?? text.endIndex // still being typed
                 let inner = text[text.index(after: index) ..< close].trimmingCharacters(in: CharacterSet(charactersIn: " '\""))
                 steps.append(inner == "*" ? .wildcard : Int(inner).map(Step.index) ?? .key(inner))
-                index = text.index(after: close)
+                index = close < text.endIndex ? text.index(after: close) : close
             } else {
                 let name = text[index...].prefix { $0 != "." && $0 != "[" }
                 steps.append(.key(String(name))); index = text.index(index, offsetBy: name.count)

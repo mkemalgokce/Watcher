@@ -163,7 +163,7 @@ public final class WatcherEngine: @unchecked Sendable {
             let changesMethod = response.status == 303 || ((response.status == 301 || response.status == 302) && current.method == "POST")
             current = RequestRecord(
                 method: changesMethod ? "GET" : current.method, scheme: scheme, host: host,
-                port: components.port ?? (scheme == "https" ? 443 : 80),
+                port: components.port ?? RequestRecord.defaultPort(for: scheme),
                 path: (components.percentEncodedPath.isEmpty ? "/" : components.percentEncodedPath) + (components.percentEncodedQuery.map { "?\($0)" } ?? ""),
                 headers: current.headers.filter { $0.name.lowercased() != "host" && !(changesMethod && $0.name.lowercased().hasPrefix("content-")) },
                 body: changesMethod ? Data() : current.body

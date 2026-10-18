@@ -27,9 +27,13 @@ public struct JWT: Equatable, Sendable {
         issuedAt = date("iat"); expiresAt = date("exp"); notBefore = date("nbf")
     }
 
+    private static let tokenPattern = try? NSRegularExpression(
+        pattern: #"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*"#
+    )
+
     /// Every distinct token in `text` (headers, cookies, bodies).
     public static func find(in text: String) -> [JWT] {
-        guard let regex = try? NSRegularExpression(pattern: #"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*"#) else { return [] }
+        guard let regex = tokenPattern else { return [] }
         let ns = text as NSString
         var seen = Set<String>()
         return regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).compactMap { match in

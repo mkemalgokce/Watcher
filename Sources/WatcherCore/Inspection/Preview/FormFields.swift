@@ -24,13 +24,23 @@ public enum FormFields {
         var fields = (URLComponents(string: request.path)?.queryItems ?? []).map { FormField(source: .query, name: $0.name, value: $0.value ?? "", filename: nil) }
         let type = request.headers.value(for: "content-type") ?? ""
         if type.lowercased().contains("application/x-www-form-urlencoded") {
-            var components = URLComponents()
-            components.percentEncodedQuery = String(decoding: request.body, as: UTF8.self)
-            fields += (components.queryItems ?? []).map { FormField(source: .form, name: $0.name, value: $0.value ?? "", filename: nil) }
+            // Lossy, so a body that is not UTF-8 still lists its fields.
+            // swiftlint:disable:next optional_data_string_conversion
+            fields += urlencoded(String(decoding: request.body, as: UTF8.self))
         } else if type.lowercased().contains("multipart/form-data"), let boundary = boundary(in: type) {
             fields += multipart(request.body, boundary: boundary)
         }
         return fields
+    }
+
+    /// Split by hand: a captured body may hold spaces, raw UTF-8 or a stray `%`, which `URLComponents` traps on.
+    private static func urlencoded(_ body: String) -> [FormField] {
+        guard !body.isEmpty else { return [] }
+        return body.split(separator: "&", omittingEmptySubsequences: false).map { pair in
+            let parts = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            let decoded = parts.map { $0.removingPercentEncoding ?? String($0) }
+            return FormField(source: .form, name: decoded[0], value: decoded.count > 1 ? decoded[1] : "", filename: nil)
+        }
     }
 
     private static func boundary(in contentType: String) -> String? {

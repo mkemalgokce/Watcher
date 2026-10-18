@@ -12,6 +12,7 @@ struct ConverterTests {
         #expect(try Converter.run(.hexDecode, Converter.run(.hexEncode, "Watcher")) == "Watcher")
         #expect(try Converter.run(.jsonMinify, #"{ "a" : [1, 2] }"#) == #"{"a":[1,2]}"#)
         #expect(try Converter.run(.urlDecode, "a+b%21") == "a b!")
+        #expect(try Converter.run(.hexEncode, "Wé") == "57c3a9")
     }
 
     @Test

@@ -20,7 +20,7 @@ struct MapRemoteTool: Tool {
         if let scheme = target.scheme, scheme != request.scheme {
             request.scheme = scheme
             if target.port == nil {
-                request.port = scheme == "https" ? 443 : 80
+                request.port = RequestRecord.defaultPort(for: scheme)
             }
         }
         if let host = target.host {
@@ -37,9 +37,8 @@ struct MapRemoteTool: Tool {
             request.path = query.isEmpty ? path : "\(path)?\(query)"
         }
 
-        let isDefaultPort = (request.scheme == "https" && request.port == 443) || (request.scheme == "http" && request.port == 80)
         if !rule.preserveHostHeader {
-            request.headers.set("Host", isDefaultPort ? request.host : "\(request.host):\(request.port)")
+            request.headers.set("Host", request.usesDefaultPort ? request.host : "\(request.host):\(request.port)")
         }
         return .forward
     }

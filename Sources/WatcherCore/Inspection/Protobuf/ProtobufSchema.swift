@@ -106,9 +106,9 @@ public struct ProtobufSchema: Sendable {
         for (field, value) in try entries(bytes) {
             switch (field, value) {
             case let (1, .bytes(b)): name = String(decoding: b, as: UTF8.self)
-            case let (3, .varint(n)): number = Int(n)
-            case let (4, .varint(n)): label = Int(n)
-            case let (5, .varint(n)): type = Int(n)
+            case let (3, .varint(value)): number = try fieldValue(value)
+            case let (4, .varint(value)): label = try fieldValue(value)
+            case let (5, .varint(value)): type = try fieldValue(value)
             case let (6, .bytes(b)): typeName = String(decoding: b, as: UTF8.self)
             default: break
             }
@@ -116,49 +116,21 @@ public struct ProtobufSchema: Sendable {
         return (number, Field(name: name, type: type, typeName: typeName, isRepeated: label == 3))
     }
 
+    private static func fieldValue(_ value: UInt64) throws -> Int {
+        guard let value = Int(exactly: value) else { throw LoadError(description: "field value out of range") }
+        return value
+    }
+
     // MARK: Wire decoding
 
-    private enum Value { case varint(UInt64), fixed64(UInt64), fixed32(UInt32), bytes([UInt8]) }
+    private typealias Value = ProtobufWireReader.Value
 
-    /// Splits a message into (field number, value) pairs; throws on truncated or malformed wire data.
-    private static func entries(_ bytes: [UInt8]) throws -> [(Int, Value)] {
-        var result: [(Int, Value)] = []
-        var position = 0
-        func varint() throws -> UInt64 {
-            var value: UInt64 = 0
-            for shift in stride(from: 0, to: 64, by: 7) {
-                guard position < bytes.count else { throw LoadError(description: "truncated varint") }
-                let byte = bytes[position]; position += 1
-                value |= UInt64(byte & 0x7F) << UInt64(shift)
-                if byte & 0x80 == 0 {
-                    return value
-                }
-            }
-            throw LoadError(description: "varint too long")
+    private static func entries(_ bytes: [UInt8]) throws -> [(field: Int, value: Value)] {
+        do {
+            return try ProtobufWireReader.entries(bytes)
+        } catch let malformed as ProtobufWireReader.Malformed {
+            throw LoadError(description: malformed.description)
         }
-        while position < bytes.count {
-            let key = try varint()
-            let field = Int(key >> 3)
-            guard field > 0 else { throw LoadError(description: "bad field number") }
-            switch key & 7 {
-            case 0: try result.append((field, .varint(varint())))
-            case 1:
-                guard position + 8 <= bytes.count else { throw LoadError(description: "truncated fixed64") }
-                result.append((field, .fixed64(bytes[position ..< position + 8].enumerated().reduce(UInt64(0)) { $0 | UInt64($1.element) << UInt64($1.offset * 8) })))
-                position += 8
-            case 2:
-                let length = try varint()
-                guard length <= UInt64(bytes.count - position) else { throw LoadError(description: "truncated bytes") }
-                result.append((field, .bytes(Array(bytes[position ..< position + Int(length)]))))
-                position += Int(length)
-            case 5:
-                guard position + 4 <= bytes.count else { throw LoadError(description: "truncated fixed32") }
-                result.append((field, .fixed32(bytes[position ..< position + 4].enumerated().reduce(UInt32(0)) { $0 | UInt32($1.element) << UInt32($1.offset * 8) })))
-                position += 4
-            default: throw LoadError(description: "unsupported wire type")
-            }
-        }
-        return result
     }
 
     private func decode(_ bytes: [UInt8], type: String, indent: Int, into lines: inout [String]) -> Bool {
@@ -174,7 +146,7 @@ public struct ProtobufSchema: Sendable {
             case let .bytes(payload) where field.type == 9:
                 lines.append("\(pad)\(field.name): \"\(String(decoding: payload, as: UTF8.self))\"")
             case let .bytes(payload) where field.type == 12:
-                lines.append("\(pad)\(field.name): 0x" + payload.prefix(64).map { String(format: "%02x", $0) }.joined())
+                lines.append("\(pad)\(field.name): 0x" + payload.prefix(64).hexDigits())
             case let .bytes(payload):
                 // Packed repeated scalars.
                 guard let packed = try? Self.packed(payload, type: field.type) else { return false }
@@ -227,7 +199,7 @@ public struct ProtobufSchema: Sendable {
         case let .varint(n): "\(n)"
         case let .fixed64(n): "\(n)"
         case let .fixed32(n): "\(n)"
-        case let .bytes(b): "0x" + b.prefix(64).map { String(format: "%02x", $0) }.joined()
+        case let .bytes(bytes): "0x" + bytes.prefix(64).hexDigits()
         }
     }
 }

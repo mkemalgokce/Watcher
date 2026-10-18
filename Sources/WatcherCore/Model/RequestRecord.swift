@@ -12,8 +12,16 @@ public struct RequestRecord: Codable, Equatable, Sendable {
     public var clientApp: String?
 
     public var url: String {
-        let isDefault = (scheme == "https" && port == 443) || (scheme == "http" && port == 80)
-        return "\(scheme)://\(host)\(isDefault ? "" : ":\(port)")\(path)"
+        "\(scheme)://\(host)\(usesDefaultPort ? "" : ":\(port)")\(path)"
+    }
+
+    /// What clients assume when a URL names no port.
+    public static func defaultPort(for scheme: String) -> Int {
+        ["https", "wss"].contains(scheme) ? 443 : 80
+    }
+
+    public var usesDefaultPort: Bool {
+        ["http", "https"].contains(scheme) && port == Self.defaultPort(for: scheme)
     }
 
     public init(

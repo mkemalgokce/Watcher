@@ -39,7 +39,7 @@ public extension RequestRecord {
             method: method,
             scheme: scheme,
             host: host,
-            port: components.port ?? (scheme == "https" ? 443 : 80),
+            port: components.port ?? RequestRecord.defaultPort(for: scheme),
             path: components.percentEncodedPath + (components.percentEncodedQuery.map { "?\($0)" } ?? ""),
             headers: headers,
             body: body

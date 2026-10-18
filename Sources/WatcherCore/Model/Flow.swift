@@ -23,8 +23,8 @@ public struct Flow: Identifiable, Codable, Sendable {
     public var isStarred = false
     public var comment: String?
 
-    public init(sequence: Int, request: RequestRecord) {
-        id = UUID(); self.sequence = sequence; startedAt = Date()
+    public init(sequence: Int, request: RequestRecord, id: UUID = UUID(), startedAt: Date = Date()) {
+        self.id = id; self.sequence = sequence; self.startedAt = startedAt
         self.request = request; state = .pending; appliedTools = []
     }
 }

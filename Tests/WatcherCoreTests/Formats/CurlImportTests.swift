@@ -133,4 +133,48 @@ struct CurlImportTests {
         #expect(parsed.headers == original.headers)
         #expect(parsed.body == original.body)
     }
+
+    @Test(arguments: [
+        "curl \\\r\n  -H 'A: b' \\\r\n  https://x.com/",
+        "curl https://x.com/\r\n-H 'A: b'",
+        "curl -H \"A: \\\r\nb\" https://x.com/",
+    ])
+    func windowsLineEndingsSeparateWordsAndContinueLines(command: String) throws {
+        let request = try CurlImport.parse(command)
+        #expect(request.url == "https://x.com/")
+        #expect(request.headers.value(for: "a") == "b")
+    }
+
+    @Test
+    func aMethodAttachedToItsShortOptionIsRead() throws {
+        #expect(try CurlImport.parse("curl -XPOST https://x.com/").method == "POST")
+    }
+
+    @Test
+    func headerAndDataAttachedToTheirShortOptionsAreRead() throws {
+        let request = try CurlImport.parse("curl -H'A: b' -d'a=1' -uuser:pw https://x.com/")
+        #expect(request.headers.value(for: "a") == "b")
+        #expect(request.body == Data("a=1".utf8))
+        #expect(request.headers.value(for: "authorization") == "Basic " + Data("user:pw".utf8).base64EncodedString())
+    }
+
+    @Test
+    func hexEscapesInAnANSIQuoteAreBytes() throws {
+        let request = try CurlImport.parse(#"curl --data-raw $'caf\xc3\xa9 é' https://x.com/"#)
+        #expect(request.body == Data("café é".utf8))
+    }
+
+    @Test
+    func hexEscapesThatAreNotUTF8AreRefusedRatherThanAltered() {
+        #expect(throws: CurlImport.Failure.self) { try CurlImport.parse(#"curl --data-raw $'\xff' https://x.com/"#) }
+    }
+
+    @Test(arguments: [
+        ("curl -G -d 'q=hello world' https://x.com/s", "/s?q=hello%20world"),
+        ("curl -G -d 'q=100%' https://x.com/s?a=1", "/s?a=1&q=100%25"),
+        ("curl -G -d 'q=%41' https://x.com/s", "/s?q=%41"),
+    ])
+    func getDataThatIsNotAValidQueryIsEncoded(command: String, path: String) throws {
+        #expect(try CurlImport.parse(command).path == path)
+    }
 }

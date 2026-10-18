@@ -69,7 +69,7 @@ public enum BodyFormatter {
         var lines: [String] = []
         for start in stride(from: 0, to: bytes.count, by: 16) {
             let row = bytes[start ..< min(start + 16, bytes.count)]
-            let hex = row.map { String(format: "%02x", $0) }.joined(separator: " ")
+            let hex = row.hexDigits(separator: " ")
             let ascii = String(row.map { (32 ..< 127).contains($0) ? Character(UnicodeScalar($0)) : "." })
             lines.append(String(format: "%08x  ", start) + hex.padding(toLength: 47, withPad: " ", startingAt: 0) + "  " + ascii)
         }

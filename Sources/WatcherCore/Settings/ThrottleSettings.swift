@@ -15,13 +15,12 @@ public struct ThrottleSettings: Codable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey { case isEnabled, profile, host, customProfiles }
 
     public init(from decoder: Decoder) throws {
+        self.init()
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        try self.init(
-            isEnabled: c.decode(.isEnabled, default: false),
-            profile: c.decode(.profile, default: NetworkProfile.presets[0]),
-            host: c.decode(.host, default: ""),
-            customProfiles: c.decode(.customProfiles, default: [])
-        )
+        isEnabled = try c.decode(.isEnabled, default: isEnabled)
+        profile = try c.decode(.profile, default: profile)
+        host = try c.decode(.host, default: host)
+        customProfiles = try c.decode(.customProfiles, default: customProfiles)
     }
 
     /// Built-in presets followed by the saved ones.

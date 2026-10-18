@@ -15,4 +15,15 @@ struct BodyLanguageTests {
     func detectsLanguageFromContentTypeThenBytes(contentType: String?, data: Data, language: BodyLanguage) {
         #expect(BodyLanguage.detect(contentType: contentType, data: data) == language)
     }
+
+    @Test
+    func textWhoseSniffedPrefixEndsInsideACharacterIsStillText() {
+        let text = Data((String(repeating: "a", count: 2047) + "é and more").utf8)
+        #expect(BodyLanguage.sniff(text) == .plain)
+    }
+
+    @Test
+    func aShortBodyWithAnInvalidLastByteIsBinary() {
+        #expect(BodyLanguage.sniff(Data("abc".utf8) + Data([0xC3])) == .binary)
+    }
 }

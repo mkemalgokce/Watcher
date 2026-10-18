@@ -23,7 +23,7 @@ public final class ProxyServer: @unchecked Sendable {
     private var socksListener: Channel?
     private var serverCertificates: [CustomCertificateRule] = []
     private var preferHTTP2 = true
-    private var accessControl = AccessControlSettings()
+    private var accessControl = AccessControlSettings().compile()
     private var markModified = false
     private var keyLog: KeyLogFile?
     private var keyLogPath = ""
@@ -71,8 +71,8 @@ public final class ProxyServer: @unchecked Sendable {
         let sink: KeyLogFile? = lock.withLock { keyLogPath == path ? keyLog : nil }
         let activeSink = sink ?? (path.isEmpty ? nil : KeyLogFile(path: path))
         lock.withLock {
-            preferHTTP2 = settings.preferHTTP2; accessControl = settings.accessControl; markModified = settings.markModifiedTraffic
-            autoIgnorePinning = settings.autoIgnoreSSLPinning
+            preferHTTP2 = settings.preferHTTP2; accessControl = settings.accessControl.compile()
+            autoIgnorePinning = settings.autoIgnoreSSLPinning; markModified = settings.markModifiedTraffic
             if keyLogPath != path {
                 keyLog = activeSink; keyLogPath = path
             }

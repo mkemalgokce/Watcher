@@ -18,4 +18,9 @@ struct JSONQueryTests {
         #expect(JSONQuery.run("users[9]", on: json) == "")
         #expect(JSONQuery.run("a", on: Data("not json".utf8)) == nil)
     }
+
+    @Test(arguments: [("users[0", "1"), ("users[", ""), ("[", ""), ("users[0].x[", "")])
+    func anUnclosedBracketIsReadToTheEndOfTheQuery(query: String, expected: String) {
+        #expect(JSONQuery.run(query, on: Data(#"{"users":[1]}"#.utf8)) == expected)
+    }
 }

@@ -19,6 +19,21 @@ public enum CurlImport {
         "-D", "--dump-header", "--trace", "--trace-ascii", "--cert-type", "--key-type", "--ciphers", "--max-redirs",
     ]
 
+    /// Short options that take a value, which may be attached to them.
+    private static let shortWithValue = Set(["-X", "-H", "-d", "-b", "-u", "-A", "-e"])
+        .union(ignoredWithValue.filter { $0.count == 2 })
+
+    /// Splits `--header=value` and `-Hvalue` (as in `-XPOST`) into the option and its inline value.
+    private static func option(_ word: String) -> (name: String, inline: String?) {
+        if word.hasPrefix("--"), let equals = word.firstIndex(of: "=") {
+            return (String(word[..<equals]), String(word[word.index(after: equals)...]))
+        }
+        if !word.hasPrefix("--"), word.count > 2, shortWithValue.contains(String(word.prefix(2))) {
+            return (String(word.prefix(2)), String(word.dropFirst(2)))
+        }
+        return (word, nil)
+    }
+
     public static func parse(_ command: String) throws -> RequestRecord {
         var words = try tokenize(command)
         guard words.first == "curl" else { throw Failure(description: "This is not a curl command.") }
@@ -39,12 +54,7 @@ public enum CurlImport {
         }
 
         while index < words.count {
-            var word = words[index]
-            var inline: String?
-            // --header=value and the like.
-            if word.hasPrefix("--"), let equals = word.firstIndex(of: "=") {
-                inline = String(word[word.index(after: equals)...]); word = String(word[..<equals])
-            }
+            let (word, inline) = option(words[index])
             func argument() throws -> String {
                 try inline ?? value(for: word)
             }
@@ -106,7 +116,7 @@ public enum CurlImport {
         var body = Data(data.joined(separator: "&").utf8)
         if asQuery, !data.isEmpty {
             let existing = components.percentEncodedQuery.map { $0 + "&" } ?? ""
-            components.percentEncodedQuery = existing + data.joined(separator: "&")
+            components.percentEncodedQuery = existing + queryEncoded(data.joined(separator: "&"))
             body = Data()
         }
         let resolvedMethod = method ?? (head ? "HEAD" : (body.isEmpty ? "GET" : "POST"))
@@ -118,7 +128,7 @@ public enum CurlImport {
             method: resolvedMethod,
             scheme: scheme,
             host: host,
-            port: components.port ?? (scheme == "https" ? 443 : 80),
+            port: components.port ?? RequestRecord.defaultPort(for: scheme),
             path: path,
             headers: headers,
             body: body
@@ -131,6 +141,13 @@ public enum CurlImport {
         guard let equals = part.firstIndex(of: "=") else { return part.addingPercentEncoding(withAllowedCharacters: allowed) ?? part }
         let name = part[..<equals], value = part[part.index(after: equals)...]
         return name + "=" + (String(value).addingPercentEncoding(withAllowedCharacters: allowed) ?? String(value))
+    }
+
+    /// Encodes what a query may not hold literally, keeping valid `%XX` escapes; `URLComponents` traps on the rest.
+    private static func queryEncoded(_ text: String) -> String {
+        var allowed = CharacterSet.urlQueryAllowed; allowed.insert("%")
+        let encoded = text.addingPercentEncoding(withAllowedCharacters: allowed) ?? text
+        return encoded.replacing(#/%(?![0-9A-Fa-f]{2})/#, with: "%25")
     }
 
     /// Splits like a POSIX shell (plus bash's `$'…'`): quotes group words, `\` escapes, a backslash-newline continues the line.
@@ -153,9 +170,9 @@ public enum CurlImport {
                     if next == "\"" {
                         closed = true; break
                     }
-                    if next == "\\", let escaped = characters.first, "\"\\$`\n".contains(escaped) {
+                    if next == "\\", let escaped = characters.first, "\"\\$`\n\r\n".contains(escaped) {
                         characters.removeFirst()
-                        if escaped != "\n" {
+                        if escaped != "\n", escaped != "\r\n" {
                             current.append(escaped)
                         }
                     } else {
@@ -169,14 +186,10 @@ public enum CurlImport {
                 current += try ansiC(&characters)
             case "\\":
                 guard let escaped = characters.popFirst() else { break }
-                if escaped == "\n" || escaped == "\r" { // line continuation
-                    if escaped == "\r", characters.first == "\n" {
-                        characters.removeFirst()
-                    }
-                } else {
+                if !["\n", "\r", "\r\n"].contains(escaped) { // otherwise a line continuation
                     inWord = true; current.append(escaped)
                 }
-            case " ", "\t", "\n", "\r":
+            case " ", "\t", "\n", "\r", "\r\n": // "\r\n" is one Character
                 if inWord {
                     words.append(current); current = ""; inWord = false
                 }
@@ -192,32 +205,35 @@ public enum CurlImport {
 
     /// The body of a `$'…'` word, with its backslash escapes resolved.
     private static func ansiC(_ characters: inout ArraySlice<Character>) throws -> String {
-        var result = ""
+        var result: [UInt8] = [] // bytes, so a run of `\x` escapes can spell out UTF-8
+        func append(_ character: Character) {
+            result += character.utf8
+        }
         while let character = characters.popFirst() {
             if character == "'" {
-                return result
+                guard let text = String(bytes: result, encoding: .utf8) else {
+                    throw Failure(description: "A $' quote holds bytes that are not UTF-8 text; this is not supported.")
+                }
+                return text
             }
-            guard character == "\\", let escape = characters.popFirst() else { result.append(character); continue }
+            guard character == "\\", let escape = characters.popFirst() else { append(character); continue }
             switch escape {
-            case "n": result.append("\n")
-            case "t": result.append("\t")
-            case "r": result.append("\r")
-            case "0": result.append("\0")
-            case "x":
-                let hex = String(characters.prefix(2).prefix { $0.isHexDigit })
-                characters.removeFirst(hex.count)
-                if let value = UInt8(hex, radix: 16) {
-                    result.append(Character(Unicode.Scalar(value)))
-                }
-            case "u":
-                let hex = String(characters.prefix(4).prefix { $0.isHexDigit })
-                characters.removeFirst(hex.count)
-                if let value = UInt32(hex, radix: 16), let scalar = Unicode.Scalar(value) {
-                    result.append(Character(scalar))
-                }
-            default: result.append(escape) // \\ \' \" and anything else stand for themselves
+            case "n": append("\n")
+            case "t": append("\t")
+            case "r": append("\r")
+            case "0": append("\0")
+            case "x": hexValue(&characters, digits: 2).map { result.append(UInt8($0)) }
+            case "u": hexValue(&characters, digits: 4).flatMap(Unicode.Scalar.init).map { append(Character($0)) }
+            default: append(escape) // \\ \' \" and anything else stand for themselves
             }
         }
         throw Failure(description: "A $' quote is not closed.")
+    }
+
+    /// Takes up to `digits` hex digits off the front of `characters`; nil when none are there.
+    private static func hexValue(_ characters: inout ArraySlice<Character>, digits: Int) -> UInt32? {
+        let hex = String(characters.prefix(digits).prefix { $0.isHexDigit })
+        characters.removeFirst(hex.count)
+        return UInt32(hex, radix: 16)
     }
 }

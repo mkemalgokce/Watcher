@@ -45,7 +45,12 @@ public enum BodyLanguage: String, CaseIterable, Sendable {
     /// Looks at the first bytes when no usable `Content-Type` is available.
     static func sniff(_ data: Data) -> BodyLanguage {
         guard !data.isEmpty else { return .plain }
-        guard let text = String(data: data.prefix(2048), encoding: .utf8) else { return .binary }
+        // A cut inside a character leaves up to 3 bytes of it at the end of the sample.
+        let sample = data.prefix(2048), ragged = data.count > sample.count ? 3 : 0
+        let decoded = (0 ... ragged).lazy.compactMap { String(data: sample.dropLast($0), encoding: .utf8) }
+        guard let text = decoded.first else {
+            return .binary
+        }
         let head = text.drop { $0.isWhitespace }
         if head.hasPrefix("{") || head.hasPrefix("[") {
             return .json
