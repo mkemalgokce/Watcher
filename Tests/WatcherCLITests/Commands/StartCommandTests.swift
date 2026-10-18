@@ -30,4 +30,23 @@ struct StartCommandTests {
     func rejectsAMissingOrMalformedValue(arguments: [String]) {
         #expect(throws: (any Error).self) { try Start.parse(arguments) }
     }
+
+    /// Runs `start` until it waits for Ctrl-C, then runs `whileRunning`, waits for `until`, and presses Ctrl-C.
+    static func run(
+        _ arguments: [String],
+        in cli: CLIHarness,
+        until done: @escaping () -> Bool = { true },
+        whileRunning: () -> Void = {}
+    ) async throws {
+        let command = try Start.parse(arguments)
+        let environment = cli.environment
+        let running = Task { try await command.run(in: environment) }
+        let waiting = await eventually(timeout: 30) { cli.shutdown.isAwaited }
+        whileRunning()
+        let finished = await eventually(timeout: 30, done)
+        cli.shutdown.fire()
+        try await running.value
+        #expect(waiting, "start never waited for Ctrl-C")
+        #expect(finished, "start never got there: \(cli.printed)")
+    }
 }

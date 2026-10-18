@@ -10,17 +10,19 @@ struct Mcp: AsyncParsableCommand {
     @Option(help: "Port to listen on (default: from settings).") var port: Int?
 
     func run() async throws {
-        let engine = try WatcherEngine()
-        // stdout carries the protocol, so diagnostics go to stderr.
-        engine.onLog = { FileHandle.standardError.write(Data("[watcher] \($0)\n".utf8)) }
-        let bound = try await engine.start(port: port)
-        FileHandle.standardError.write(Data("[watcher] MCP server ready; proxy on 127.0.0.1:\(bound)\n".utf8))
+        try await run(in: .live)
+    }
 
-        let server = MCPServer(engine: engine)
-        while let line = readLine(strippingNewline: true) {
-            guard !line.isEmpty, let reply = await server.handle(line) else { continue }
-            print(reply)
-            fflush(stdout)
+    func run(in environment: CLIEnvironment) async throws {
+        // stdout carries the protocol, so diagnostics go to stderr.
+        let log = environment.errorOutput
+        let (engine, bound) = try await environment.startEngine(port: port) { log("[watcher] \($0)") }
+        log("[watcher] MCP server ready; proxy on 127.0.0.1:\(bound)")
+
+        let answer = engine.mcpHandler()
+        while let line = environment.readLine() {
+            guard !line.isEmpty, let reply = await answer(line) else { continue }
+            environment.output(reply)
         }
         try? await engine.stop()
     }

@@ -38,14 +38,6 @@ public struct SystemProxy: Sendable {
         files.fileExists(backupURL.path)
     }
 
-    public static func enable(host: String = "127.0.0.1", port: Int) throws {
-        try shared.enable(host: host, port: port)
-    }
-
-    public static func disable() throws {
-        try shared.disable()
-    }
-
     public func enable(host: String = "127.0.0.1", port: Int) throws {
         let serviceNames = try services()
         // Enabling twice must not replace the real original with Watcher's own settings.
