@@ -32,10 +32,10 @@ extension FlowStoreTests {
         @Test
         func loadKeepsOnlyTheNewestWithinTheLimit() {
             store.maxFlows = 1
-            withKnownIssue("load does not trim to maxFlows") {
-                store.load([Flow.fixture(sequence: 1), Flow.fixture(sequence: 2)])
-                #expect(store.all.count == 1)
-            }
+            let newest = Flow.fixture(sequence: 2)
+            store.load([Flow.fixture(sequence: 1), newest])
+            #expect(store.all.map(\.id) == [newest.id])
+            #expect(store.all.first?.sequence == 2)
         }
 
         @Test(arguments: [(-5, 0), (0, 0), (3, 3)])

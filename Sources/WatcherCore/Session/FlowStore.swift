@@ -111,16 +111,9 @@ public final class FlowStore: @unchecked Sendable {
         }
     }
 
-    /// Replaces the session with imported flows, renumbering them.
+    /// Replaces the session with imported flows, renumbering them, in one step so no live request lands in between.
     public func load(_ imported: [Flow]) {
-        clear()
-        for var flow in imported {
-            lock.withLock {
-                counter += 1; flow.sequence = counter
-                flows[flow.id] = flow; order.append(flow.id)
-                publishLocked(.added(flow))
-            }
-        }
+        lock.withLock { replaceLocked(with: imported) }
     }
 
     /// Returns what was removed, in list order, so the caller can offer Undo.
@@ -138,16 +131,20 @@ public final class FlowStore: @unchecked Sendable {
         lock.withLock {
             let returning = cleared.filter { flows[$0.id] == nil }
             guard !returning.isEmpty else { return }
-            let merged = returning + order.compactMap { flows[$0] }
-            flows.removeAll(); order.removeAll(); counter = 0
-            for var flow in merged {
-                counter += 1; flow.sequence = counter
-                flows[flow.id] = flow; order.append(flow.id)
-            }
-            trimLocked()
-            publishLocked(.cleared)
-            order.compactMap { flows[$0] }.forEach { publishLocked(.added($0)) }
+            replaceLocked(with: returning + order.compactMap { flows[$0] })
         }
+    }
+
+    /// Makes `replacement` the whole session, renumbered and trimmed, and tells observers; call with the lock held.
+    private func replaceLocked(with replacement: [Flow]) {
+        flows.removeAll(); order.removeAll(); counter = 0
+        for var flow in replacement {
+            counter += 1; flow.sequence = counter
+            flows[flow.id] = flow; order.append(flow.id)
+        }
+        trimLocked()
+        publishLocked(.cleared)
+        order.compactMap { flows[$0] }.forEach { publishLocked(.added($0)) }
     }
 
     /// Drops the oldest flows beyond `maxFlows`; call with the lock held.
