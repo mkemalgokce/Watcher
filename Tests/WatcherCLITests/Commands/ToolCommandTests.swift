@@ -1,4 +1,5 @@
 import ArgumentParser
+import Foundation
 import Testing
 @testable import watcher_cli
 import WatcherTestSupport
@@ -23,5 +24,34 @@ struct ToolCommandTests {
         for name in ToolName.allCases.map(\.rawValue) {
             #expect(help.contains(name), "\(name) missing from: \(help)")
         }
+    }
+
+    @Test
+    func switchingOnSavesItInTheSettingsARunningProxyReads() throws {
+        let cli = CLIHarness()
+        try Tool.parse(["map-local", "on"]).run(in: cli.environment)
+        #expect(cli.environment.settings.value.mapLocal.isEnabled)
+        #expect(cli.printed == ["map-local: on"])
+    }
+
+    @Test
+    func switchingOffKeepsTheOtherSettings() throws {
+        let cli = CLIHarness()
+        try cli.environment.settings.update { $0.port = 7777; $0.noCaching = true; $0.mapLocal.isEnabled = true }
+        try Tool.parse(["map-local", "off"]).run(in: cli.environment)
+        let settings = cli.environment.settings.value
+        #expect(!settings.mapLocal.isEnabled)
+        #expect(settings.port == 7777)
+        #expect(settings.noCaching)
+        #expect(cli.printed == ["map-local: off"])
+    }
+
+    @Test
+    func printsNothingWhenTheSettingsCannotBeSaved() throws {
+        let cli = CLIHarness()
+        cli.files.fail(.writePrivately)
+        let command = try Tool.parse(["no-caching", "on"])
+        #expect(throws: FileAccessFake.Failure(operation: .writePrivately)) { try command.run(in: cli.environment) }
+        #expect(cli.printed.isEmpty)
     }
 }

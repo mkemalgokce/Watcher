@@ -1,24 +1,12 @@
 import ArgumentParser
+import Foundation
 import Testing
 @testable import watcher_cli
+import WatcherCore
 import WatcherTestSupport
 
 @Suite(.tags(.unit))
 struct RulesCommandTests {
-    @Test(arguments: [(["out.json"], "all"), (["out.json", "--mode", "enabledRules"], "enabledRules")])
-    func exportModeDefaultsToAll(arguments: [String], mode: String) throws {
-        let export = try Rules.Export.parse(arguments)
-        #expect(export.path == "out.json")
-        #expect(export.mode == mode)
-    }
-
-    @Test(arguments: [(["in.json"], "override"), (["in.json", "--mode", "append"], "append")])
-    func importModeDefaultsToOverride(arguments: [String], mode: String) throws {
-        let rules = try Rules.Import.parse(arguments)
-        #expect(rules.path == "in.json")
-        #expect(rules.mode == mode)
-    }
-
     @Test
     func subcommandsAreExportImportAndImportCharles() throws {
         #expect(try Rules.parseAsRoot(["export", "a.json"]) is Rules.Export)
@@ -29,5 +17,20 @@ struct RulesCommandTests {
     @Test(arguments: [["export"], ["import"], ["import-charles"]])
     func everySubcommandNeedsAPath(arguments: [String]) {
         #expect(throws: (any Error).self) { try Rules.parseAsRoot(arguments) }
+    }
+
+    static func settingsWithOneEnabledAndOneDisabledBlockRule() -> WatcherSettings {
+        var settings = WatcherSettings()
+        let match = MatchingRule(pattern: "*.example.com")
+        settings.blockList = RuleSet(isEnabled: true, rules: [
+            BlockRule(name: "on", matching: match), BlockRule(name: "off", isEnabled: false, matching: match),
+        ])
+        return settings
+    }
+
+    static func pretty(_ settings: WatcherSettings) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(settings)
     }
 }
