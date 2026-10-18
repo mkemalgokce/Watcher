@@ -173,7 +173,7 @@ public final class MCPServer: @unchecked Sendable {
                     method: (args["method"] as? String ?? "GET").uppercased(),
                     scheme: scheme,
                     host: host,
-                    port: url.port ?? (scheme == "https" ? 443 : 80),
+                    port: url.port ?? RequestRecord.defaultPort(for: scheme),
                     path: (url.percentEncodedPath.isEmpty ? "/" : url.percentEncodedPath) + (url.percentEncodedQuery.map { "?\($0)" } ?? ""),
                     headers: headers,
                     body: Data((args["body"] as? String ?? "").utf8)

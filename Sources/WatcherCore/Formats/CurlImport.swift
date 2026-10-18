@@ -118,7 +118,7 @@ public enum CurlImport {
             method: resolvedMethod,
             scheme: scheme,
             host: host,
-            port: components.port ?? (scheme == "https" ? 443 : 80),
+            port: components.port ?? RequestRecord.defaultPort(for: scheme),
             path: path,
             headers: headers,
             body: body

@@ -16,5 +16,15 @@ extension RequestRecordTests {
         func defaultPortsAreLeftOutOfTheURL(scheme: String, port: Int, url: String) {
             #expect(RequestRecord.fixture(scheme: scheme, host: "h", port: port, path: "/p").url == url)
         }
+
+        @Test(arguments: [("https", 443), ("http", 80), ("ws", 80), ("", 80)])
+        func theDefaultPortIs443ForHTTPSAnd80Otherwise(scheme: String, port: Int) {
+            #expect(RequestRecord.defaultPort(for: scheme) == port)
+        }
+
+        @Test(arguments: [("https", 443, true), ("http", 80, true), ("http", 443, false), ("ws", 80, false)])
+        func onlyHTTPAndHTTPSOnTheirOwnPortUseTheDefault(scheme: String, port: Int, isDefault: Bool) {
+            #expect(RequestRecord.fixture(scheme: scheme, port: port).usesDefaultPort == isDefault)
+        }
     }
 }

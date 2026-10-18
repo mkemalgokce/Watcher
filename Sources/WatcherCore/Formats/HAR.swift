@@ -91,7 +91,8 @@ public enum HAR {
         let path = (url.percentEncodedPath.isEmpty ? "/" : url.percentEncodedPath) + (url.percentEncodedQuery.map { "?\($0)" } ?? "")
 
         var flow = Flow(sequence: sequence, request: RequestRecord(
-            method: method, scheme: scheme, host: host, port: url.port ?? (scheme == "https" ? 443 : 80), path: path,
+            method: method, scheme: scheme, host: host,
+            port: url.port ?? RequestRecord.defaultPort(for: scheme), path: path,
             headers: headers(request["headers"]), body: Data(((request["postData"] as? [String: Any])?["text"] as? String ?? "").utf8)
         ))
         flow.startedAt = (entry["startedDateTime"] as? String).flatMap(formatter.date) ?? Date()

@@ -242,7 +242,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
             (scheme, host, port, path) = (tunnel.scheme, tunnel.host, tunnel.port, head.uri)
         } else if let url = URLComponents(string: head.uri), let urlHost = url.host {
             scheme = url.scheme ?? "http"; host = urlHost
-            port = url.port ?? (scheme == "https" ? 443 : 80)
+            port = url.port ?? RequestRecord.defaultPort(for: scheme)
             path = (url.percentEncodedPath.isEmpty ? "/" : url.percentEncodedPath) + (url.percentEncodedQuery.map { "?\($0)" } ?? "")
         } else if let hostHeader = head.headers.first(name: "Host") {
             let parts = hostHeader.split(separator: ":", maxSplits: 1)

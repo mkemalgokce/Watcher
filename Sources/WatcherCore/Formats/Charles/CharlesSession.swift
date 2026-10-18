@@ -15,7 +15,8 @@ public enum CharlesSession {
         guard let host = transaction["host"] as? String, let method = transaction["method"] as? String else { return nil }
         let scheme = transaction["scheme"] as? String ?? "http"
         // Real Charles files carry `actualPort: -1` (and no `port`) for default ports, so only positive values count.
-        let port = [transaction["actualPort"], transaction["port"]].compactMap { $0 as? Int }.first { $0 > 0 } ?? (scheme == "https" ? 443 : 80)
+        let port = [transaction["actualPort"], transaction["port"]].compactMap { $0 as? Int }.first { $0 > 0 }
+            ?? RequestRecord.defaultPort(for: scheme)
         var path = transaction["path"] as? String ?? "/"
         if let query = transaction["query"] as? String, !query.isEmpty {
             path += "?\(query)"
