@@ -49,13 +49,15 @@ struct CLIEnvironment {
     }
 
     /// Opens the engine on the support folder with its log going to `log`, and starts the proxy on `port` (or the
-    /// stored one).
+    /// stored one), decrypting HTTPS only when `decryptsHTTPS`.
     func startEngine(
         port: Int?,
+        decryptsHTTPS: Bool = true,
         log: @escaping @Sendable (String) -> Void
     ) async throws -> (engine: any EngineControlling, port: Int) {
         let engine = try makeEngine(supportDirectory)
         engine.onLog = log
+        engine.decryptsHTTPS = decryptsHTTPS
         return try await (engine, engine.start(port: port))
     }
 

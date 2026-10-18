@@ -6,10 +6,10 @@ protocol EngineControlling: AnyObject, Sendable {
     var breakpoints: BreakpointCenter { get }
     var settings: SettingsStore { get }
     var onLog: @Sendable (String) -> Void { get set }
+    var decryptsHTTPS: Bool { get set }
     /// Returns the port actually bound.
     func start(port: Int?) async throws -> Int
     func stop() async throws
-    func apply(_ settings: WatcherSettings) async
     /// Answers one MCP line about this engine; nil for a notification.
     func mcpHandler() -> @Sendable (String) async -> String?
 }

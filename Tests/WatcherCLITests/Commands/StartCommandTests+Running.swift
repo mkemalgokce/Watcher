@@ -41,21 +41,16 @@ extension StartCommandTests {
             #expect(reachable == (allInterfaces ? ["  reachable from devices at 192.168.1.20:9123  (en0)"] : []))
         }
 
-        @Test
-        func noDecryptAppliesSettingsThatDecryptNothing() async throws {
+        @Test(arguments: [(["--no-decrypt"], false), ([], true)])
+        func noDecryptTunnelsHTTPSFromTheStartWithoutChangingTheSettings(
+            arguments: [String],
+            decrypts: Bool
+        ) async throws {
             let cli = CLIHarness()
-            try cli.engine.settings.update { $0.sslProxying.include = ["*"]; $0.port = 7777 }
-            try await StartCommandTests.run(["--no-decrypt"], in: cli)
-            #expect(cli.engine.calls == ["start any", "apply", "stop"])
-            #expect(cli.engine.applied.map(\.sslProxying.include) == [[]])
-            #expect(cli.engine.applied.first?.port == 7777)
-        }
-
-        @Test
-        func withoutNoDecryptTheStoredSettingsStand() async throws {
-            let cli = CLIHarness()
-            try await StartCommandTests.run([], in: cli)
-            #expect(cli.engine.applied.isEmpty)
+            try cli.engine.settings.update { $0.sslProxying.include = ["*"] }
+            try await StartCommandTests.run(arguments, in: cli)
+            #expect(cli.engine.decryptedHTTPSAtStart == decrypts)
+            #expect(cli.engine.settings.value.sslProxying.include == ["*"])
         }
 
         @Test

@@ -3,7 +3,7 @@ import Foundation
 import WatcherCore
 import WatcherTestSupport
 
-/// An engine that starts and stops without opening a socket. It records `start <port>`, `apply` and `stop` into `log`,
+/// An engine that starts and stops without opening a socket. It records `start <port>` and `stop` into `log`,
 /// which other doubles may share to check the order of calls, and answers MCP lines with `answer`.
 final class EngineFake: EngineControlling, @unchecked Sendable {
     struct Failure: Error, Equatable {}
@@ -12,12 +12,13 @@ final class EngineFake: EngineControlling, @unchecked Sendable {
     let breakpoints = BreakpointCenter()
     let settings: SettingsStore
     var onLog: @Sendable (String) -> Void = { _ in }
+    var decryptsHTTPS = true
 
     private let log: LockedBox<[String]>
     private let boundPort: Int
     private let failsToStart: Bool
     private let answer: @Sendable (String) async -> String?
-    private let appliedSettings = LockedBox<[WatcherSettings]>([])
+    private let decryptedAtStart = LockedBox<Bool?>(nil)
 
     init(
         settings: SettingsStore,
@@ -30,17 +31,19 @@ final class EngineFake: EngineControlling, @unchecked Sendable {
         self.answer = answer ?? { "reply to \($0)" }
     }
 
-    /// `start <requested port>`, `apply` and `stop`, in order.
+    /// `start <requested port>` and `stop`, in order.
     var calls: [String] {
-        log.value.filter { $0.hasPrefix("start") || $0 == "apply" || $0 == "stop" }
+        log.value.filter { $0.hasPrefix("start") || $0 == "stop" }
     }
 
-    var applied: [WatcherSettings] {
-        appliedSettings.value
+    /// Whether HTTPS was to be decrypted when the proxy started; nil before it did.
+    var decryptedHTTPSAtStart: Bool? {
+        decryptedAtStart.value
     }
 
     func start(port: Int?) async throws -> Int {
         log.mutate { $0.append("start \(port.map(String.init) ?? "any")") }
+        decryptedAtStart.mutate { [decryptsHTTPS] in $0 = decryptsHTTPS }
         if failsToStart {
             throw Failure()
         }
@@ -49,11 +52,6 @@ final class EngineFake: EngineControlling, @unchecked Sendable {
 
     func stop() async throws {
         log.mutate { $0.append("stop") }
-    }
-
-    func apply(_ settings: WatcherSettings) async {
-        log.mutate { $0.append("apply") }
-        appliedSettings.mutate { $0.append(settings) }
     }
 
     func mcpHandler() -> @Sendable (String) async -> String? {

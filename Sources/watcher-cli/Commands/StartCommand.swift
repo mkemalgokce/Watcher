@@ -19,17 +19,14 @@ struct Start: AsyncParsableCommand {
 
     func run(in environment: CLIEnvironment) async throws {
         let output = environment.output
-        let (engine, bound) = try await environment.startEngine(port: port) { output("[log] \($0)") }
+        let (engine, bound) = try await environment.startEngine(port: port, decryptsHTTPS: !noDecrypt) {
+            output("[log] \($0)")
+        }
         output("Watcher listening on 127.0.0.1:\(bound)")
         if engine.settings.value.listenOnAllInterfaces {
             for address in environment.lanAddresses() {
                 output("  reachable from devices at \(address.ip):\(bound)  (\(address.interface))")
             }
-        }
-        if noDecrypt {
-            var settings = engine.settings.value
-            settings.sslProxying.include = []
-            await engine.apply(settings)
         }
         if systemProxy {
             try environment.systemProxy.enable(port: bound)
