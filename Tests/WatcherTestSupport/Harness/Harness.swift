@@ -12,10 +12,12 @@ public final class Harness {
         "http://upstream.test:\(upstream.port)"
     }
 
+    /// The engine's data folder, removed when the harness goes away.
+    private let directory: TemporaryDirectory
+
     public init() throws {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("watcher-test-\(UUID().uuidString)")
-        engine = try WatcherEngine(directory: directory)
+        directory = try TemporaryDirectory()
+        engine = try WatcherEngine(directory: directory.url)
         client = HTTPClient(eventLoopGroupProvider: .singleton)
     }
 
