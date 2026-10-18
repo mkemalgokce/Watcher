@@ -1,6 +1,7 @@
 import WatcherCore
 
-/// The Mac's own web proxy setting.
+/// The Mac's own web proxy setting. A protocol rather than `SystemProxy`'s `run` seam so controller tests can make it
+/// fail and order its calls against the proxy runner's, and previews can use one that does nothing.
 public protocol SystemProxying: Sendable {
     /// True when an earlier run turned the system proxy on and never put the original back.
     var hasPendingRestore: Bool { get }
