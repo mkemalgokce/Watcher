@@ -73,7 +73,7 @@ public final class AppModel {
             services: dependencies.requestServices,
             store: engine.store, settings: settings, notices: notices, router: router, list: list, proxy: proxy
         )
-        externalApps = ExternalApps(workspace: dependencies.workspace, notices: notices)
+        externalApps = ExternalApps(workspace: dependencies.workspace, notices: notices, files: dependencies.files)
         sessionFiles = SessionFilesViewModel(
             panels: dependencies.panels, files: dependencies.files, commands: dependencies.commands,
             store: engine.store, notices: notices

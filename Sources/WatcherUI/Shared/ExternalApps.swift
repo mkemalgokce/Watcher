@@ -1,15 +1,38 @@
 import AppKit
 import Observation
 import UniformTypeIdentifiers
+import WatcherCore
 
 /// "Open With" and "Show in Finder" for captured content, saying so when no app takes the file.
 @MainActor @Observable
 final class ExternalApps {
     private let workspace: any WorkspaceOpener
     private let notices: NoticeCenter
+    private let files: FileAccess
 
-    init(workspace: any WorkspaceOpener, notices: NoticeCenter) {
-        self.workspace = workspace; self.notices = notices
+    init(workspace: any WorkspaceOpener, notices: NoticeCenter, files: FileAccess) {
+        self.workspace = workspace; self.notices = notices; self.files = files
+    }
+
+    /// Writes `data` to a file of its own, named `name` (with an extension from the content when it has none), so
+    /// another app opens it under a sensible name; the folder is new each time, so no write replaces another.
+    func write(_ data: Data, name: String, contentType: String?) throws -> URL {
+        let directory = files.temporaryFile("folder").deletingPathExtension()
+        try files.createDirectory(directory)
+        var base = (name as NSString).deletingPathExtension
+        if base.isEmpty || base == "/" {
+            base = "body"
+        }
+        let given = (name as NSString).pathExtension
+        let fileExtension = given.isEmpty ? ExternalOpen.fileExtension(contentType: contentType, data: data) : given
+        let url = directory.appendingPathComponent(base).appendingPathExtension(fileExtension)
+        try files.writeAtomically(data, url)
+        return url
+    }
+
+    /// Removes a file made by `write` together with the folder made for it.
+    func discard(_ url: URL) {
+        try? files.remove(url.deletingLastPathComponent())
     }
 
     /// Apps that say they can open this kind of content, the default one first.

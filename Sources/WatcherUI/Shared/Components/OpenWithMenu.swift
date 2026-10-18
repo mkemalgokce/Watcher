@@ -23,7 +23,7 @@ struct OpenWithMenu: View {
             }
             Divider()
             Button("Show in Finder", systemImage: "folder") {
-                guard let url = try? ExternalOpen.write(data, name: name, contentType: contentType) else { return }
+                guard let url = try? externalApps.write(data, name: name, contentType: contentType) else { return }
                 externalApps.reveal(url)
             }
         }
@@ -32,7 +32,7 @@ struct OpenWithMenu: View {
 
     private func open(with app: URL?) {
         do {
-            let url = try ExternalOpen.write(data, name: name, contentType: contentType)
+            let url = try externalApps.write(data, name: name, contentType: contentType)
             Task { await externalApps.open(url, with: app) }
         } catch { notices.notify("Cannot prepare the file: \(error.localizedDescription)", .error) }
     }
@@ -40,9 +40,13 @@ struct OpenWithMenu: View {
 
 extension View {
     /// Lets the content be dragged into Finder or another app as a file.
-    func draggableFile(_ data: Data, name: String, contentType: String?) -> some View {
+    func draggableFile(
+        _ data: Data, name: String, contentType: String?, using externalApps: ExternalApps
+    ) -> some View {
         onDrag {
-            guard let url = try? ExternalOpen.write(data, name: name, contentType: contentType) else { return NSItemProvider() }
+            guard let url = try? externalApps.write(data, name: name, contentType: contentType) else {
+                return NSItemProvider()
+            }
             return NSItemProvider(contentsOf: url) ?? NSItemProvider()
         }
     }
