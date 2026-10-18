@@ -23,13 +23,38 @@ struct FlowExchange: Sendable {
         tools: [String],
         error: String? = nil
     ) -> ProxyServer.ClientResponse {
+        .buffered(record(request, response, state: state, tools: tools, error: error))
+    }
+
+    /// The recorded answer to a request the tools blocked or answered themselves; nil when they let it through.
+    func answer(_ decision: RequestDecision, to request: RequestRecord, tools: [String]) -> ResponseRecord? {
+        switch decision {
+        case .forward:
+            return nil
+        case let .block(hidden):
+            if hidden {
+                store.discard(flowID)
+            }
+            return record(request, ProxyServer.message(403, "Blocked by Watcher"), state: .blocked, tools: tools)
+        case let .respond(response):
+            return record(request, response, state: .completed, tools: tools)
+        }
+    }
+
+    private func record(
+        _ request: RequestRecord,
+        _ response: ResponseRecord,
+        state: Flow.State,
+        tools: [String],
+        error: String? = nil
+    ) -> ResponseRecord {
         let response = marked(response, tools)
         store.update(flowID) {
             $0.request = request; $0.response = response; $0.state = state
             $0.error = error; $0.appliedTools = tools
             $0.duration = now().timeIntervalSince(started)
         }
-        return .buffered(response)
+        return response
     }
 
     /// Records the head now and the captured body once the relay ends.

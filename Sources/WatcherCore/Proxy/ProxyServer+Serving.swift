@@ -37,25 +37,15 @@ extension ProxyServer {
             store.update(exchange.flowID) { $0.clientTLS = connection }
         }
         let (decision, requestTools) = await tools.applyRequest(&request)
-        switch decision {
-        case let .block(hidden):
-            if hidden {
-                store.discard(exchange.flowID)
-            }
-            let blocked = Self.message(403, "Blocked by Watcher")
-            return exchange.finish(request, blocked, state: .blocked, tools: requestTools)
-        case let .respond(response):
-            return exchange.finish(request, response, state: .completed, tools: requestTools)
-        case .forward:
-            do {
-                let sending = Sending(request: request, upload: upload, timeout: timeout)
-                return try await forward(
-                    sending, allowStreaming: allowStreaming, exchange: exchange, tools: requestTools
-                )
-            } catch {
-                let failure = Self.message(502, "Watcher could not reach \(request.host): \(error)")
-                return exchange.finish(request, failure, state: .failed, tools: requestTools, error: "\(error)")
-            }
+        if let answer = exchange.answer(decision, to: request, tools: requestTools) {
+            return .buffered(answer)
+        }
+        do {
+            let sending = Sending(request: request, upload: upload, timeout: timeout)
+            return try await forward(sending, allowStreaming: allowStreaming, exchange: exchange, tools: requestTools)
+        } catch {
+            let failure = Self.message(502, "Watcher could not reach \(request.host): \(error)")
+            return exchange.finish(request, failure, state: .failed, tools: requestTools, error: "\(error)")
         }
     }
 
