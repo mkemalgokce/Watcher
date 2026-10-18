@@ -31,4 +31,14 @@ struct HARTests {
         let data = try JSONSerialization.data(withJSONObject: ["log": ["entries": [entry]]])
         #expect(try HAR.flows(from: data).first?.request.headers == [Header("A", "1")])
     }
+
+    @Test(arguments: [(nil, 2000.0, 0.0), (0.5, 500, 1500)] as [(TimeInterval?, Double, Double)])
+    func timingsAddUpToTheEntryTime(timeToFirstByte: TimeInterval?, wait: Double, receive: Double) throws {
+        let data = try HAR.export([Flow.fixture(duration: 2, timeToFirstByte: timeToFirstByte)])
+        let log = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])["log"] as? [String: Any]
+        let entry = try #require((log?["entries"] as? [[String: Any]])?.first)
+        let timings = try #require(entry["timings"] as? [String: Double])
+        #expect(timings["wait"] == wait)
+        #expect(timings["receive"] == receive)
+    }
 }

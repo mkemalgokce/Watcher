@@ -43,7 +43,7 @@ public enum HAR {
         var entry: [String: Any] = [
             "startedDateTime": formatter.string(from: flow.startedAt), "time": duration,
             "request": requestObject, "cache": [String: Any](),
-            "timings": ["send": 0, "wait": (flow.timeToFirstByte ?? flow.duration ?? 0) * 1000, "receive": max(0, duration - (flow.timeToFirstByte ?? 0) * 1000)],
+            "timings": timings(flow),
         ]
         if let response = flow.response {
             let body = text(response.body)
@@ -71,6 +71,15 @@ public enum HAR {
             ]
         }
         return entry
+    }
+
+    /// `wait` and `receive` split `time` at the first byte; without one, all of it counts as waiting.
+    private static func timings(_ flow: Flow) -> [String: Double] {
+        let duration = (flow.duration ?? 0) * 1000
+        guard let firstByte = flow.timeToFirstByte.map({ $0 * 1000 }) else {
+            return ["send": 0, "wait": duration, "receive": 0]
+        }
+        return ["send": 0, "wait": firstByte, "receive": max(0, duration - firstByte)]
     }
 
     private static func text(_ data: Data) -> (text: String, isBase64: Bool) {
