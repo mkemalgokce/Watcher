@@ -29,7 +29,7 @@ public final class WatcherEngine: @unchecked Sendable {
     private var appliedReverseProxies: [ReverseProxyRule]?
     private var appliedSocks: SocksSettings?
     private let previewers = PreviewerRunner()
-    private var protobufSchema: (files: [String], schema: ProtobufSchema?) = ([], nil)
+    private var protobufSchema = LoadedSchemas()
     private var loadedPAC: (location: String, evaluator: PACEvaluator)?
     private let files: FileAccess
     private let pacLoader: @Sendable (String) async throws -> PACEvaluator
@@ -290,23 +290,33 @@ public extension WatcherEngine {
     }
 }
 
+private struct LoadedSchemas {
+    var files: [String] = []
+    var schema: ProtobufSchema?
+    var hadFailures = false
+}
+
 extension WatcherEngine {
     /// Reads all `.desc` files into one schema; unreadable files are reported and skipped.
     private func loadProtobufSchemas(_ paths: [String], log: @Sendable (String) -> Void) {
         let loaded = lock.withLock { protobufSchema }
-        // A schema that failed to load is tried again, so a file that is fixed later is picked up.
-        guard paths != loaded.files || (loaded.schema == nil && !paths.isEmpty) else { return }
+        // A file that failed to load is tried again on the next apply, which runs when the settings change.
+        guard paths != loaded.files || loaded.hadFailures || (loaded.schema == nil && !paths.isEmpty) else { return }
         var combined = Data()
+        var hadFailures = false
         for file in paths {
             do { try combined.append(files.read(URL(fileURLWithPath: (file as NSString).expandingTildeInPath)))
                 // A FileDescriptorSet is a repeated field, so concatenated sets are themselves a valid set.
-            } catch { log("Protobuf schema \(file): \(error)") }
+            } catch {
+                hadFailures = true
+                log("Protobuf schema \(file): \(error)")
+            }
         }
         let schema = combined.isEmpty ? nil : try? ProtobufSchema(descriptorSet: combined)
         if !paths.isEmpty, schema == nil {
             log("Protobuf schemas could not be parsed")
         }
-        lock.withLock { protobufSchema = (paths, schema) }
+        lock.withLock { protobufSchema = LoadedSchemas(files: paths, schema: schema, hadFailures: hadFailures) }
     }
 
     /// Body text for display: a schema-decoded protobuf when a rule names the message type, else the generic preview.

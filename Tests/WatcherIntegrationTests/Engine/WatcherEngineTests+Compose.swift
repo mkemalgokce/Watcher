@@ -8,25 +8,17 @@ extension WatcherEngineTests {
     /// library.
     @Suite(.serialized)
     struct Compose {
-        @Test(.tags(.timing))
-        func aSilentServerIsAnsweredWith502AfterTheTimeout() async throws {
-            let silent = SilentOrigin()
-            try await silent.start()
-            do {
-                try await withHarness { harness in
-                    let started = Date()
-                    let response = await harness.engine.send(
-                        .fixture(scheme: "http", host: "127.0.0.1", port: silent.port),
-                        timeout: 1
-                    )
-                    #expect(response.status == 502)
-                    #expect(Date().timeIntervalSince(started) < 30)
-                }
-            } catch {
-                await silent.stop()
-                throw error
+        @Test
+        func theTimeoutOfASendReachesTheUpstream() async throws {
+            let upstream = UpstreamStub()
+            let directory = URL(fileURLWithPath: "/fake-home/.watcher")
+            let engine = try WatcherEngine(directory: directory, files: FileAccessFake().access) {
+                ProxyServer(store: $0, authority: $1, upstream: upstream)
             }
-            await silent.stop()
+            try await engine.start(port: 0)
+            _ = await engine.send(.fixture(scheme: "http", host: "a.test"), timeout: 7)
+            #expect(upstream.sent.first?.timeout == .seconds(7))
+            try await engine.stop()
         }
 
         @Test

@@ -98,5 +98,19 @@ extension WatcherEngineTests {
             #expect(engine.bodyText(of: flow, response: true) == #"name: "Ada""#)
             try await engine.stop()
         }
+
+        @Test
+        func aSchemaFileThatFailedIsTriedAgainWhileTheOthersLoad() async throws {
+            files.write(ProtobufBytes.userDescriptorSet, to: schemaPath)
+            let engine = try await running()
+            let missing = "/fake-home/missing.desc"
+            var settings = engine.settings.value
+            settings.protobufSchemas = [schemaPath, missing]
+            await engine.apply(settings)
+            await engine.apply(settings)
+            let failures = logged.value.filter { $0.hasPrefix("Protobuf schema \(missing)") }
+            #expect(failures.count == 2, "\(logged.value)")
+            try await engine.stop()
+        }
     }
 }
