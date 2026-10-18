@@ -8,11 +8,12 @@ enum CustomCertificates {
 
     static func serverContext(_ rule: CustomCertificateRule, offerHTTP2: Bool = true, keyLog: NIOSSLKeyLogCallback? = nil) throws -> NIOSSLContext {
         let identity = try bundle(rule)
-        var configuration = TLSConfiguration.makeServerConfiguration(
-            certificateChain: identity.certificateChain.map { .certificate($0) }, privateKey: .privateKey(identity.privateKey)
+        let configuration = TLSConfiguration.decryptingServer(
+            chain: identity.certificateChain.map { .certificate($0) },
+            key: .privateKey(identity.privateKey),
+            offerHTTP2: offerHTTP2,
+            keyLog: keyLog
         )
-        configuration.applicationProtocols = offerHTTP2 ? ["h2", "http/1.1"] : ["http/1.1"]
-        configuration.keyLogCallback = keyLog
         return try NIOSSLContext(configuration: configuration)
     }
 

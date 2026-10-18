@@ -109,12 +109,12 @@ public final class CertificateAuthority: @unchecked Sendable {
         let leafKey = P256.Signing.PrivateKey()
         let leaf = try leafCertificate(for: host, key: leafKey)
 
-        var configuration = try TLSConfiguration.makeServerConfiguration(
-            certificateChain: [.certificate(NIOSSLCertificate(bytes: Array(leaf.serializeAsPEM().derBytes), format: .der))],
-            privateKey: .privateKey(NIOSSLPrivateKey(bytes: Array(leafKey.derRepresentation), format: .der))
+        let configuration = try TLSConfiguration.decryptingServer(
+            chain: [.certificate(NIOSSLCertificate(bytes: Array(leaf.serializeAsPEM().derBytes), format: .der))],
+            key: .privateKey(NIOSSLPrivateKey(bytes: Array(leafKey.derRepresentation), format: .der)),
+            offerHTTP2: offerHTTP2,
+            keyLog: lock.withLock { _keyLog }
         )
-        configuration.applicationProtocols = offerHTTP2 ? ["h2", "http/1.1"] : ["http/1.1"]
-        configuration.keyLogCallback = lock.withLock { _keyLog }
         let context = try NIOSSLContext(configuration: configuration)
         lock.withLock { contexts[cacheKey] = context }
         return context
