@@ -38,10 +38,10 @@ struct Rules: ParsableCommand {
         }
 
         func run(in environment: CLIEnvironment) throws {
+            guard let importMode = WatcherSettings.ImportMode(rawValue: mode) else { throw ValidationError("mode must be append or override") }
             let source = environment.url(forPath: path)
             environment.output("[Import] Prepare for importing Watcher Rules. Mode = \(mode), input = \(source.path)")
             let data = try environment.files.read(source)
-            guard let importMode = WatcherSettings.ImportMode(rawValue: mode) else { throw ValidationError("mode must be append or override") }
             let incoming = try JSONDecoder().decode(WatcherSettings.self, from: data)
             let store = environment.settings
             try store.replace(with: store.value.importing(incoming, mode: importMode))

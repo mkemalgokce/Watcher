@@ -34,10 +34,12 @@ extension RulesCommandTests {
         }
 
         @Test
-        func aMissingFileIsReportedEvenWithAnUnknownMode() throws {
+        func anUnknownModeIsReportedBeforeTheFileIsRead() throws {
             let cli = CLIHarness()
             let command = try Rules.Import.parse(["/tmp/missing.json", "--mode", "bogus"])
-            #expect(throws: CocoaError.self) { try command.run(in: cli.environment) }
+            let error = #expect(throws: ValidationError.self) { try command.run(in: cli.environment) }
+            #expect(error?.message == "mode must be append or override")
+            #expect(cli.printed.isEmpty)
         }
 
         @Test
