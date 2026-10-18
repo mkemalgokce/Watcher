@@ -22,7 +22,7 @@ struct ImagePreview: View {
                     Picker("Size", selection: $actualSize) { Text("Fit").tag(false); Text("Actual").tag(true) }
                         .pickerStyle(.segmented).labelsHidden().frame(width: 120).accessibilityLabel("Image size")
                     Button("Copy Image", systemImage: "doc.on.doc") {
-                        model.pasteboard.clearContents(); model.pasteboard.writeObjects([image]); model.notify("Image copied", .success)
+                        model.copy(image: image)
                     }.labelStyle(.iconOnly).help("Copy image")
                     Button("Save Image…", systemImage: "square.and.arrow.down") { save() }.labelStyle(.iconOnly).help("Save image…")
                     OpenWithMenu(data: data, name: "image", contentType: mime).labelStyle(.iconOnly).menuStyle(.borderlessButton).fixedSize()

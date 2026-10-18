@@ -21,8 +21,7 @@ extension InteractionTests {
 
                 try await window.press("Copy as cURL")
                 #expect(model.notice?.message == "cURL copied")
-                #expect(model.pasteboard.string(forType: .string) == model.code(for: selected.request, as: .curl))
-                #expect(model.pasteboard != NSPasteboard.general, "tests must never write to the real clipboard")
+                #expect(model.clipboard.string() == model.code(for: selected.request, as: .curl))
 
                 try await window.press("Edit & Repeat")
                 #expect(model.sheet == .compose)

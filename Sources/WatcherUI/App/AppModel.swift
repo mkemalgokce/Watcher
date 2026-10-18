@@ -8,9 +8,7 @@ import WatcherCore
 @MainActor @Observable
 public final class AppModel {
     let engine: WatcherEngine
-    /// Where Copy writes and New Request from cURL reads. Previews and tests get a private one, so they never touch
-    /// the user's clipboard.
-    @ObservationIgnored let pasteboard: NSPasteboard
+    @ObservationIgnored let clipboard: any Clipboard
     /// Certificate trust and device setup (DeviceSetupView, the welcome sheet and the first-run list). Previews and tests
     /// get a probe that never asks the keychain, simctl or adb, so what they show is the same on every Mac.
     let devices: DevicesViewModel
@@ -131,12 +129,15 @@ public final class AppModel {
     /// Turns the Mac's own proxy setting on and off; tests pass one with a fake `networksetup`.
     let systemProxy: SystemProxy
 
-    init(listening: Bool, systemProxy: SystemProxy? = nil) {
-        // Previews and tests get a throwaway directory: their edits must never reach the user's real ~/.watcher settings.
-        let directory = listening ? WatcherPaths.supportDirectory : FileManager.default.temporaryDirectory.appendingPathComponent("watcher-preview-\(UUID().uuidString)")
+    convenience init(listening: Bool, systemProxy: SystemProxy? = nil) {
+        self.init(dependencies: listening ? .live() : .preview(), listening: listening, systemProxy: systemProxy)
+    }
+
+    init(dependencies: AppDependencies, listening: Bool = false, systemProxy: SystemProxy? = nil) {
+        engine = dependencies.engine
+        clipboard = dependencies.clipboard
+        let directory = engine.authority.certificateURL.deletingLastPathComponent()
         devices = DevicesViewModel(probe: listening ? .live : .none, certificateURL: WatcherPaths.supportDirectory.appendingPathComponent("watcher-ca.pem"))
-        pasteboard = listening ? .general : NSPasteboard(name: NSPasteboard.Name("watcher-preview-\(UUID().uuidString)"))
-        do { engine = try WatcherEngine(directory: directory) } catch { fatalError("Cannot prepare \(directory.path): \(error)") }
         settings = engine.settings.value
         workspaces = engine.workspaces.list()
         // Never the real one off the app: a preview or test must not change the Mac's network settings.
@@ -453,7 +454,7 @@ public final class AppModel {
     /// Re-sends a captured request; with the setting on, cache validators are dropped so the server answers afresh.
     /// File ▸ New Request from cURL: the command on the clipboard opens in Compose, ready to change and send.
     func composeFromClipboardCurl() {
-        guard let text = pasteboard.string(forType: .string), CurlImport.looksLikeCurl(text) else {
+        guard let text = clipboard.string(), CurlImport.looksLikeCurl(text) else {
             return notify("Copy a curl command first, then choose New Request from cURL.", .error)
         }
         do { composeDraft = try CurlImport.parse(text); composeSource = nil; show(.compose) } catch { notify("Cannot read the cURL command: \(error)", .error) }
@@ -527,9 +528,13 @@ public final class AppModel {
     }
 
     func copy(_ text: String, _ what: String = "Copied") {
-        pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        clipboard.setString(text)
         notify(what, .success)
+    }
+
+    func copy(image: NSImage) {
+        clipboard.setImage(image)
+        notify("Image copied", .success)
     }
 
     /// New pauses are announced, never pushed into a window: opening Breakpoints on every hit took over the screen

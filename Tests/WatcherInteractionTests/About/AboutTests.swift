@@ -8,7 +8,8 @@ extension InteractionTests {
     struct AboutTests {
         @Test
         func aboutCopiesVersionInfo() async throws {
-            let model = AppModel(listening: false)
+            let clipboard = ClipboardSpy()
+            let model = try AppModel.test(clipboard: clipboard)
             try await withWindow(showing: AboutView().environment(model), width: 480, height: 640) { window in
                 #expect(
                     !window.elements("Development build").isEmpty,
@@ -16,7 +17,7 @@ extension InteractionTests {
                 )
                 try await window.press("Copy Version Info")
                 #expect(model.notice?.message == "Version info copied")
-                let copied = model.pasteboard.string(forType: .string)
+                let copied = clipboard.text
                 #expect(copied?.hasPrefix("Watcher Development build · macOS") == true)
             }
         }

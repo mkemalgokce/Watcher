@@ -60,7 +60,7 @@ struct EmbeddedDataView: View {
             }
             Menu {
                 if case .image = segment.kind, let image = NSImage(data: segment.data) {
-                    Button("Copy Image") { model.pasteboard.clearContents(); model.pasteboard.writeObjects([image]); model.notify("Image copied", .success) }
+                    Button("Copy Image") { model.copy(image: image) }
                 }
                 if let text = segment.text {
                     Button("Copy Decoded Text") { model.copy(text, "Decoded text copied") }

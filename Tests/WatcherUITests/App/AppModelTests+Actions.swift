@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Testing
 @testable import WatcherCore
 import WatcherTestSupport
@@ -50,40 +50,44 @@ extension AppModelTests {
         }
 
         @Test
-        func copyPutsTheTextOnThePasteboardAndConfirms() {
-            let model = AppModel(listening: false)
+        func copyPutsTheTextOnThePasteboardAndConfirms() throws {
+            let clipboard = ClipboardSpy()
+            let model = try AppModel.test(clipboard: clipboard)
             model.copy("curl https://x.test", "Copied as cURL")
-            #expect(model.pasteboard.string(forType: .string) == "curl https://x.test")
+            #expect(clipboard.text == "curl https://x.test")
             #expect(model.notice?.kind == .success)
             #expect(model.notice?.message == "Copied as cURL")
         }
 
-        @Test(arguments: ["", "hello world"])
-        func composingFromAClipboardWithoutCurlIsRefused(clipboard: String) {
-            let model = AppModel(listening: false)
-            model.pasteboard.clearContents()
-            model.pasteboard.setString(clipboard, forType: .string)
+        @Test
+        func copyingAnImagePutsItOnThePasteboard() throws {
+            let clipboard = ClipboardSpy()
+            let model = try AppModel.test(clipboard: clipboard)
+            model.copy(image: NSImage(size: NSSize(width: 1, height: 1)))
+            #expect(clipboard.images.count == 1)
+            #expect(model.notice?.message == "Image copied")
+        }
+
+        @Test(arguments: [nil, "", "hello world"])
+        func composingFromAClipboardWithoutCurlIsRefused(clipboard: String?) throws {
+            let model = try AppModel.test(clipboard: ClipboardSpy(text: clipboard))
             model.composeFromClipboardCurl()
             #expect(model.sheet == nil)
             #expect(model.notice?.message == "Copy a curl command first, then choose New Request from cURL.")
         }
 
         @Test
-        func composingFromABrokenCurlReportsWhy() {
-            let model = AppModel(listening: false)
-            model.pasteboard.clearContents()
-            model.pasteboard.setString("curl 'https://x.test", forType: .string)
+        func composingFromABrokenCurlReportsWhy() throws {
+            let model = try AppModel.test(clipboard: ClipboardSpy(text: "curl 'https://x.test"))
             model.composeFromClipboardCurl()
             #expect(model.sheet == nil)
             #expect(model.notice?.message.hasPrefix("Cannot read the cURL command") == true)
         }
 
         @Test
-        func composingFromAValidCurlOpensCompose() {
-            let model = AppModel(listening: false)
+        func composingFromAValidCurlOpensCompose() throws {
+            let model = try AppModel.test(clipboard: ClipboardSpy(text: "curl -X POST https://x.test/v1"))
             model.composeSource = .fixture()
-            model.pasteboard.clearContents()
-            model.pasteboard.setString("curl -X POST https://x.test/v1", forType: .string)
             model.composeFromClipboardCurl()
             #expect(model.sheet == .compose)
             #expect(model.composeDraft?.method == "POST")

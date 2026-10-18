@@ -16,7 +16,7 @@ struct ConverterView: View {
                 Picker("Convert", selection: $operation) { ForEach(Converter.Operation.allCases) { Text($0.rawValue).tag($0) } }.frame(width: 260)
                 Spacer()
                 // Only on request: reading the clipboard by itself shows a paste-permission prompt and can pick up private text.
-                Button("Paste", systemImage: "doc.on.clipboard") { input = model.pasteboard.string(forType: .string) ?? input }
+                Button("Paste", systemImage: "doc.on.clipboard") { input = model.clipboard.string() ?? input }
             }
             pane("Input") { SyntaxTextView(text: $input, language: .plain) }
             HStack {
