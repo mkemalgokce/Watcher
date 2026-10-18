@@ -26,7 +26,9 @@ public final class PACEvaluator: @unchecked Sendable {
     function myIpAddress() { return '127.0.0.1'; }
     """
 
-    public init(script: String) throws {
+    /// `timeLimit` bounds each run of the script, so one that never finishes cannot stall loading or a lookup.
+    public init(script: String, timeLimit: Duration = .seconds(1)) throws {
+        ExecutionLimit.apply(timeLimit, to: context)
         let shExpMatch: @convention(block) (String, String) -> Bool = { Wildcard($1).matches($0) }
         context.setObject(shExpMatch, forKeyedSubscript: "shExpMatch" as NSString)
         context.evaluateScript(Self.prelude)

@@ -3,7 +3,7 @@ import Testing
 @testable import WatcherCore
 import WatcherTestSupport
 
-@Suite(.tags(.unit))
+@Suite(.tags(.unit), .timeLimit(.minutes(1)))
 struct PACEvaluatorTests {
     @Test
     func routesEachHostTheWayTheScriptSays() throws {
@@ -39,6 +39,22 @@ struct PACEvaluatorTests {
     @Test
     func aScriptThatDoesNotRunIsALoadError() {
         #expect(throws: PACEvaluator.LoadError.self) { try PACEvaluator(script: "function FindProxyForURL( {") }
+    }
+
+    @Test
+    func aScriptThatNeverFinishesLoadingIsALoadError() {
+        #expect(throws: PACEvaluator.LoadError.self) {
+            try PACEvaluator(script: "for (;;) {} function FindProxyForURL() {}", timeLimit: .milliseconds(50))
+        }
+    }
+
+    @Test
+    func aLookupThatNeverFinishesGoesDirect() throws {
+        let pac = try PACEvaluator(
+            script: "function FindProxyForURL() { for (;;) {} }",
+            timeLimit: .milliseconds(50)
+        )
+        #expect(pac.route(for: "http://x.test/", host: "x.test") == .direct)
     }
 
     @Test(arguments: ["ftp://pac.test/proxy.pac", "not a url", ""])
