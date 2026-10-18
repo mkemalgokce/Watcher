@@ -1,15 +1,16 @@
 import Foundation
 import WatcherCore
 
-/// An in-memory file system: files are paths with contents, executables a set of paths.
+/// An in-memory file system: files are paths with contents; folders and executables are sets of paths.
 public final class FileAccessFake: @unchecked Sendable {
     private let lock = NSLock()
     private var files: [String: Data] = [:]
     private var executables: Set<String>
+    private var directories: Set<String>
     private var temporaryCount = 0
 
-    public init(files: [String: Data] = [:], executables: Set<String> = []) {
-        self.files = files; self.executables = executables
+    public init(files: [String: Data] = [:], executables: Set<String> = [], directories: Set<String> = []) {
+        self.files = files; self.executables = executables; self.directories = directories
     }
 
     public var paths: Set<String> {
@@ -23,7 +24,8 @@ public final class FileAccessFake: @unchecked Sendable {
     public var access: FileAccess {
         FileAccess(
             isExecutable: { [self] path in lock.withLock { executables.contains(path) } },
-            fileExists: { [self] path in lock.withLock { files[path] != nil } },
+            fileExists: { [self] path in lock.withLock { files[path] != nil || directories.contains(path) } },
+            isDirectory: { [self] path in lock.withLock { directories.contains(path) } },
             read: { [self] url in
                 guard let data = lock.withLock({ files[url.path] }) else { throw CocoaError(.fileReadNoSuchFile) }
                 return data

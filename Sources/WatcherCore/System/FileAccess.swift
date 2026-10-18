@@ -4,6 +4,7 @@ import Foundation
 public struct FileAccess: Sendable {
     public var isExecutable: @Sendable (String) -> Bool
     public var fileExists: @Sendable (String) -> Bool
+    public var isDirectory: @Sendable (String) -> Bool
     public var read: @Sendable (URL) throws -> Data
     public var remove: @Sendable (URL) throws -> Void
     /// A path in the temporary directory that no other call returns, ending in `.<extension>`.
@@ -12,11 +13,13 @@ public struct FileAccess: Sendable {
     public init(
         isExecutable: @escaping @Sendable (String) -> Bool,
         fileExists: @escaping @Sendable (String) -> Bool,
+        isDirectory: @escaping @Sendable (String) -> Bool,
         read: @escaping @Sendable (URL) throws -> Data,
         remove: @escaping @Sendable (URL) throws -> Void,
         temporaryFile: @escaping @Sendable (_ extension: String) -> URL
     ) {
-        self.isExecutable = isExecutable; self.fileExists = fileExists; self.read = read
+        self.isExecutable = isExecutable; self.fileExists = fileExists
+        self.isDirectory = isDirectory; self.read = read
         self.remove = remove; self.temporaryFile = temporaryFile
     }
 }

@@ -53,13 +53,9 @@ public enum CharlesSettings {
         }
     }
 
-    public static func importSettings(from data: Data) throws -> WatcherSettings {
-        let parser = Parser()
-        let xml = XMLParser(data: data)
-        xml.delegate = parser
-        guard xml.parse() else { throw ImportError(description: "Not a readable XML file: \(xml.parserError?.localizedDescription ?? "unknown error")") }
-        let root = parser.root
-
+    /// `files` tells whether a Map Local destination is a folder on this Mac.
+    public static func importSettings(from data: Data, files: FileAccess = .live) throws -> WatcherSettings {
+        let root = try parse(data)
         var settings = WatcherSettings()
         let block = tool("Block List", "blacklist", in: root), allow = tool("Allow List", "whitelist", in: root)
         settings.blockList = RuleSet(isEnabled: block.map(toolEnabled) ?? false, rules: block.map(locations)?.map {
@@ -68,74 +64,109 @@ public enum CharlesSettings {
         settings.allowList = RuleSet(isEnabled: allow.map(toolEnabled) ?? false, rules: allow.map(locations)?.map {
             AllowRule(name: "Charles", isEnabled: $0.enabled, matching: MatchingRule(pattern: $0.pattern))
         } ?? [])
-
         if let local = tool("Map Local", "mapLocal", in: root) {
-            settings.mapLocal = RuleSet(isEnabled: toolEnabled(local), rules: local.descendants("mapLocalMapping").compactMap { entry in
-                guard let source = entry.child("sourceLocation"), let destination = entry.value("dest") else { return nil }
-                var isDirectory: ObjCBool = false
-                let isFolder = FileManager.default.fileExists(atPath: (destination as NSString).expandingTildeInPath, isDirectory: &isDirectory) && isDirectory.boolValue
-                return MapLocalRule(
-                    name: "Charles",
-                    isEnabled: itemEnabled(entry),
-                    matching: MatchingRule(pattern: pattern(source)),
-                    source: isFolder ? .directory(destination) : .file(destination)
-                )
-            })
+            settings.mapLocal = mapLocal(local, files: files)
         }
         if let remote = tool("Map Remote", "map", in: root) {
-            settings.mapRemote = RuleSet(isEnabled: toolEnabled(remote), rules: remote.descendants("mapMapping").compactMap { entry in
-                guard let source = entry.child("sourceLocation"), let target = entry.child("destLocation") else { return nil }
-                return MapRemoteRule(
-                    name: "Charles",
-                    isEnabled: itemEnabled(entry),
-                    matching: MatchingRule(pattern: pattern(source)),
-                    destination: .init(
-                        scheme: target.value("protocol"),
-                        host: target.value("host"),
-                        port: target.value("port").flatMap(Int.init),
-                        path: target.value("path"),
-                        query: target.value("query")
-                    ),
-                    preserveHostHeader: entry.value("preserveHostHeader") == "true"
-                )
-            })
+            settings.mapRemote = mapRemote(remote)
         }
         if let breakpoints = tool("Breakpoints", "breakpoints", in: root) {
-            settings.breakpoints = RuleSet(isEnabled: toolEnabled(breakpoints), rules: breakpoints.descendants("breakpoint").compactMap { entry in
-                guard let location = entry.child("location") else { return nil }
-                return BreakpointRule(
-                    name: "Charles",
-                    isEnabled: itemEnabled(entry),
-                    matching: MatchingRule(pattern: pattern(location), methods: entry.value("method").map { [$0] } ?? []),
-                    onRequest: entry.value("request") == "true",
-                    onResponse: entry.value("response") == "true"
-                )
-            })
+            settings.breakpoints = self.breakpoints(breakpoints)
         }
         if let dns = tool("DNS Spoofing", "dnsSpoofing", in: root) {
-            settings.dnsSpoofing = RuleSet(isEnabled: toolEnabled(dns), rules: dns.descendants("dnsSpoof").compactMap { entry in
-                guard let host = entry.value("name"), let address = entry.value("address") else { return nil }
-                return DNSSpoofRule(isEnabled: itemEnabled(entry), host: host, address: address)
-            })
+            settings.dnsSpoofing = dnsSpoofing(dns)
         }
         if let reverse = tool("Reverse Proxies", "reverseProxies", in: root) {
-            // This tool has no `toolEnabled`; its entries carry their own `enabled`.
-            let entries: [ReverseProxyRule] = reverse.descendants("reverseProxy").compactMap { entry in
-                guard let local = entry.value("sourcePort").flatMap(Int.init), let host = entry.value("destHost") else { return nil }
-                let port = entry.value("destPort").flatMap(Int.init) ?? 80
-                return ReverseProxyRule(
-                    name: "Charles",
-                    isEnabled: itemEnabled(entry),
-                    localPort: local,
-                    remoteHost: host,
-                    remotePort: port,
-                    forceTLS: port == 443,
-                    preserveHost: entry.value("preserveHostHeader") == "true"
-                )
-            }
-            settings.reverseProxy = RuleSet(isEnabled: !entries.isEmpty, rules: entries)
+            settings.reverseProxy = reverseProxies(reverse)
         }
         return settings
+    }
+
+    private static func parse(_ data: Data) throws -> Node {
+        let parser = Parser()
+        let xml = XMLParser(data: data)
+        xml.delegate = parser
+        guard xml.parse() else {
+            let reason = xml.parserError?.localizedDescription ?? "unknown error"
+            throw ImportError(description: "Not a readable XML file: \(reason)")
+        }
+        return parser.root
+    }
+
+    // MARK: Tools
+
+    private static func mapLocal(_ tool: Node, files: FileAccess) -> RuleSet<MapLocalRule> {
+        RuleSet(isEnabled: toolEnabled(tool), rules: tool.descendants("mapLocalMapping").compactMap { entry in
+            guard let source = entry.child("sourceLocation"), let destination = entry.value("dest") else { return nil }
+            let isFolder = files.isDirectory((destination as NSString).expandingTildeInPath)
+            return MapLocalRule(
+                name: "Charles",
+                isEnabled: itemEnabled(entry),
+                matching: MatchingRule(pattern: pattern(source)),
+                source: isFolder ? .directory(destination) : .file(destination)
+            )
+        })
+    }
+
+    private static func mapRemote(_ tool: Node) -> RuleSet<MapRemoteRule> {
+        RuleSet(isEnabled: toolEnabled(tool), rules: tool.descendants("mapMapping").compactMap { entry in
+            guard let source = entry.child("sourceLocation"), let target = entry.child("destLocation") else {
+                return nil
+            }
+            return MapRemoteRule(
+                name: "Charles",
+                isEnabled: itemEnabled(entry),
+                matching: MatchingRule(pattern: pattern(source)),
+                destination: .init(
+                    scheme: target.value("protocol"),
+                    host: target.value("host"),
+                    port: target.value("port").flatMap(Int.init),
+                    path: target.value("path"),
+                    query: target.value("query")
+                ),
+                preserveHostHeader: entry.value("preserveHostHeader") == "true"
+            )
+        })
+    }
+
+    private static func breakpoints(_ tool: Node) -> RuleSet<BreakpointRule> {
+        RuleSet(isEnabled: toolEnabled(tool), rules: tool.descendants("breakpoint").compactMap { entry in
+            guard let location = entry.child("location") else { return nil }
+            return BreakpointRule(
+                name: "Charles",
+                isEnabled: itemEnabled(entry),
+                matching: MatchingRule(pattern: pattern(location), methods: entry.value("method").map { [$0] } ?? []),
+                onRequest: entry.value("request") == "true",
+                onResponse: entry.value("response") == "true"
+            )
+        })
+    }
+
+    private static func dnsSpoofing(_ tool: Node) -> RuleSet<DNSSpoofRule> {
+        RuleSet(isEnabled: toolEnabled(tool), rules: tool.descendants("dnsSpoof").compactMap { entry in
+            guard let host = entry.value("name"), let address = entry.value("address") else { return nil }
+            return DNSSpoofRule(isEnabled: itemEnabled(entry), host: host, address: address)
+        })
+    }
+
+    /// This tool has no `toolEnabled`; its entries carry their own `enabled`.
+    private static func reverseProxies(_ tool: Node) -> RuleSet<ReverseProxyRule> {
+        let entries: [ReverseProxyRule] = tool.descendants("reverseProxy").compactMap { entry in
+            guard let local = entry.value("sourcePort").flatMap(Int.init), let host = entry.value("destHost") else {
+                return nil
+            }
+            let port = entry.value("destPort").flatMap(Int.init) ?? 80
+            return ReverseProxyRule(
+                name: "Charles",
+                isEnabled: itemEnabled(entry),
+                localPort: local,
+                remoteHost: host,
+                remotePort: port,
+                forceTLS: port == 443,
+                preserveHost: entry.value("preserveHostHeader") == "true"
+            )
+        }
+        return RuleSet(isEnabled: !entries.isEmpty, rules: entries)
     }
 
     // MARK: Helpers
