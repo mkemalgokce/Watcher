@@ -13,4 +13,12 @@ enum WatcherCLIBinary {
         }
         return binary
     }
+
+    /// The environment of a launched `watcher-cli`: its own home, and its coverage data kept out of the repository.
+    static func environment(home: URL) -> [String: String] {
+        ProcessInfo.processInfo.environment.merging([
+            "WATCHER_HOME": home.path,
+            "LLVM_PROFILE_FILE": home.appendingPathComponent("watcher-cli-%p.profraw").path,
+        ]) { $1 }
+    }
 }
