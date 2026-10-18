@@ -16,6 +16,14 @@ struct SettingsScreenTests {
     private static let size = CGSize(width: 520, height: 470)
 
     @Test
+    func theGeneralSettings() async throws {
+        let model = try Screen.model()
+        model.settings.port = 80
+        let view = GeneralSettings(pane: model.settingsPane).environment(model)
+        await ImageSnapshot.verify(view, size: CGSize(width: 520, height: 720), named: "general")
+    }
+
+    @Test
     func theViewerSettings() async throws {
         let model = try Screen.model()
         let view = AppearanceSettings(options: model.viewer).environment(model)

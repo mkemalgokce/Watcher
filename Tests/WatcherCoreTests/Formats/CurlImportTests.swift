@@ -24,6 +24,12 @@ struct CurlImportTests {
         #expect(request.headers.value(for: "accept-encoding") == "gzip, deflate, br")
     }
 
+    @Test
+    func anIPv6LiteralHostIsStoredWithoutBrackets() throws {
+        let request = try CurlImport.parse("curl http://[::1]:8080/x")
+        #expect((request.host, request.port, request.path) == ("::1", 8080, "/x"))
+    }
+
     @Test(arguments: [
         ("curl example.com", "GET"),
         ("curl -d a=1 example.com", "POST"),

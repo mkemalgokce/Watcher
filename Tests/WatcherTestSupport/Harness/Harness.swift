@@ -29,9 +29,10 @@ public final class Harness {
         host: String = "upstream.test",
         origin: OriginAuthority? = nil,
         files: FileAccessFake? = nil,
-        loopbackAddress: String = "127.0.0.1",
+        loopbackAddress: String? = nil,
         clientApp: @escaping @Sendable (Int) -> String? = { _ in nil }
     ) throws {
+        let loopbackAddress = loopbackAddress ?? (host.contains(":") ? host : "127.0.0.1")
         self.host = host
         self.loopbackAddress = loopbackAddress
         upstream = try TestUpstream(tls: origin?.serverContext(for: host), bindHost: loopbackAddress)

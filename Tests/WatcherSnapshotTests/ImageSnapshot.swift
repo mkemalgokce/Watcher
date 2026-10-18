@@ -19,9 +19,11 @@ enum ImageSnapshot {
     private static let settleLimit: TimeInterval = 5
 
     /// Lets what a screen starts when it appears (formatting a body, comparing two responses) finish: runs the main
-    /// loop until two renders in a row are identical, and gives up after `settleLimit`.
+    /// loop until `isDone` holds and two renders in a row are identical, and records an issue after `settleLimit`.
     @MainActor
-    private static func settle(_ view: NSView) async {
+    private static func settle(
+        _ view: NSView, until isDone: () -> Bool, sourceLocation: SourceLocation
+    ) async {
         var previous: Data?
         let deadline = Date(timeIntervalSinceNow: settleLimit)
         while Date() < deadline {
@@ -30,11 +32,12 @@ enum ImageSnapshot {
                 view.cacheDisplay(in: view.bounds, to: rep)
                 return rep.representation(using: .tiff, properties: [:])
             }
-            if current != nil, current == previous {
+            if isDone(), current != nil, current == previous {
                 return
             }
             previous = current
         }
+        Issue.record("The screen never settled.", sourceLocation: sourceLocation)
     }
 
     /// The size, language, time zone and animations every reference is rendered with.
@@ -50,16 +53,37 @@ enum ImageSnapshot {
     static let timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
     static let locale = Locale(identifier: "en_GB")
 
+    /// One screen is drawn at a time, so the main actor keeps its time for the other suites' waits.
+    private actor Turn {
+        private var busy = false
+        private var waiting: [CheckedContinuation<Void, Never>] = []
+
+        func acquire() async {
+            guard busy else { return busy = true }
+            await withCheckedContinuation { waiting.append($0) }
+        }
+
+        func release() {
+            waiting.isEmpty ? busy = false : waiting.removeFirst().resume()
+        }
+    }
+
+    private static let turn = Turn()
+
+    /// `until` holds once the work the screen starts has finished, such as a device scan.
     @MainActor
     static func verify(
         _ view: some View,
         size: CGSize,
         named name: String,
         appearance: NSAppearance.Name = .aqua,
+        until isDone: () -> Bool = { true },
         filePath: StaticString = #filePath,
         testName: String = #function,
         sourceLocation: SourceLocation = #_sourceLocation
     ) async {
+        await turn.acquire()
+        defer { Task { await turn.release() } }
         let host = NSHostingView(rootView: Self.fixed(view, size: size))
         // A scene toolbar makes table cells lose their environment when no scene hosts the view.
         host.sceneBridgingOptions = []
@@ -67,7 +91,8 @@ enum ImageSnapshot {
             contentRect: CGRect(origin: .zero, size: size), styleMask: [.titled], backing: .buffered, defer: false
         )
         window.isReleasedWhenClosed = false // ARC owns it; AppKit releasing it again on close() would crash
-        window.appearance = NSAppearance(named: appearance)
+        host.appearance = NSAppearance(named: appearance)
+        window.appearance = host.appearance
         window.contentView = host
         // Lists and tables draw nothing until their window is on screen; far outside every display, nobody sees it.
         window.setFrameOrigin(CGPoint(x: -30000, y: -30000))
@@ -75,7 +100,7 @@ enum ImageSnapshot {
         defer { window.close() }
         host.layoutSubtreeIfNeeded()
         host.useOpaqueSelections()
-        await Self.settle(host)
+        await Self.settle(host, until: isDone, sourceLocation: sourceLocation)
         let file = URL(fileURLWithPath: "\(filePath)")
         let directory = file.deletingLastPathComponent().appendingPathComponent("__Snapshots__")
             .appendingPathComponent(osFolder).appendingPathComponent(file.deletingPathExtension().lastPathComponent)

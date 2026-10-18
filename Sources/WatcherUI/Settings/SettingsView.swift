@@ -16,7 +16,7 @@ public struct SettingsView: View {
     }
 }
 
-private struct GeneralSettings: View {
+struct GeneralSettings: View {
     @Environment(AppModel.self) private var model
     @Environment(ProxyController.self) private var proxy
     @Bindable var pane: SettingsViewModel

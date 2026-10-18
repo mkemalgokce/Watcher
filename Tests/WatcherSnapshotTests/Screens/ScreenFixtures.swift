@@ -11,12 +11,12 @@ enum Screen {
     static let redPNG = Data(base64Encoded: """
     iVBORw0KGgoAAAANSUhEUgAAAEAAAAAoCAIAAADBrGu+AAAAWElEQVR4nO3PwQkAIBDAsJvLv/uPpEP4CEKhA6Rz9vq64YIGtKABLWhACxrQ\
     gga0oAEtaEALGtCCBrSgAS1oQAsa0IIGtKABLWhACxrQgga0oAEtaEALHrtwRezT21HipwAAAABJRU5ErkJggg==
-    """) ?? Data()
+    """)!
 
     @MainActor
-    static func model(flows: [Flow] = [], selecting selected: Flow? = nil, onboarded: Bool = true) throws -> AppModel {
+    static func model(flows: [Flow] = [], selecting selected: Flow? = nil) throws -> AppModel {
         let model = try AppModel.test()
-        model.onboardingDone = onboarded
+        model.onboardingDone = true
         model.engine.store.load(flows)
         model.list.syncFromStore()
         model.list.selection = selected?.id

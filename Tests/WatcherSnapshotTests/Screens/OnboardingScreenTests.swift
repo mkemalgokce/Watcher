@@ -20,8 +20,8 @@ struct OnboardingScreenTests {
         lanAddresses: { ["192.168.1.5"] }
     )
 
-    private func model(devices: DevicesViewModel.DeviceProbe? = nil) throws -> AppModel {
-        try AppModel(dependencies: .test(devices: devices ?? Self.withDevices))
+    private func model(devices: DevicesViewModel.DeviceProbe = Self.withDevices) throws -> AppModel {
+        try AppModel(dependencies: .test(devices: devices))
     }
 
     @Test
@@ -33,17 +33,21 @@ struct OnboardingScreenTests {
 
     @Test(arguments: DeviceSetupView.Target.allCases)
     func deviceSetup(target: DeviceSetupView.Target) async throws {
-        try await ImageSnapshot.verify(
-            DeviceSetupView(target: target).environment(model()), size: CGSize(width: 780, height: 580),
-            named: target.rawValue
+        let model = try model()
+        await model.devices.refresh()
+        await ImageSnapshot.verify(
+            DeviceSetupView(target: target).environment(model), size: CGSize(width: 780, height: 580),
+            named: target.rawValue, until: { !model.devices.isScanning }
         )
     }
 
     @Test
     func deviceSetupFindingNothing() async throws {
         let model = try model(devices: .none)
+        await model.devices.refresh()
         await ImageSnapshot.verify(
-            DeviceSetupView(target: .simulator).environment(model), size: CGSize(width: 780, height: 580), named: "none"
+            DeviceSetupView(target: .simulator).environment(model), size: CGSize(width: 780, height: 580),
+            named: "none", until: { !model.devices.isScanning }
         )
     }
 

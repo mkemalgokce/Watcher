@@ -15,6 +15,14 @@ struct HARTests {
         #expect(abs((flow.duration ?? 0) - 0.25) <= 0.001)
     }
 
+    @Test
+    func anIPv6LiteralHostIsStoredWithoutBrackets() throws {
+        let entry: [String: Any] = ["request": ["method": "GET", "url": "http://[::1]:8080/x"]]
+        let data = try JSONSerialization.data(withJSONObject: ["log": ["entries": [entry]]])
+        let request = try #require(HAR.flows(from: data).first?.request)
+        #expect((request.host, request.port) == ("::1", 8080))
+    }
+
     @Test(arguments: [nil, "yesterday"] as [String?])
     func aMissingOrUnreadableStartTimeIsTheImportTime(start: String?) throws {
         let importTime = Date(timeIntervalSinceReferenceDate: 5)

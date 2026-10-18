@@ -28,6 +28,7 @@ struct InspectorScreenTests {
 
     static let scenes = [
         Scene(name: "jsonBody", flow: Screen.users, request: .params),
+        Scene(name: "requestBody", flow: Screen.users),
         Scene(name: "headers", flow: Screen.users, request: .headers, response: .headers),
         Scene(name: "cookies", flow: Screen.users, request: .cookies, response: .cookies),
         Scene(name: "raw", flow: Screen.users, request: .raw, response: .raw),
@@ -64,7 +65,7 @@ struct InspectorScreenTests {
     @Test
     func inspectorWithNothingSelected() async throws {
         try await ImageSnapshot.verify(
-            FlowDetailView().environment(Screen.demo()), size: CGSize(width: 520, height: 400), named: "none"
+            FlowDetailView().environment(Screen.model()), size: CGSize(width: 520, height: 400), named: "none"
         )
     }
 }

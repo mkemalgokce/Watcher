@@ -35,8 +35,12 @@ struct MainWindowScreenTests {
                 model.list.selection = model.list.flows.first?.id
                 switch self {
                 case .filtered: model.list.query.text = "v1"
-                case .noMatches: model.list.query.text = "no such request"
-                case .errorsOnly: model.list.sidebar = .errors
+                case .noMatches:
+                    model.list.query.text = "no such request"
+                    model.list.selection = nil
+                case .errorsOnly:
+                    model.list.sidebar = .errors
+                    model.list.selection = model.list.visibleFlows.first?.id
                 default: break
                 }
                 return model

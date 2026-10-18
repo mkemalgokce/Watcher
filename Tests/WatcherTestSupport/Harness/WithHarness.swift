@@ -5,7 +5,7 @@ public func withHarness<Result>(
     host: String = "upstream.test",
     origin: OriginAuthority? = nil,
     files: FileAccessFake? = nil,
-    loopbackAddress: String = "127.0.0.1",
+    loopbackAddress: String? = nil,
     clientApp: @escaping @Sendable (Int) -> String? = { _ in nil },
     configure: (inout WatcherSettings) -> Void = { _ in },
     isolation _: isolated (any Actor)? = #isolation,

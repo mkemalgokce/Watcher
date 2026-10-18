@@ -14,13 +14,18 @@ import WatcherTestSupport
 )
 struct ToolScreenTests {
     private static let size = CGSize(width: 920, height: 640)
+    private static let tallPages: Set<ToolPage> = [.protobuf, .mapRemote]
 
     @Test(arguments: ToolPage.allCases)
     func toolsPage(page: ToolPage) async throws {
         let model = try Screen.model()
         model.settings.value = Screen.toolSettings
         model.router.toolsSelection = page
-        await ImageSnapshot.verify(ToolsView().environment(model), size: Self.size, named: page.rawValue)
+        await ImageSnapshot.verify(
+            ToolsView().environment(model),
+            size: CGSize(width: Self.size.width, height: Self.tallPages.contains(page) ? 800 : Self.size.height),
+            named: page.rawValue
+        )
     }
 
     @Test

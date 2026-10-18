@@ -18,7 +18,7 @@ extension ProxyServerTests {
 
         @Test
         func aPlainRequestToABracketedLiteralIsForwardedAndRecorded() async throws {
-            try await withHarness(host: "::1", loopbackAddress: "::1") { harness in
+            try await withHarness(host: "::1") { harness in
                 let (status, body) = try await harness.get("/plain")
                 #expect(status == 200)
                 #expect(body.hasPrefix("GET /plain host=[::1]:\(harness.upstream.port)"))
@@ -30,7 +30,7 @@ extension ProxyServerTests {
 
         @Test
         func aRequestNamingTheOriginOnlyInItsBracketedHostHeaderIsForwarded() async throws {
-            try await withHarness(host: "::1", loopbackAddress: "::1") { harness in
+            try await withHarness(host: "::1") { harness in
                 let port = harness.upstream.port
                 let client = RawClient()
                 try await client.connect(port: harness.proxyPort)
@@ -45,7 +45,7 @@ extension ProxyServerTests {
         @Test
         func aBlindTunnelToABracketedLiteralRelaysTheBytesBothWays() async throws {
             try await withHarness(
-                host: "::1", loopbackAddress: "::1", configure: { $0.sslProxying.exclude = ["::1"] }
+                host: "::1", configure: { $0.sslProxying.exclude = ["::1"] }
             ) { harness in
                 let port = harness.upstream.port
                 let client = RawClient()
@@ -61,7 +61,7 @@ extension ProxyServerTests {
 
         @Test
         func aDecryptedTunnelToABracketedLiteralIsInspected() async throws {
-            try await withHarness(host: "::1", origin: origins, files: files, loopbackAddress: "::1") { harness in
+            try await withHarness(host: "::1", origin: origins, files: files) { harness in
                 var trust = try OriginAuthority.trusting(harness.engine.authority)
                 // The client names an IP address; what is under test is the relay, not name matching.
                 trust.certificateVerification = .noHostnameVerification
