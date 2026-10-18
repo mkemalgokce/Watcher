@@ -33,6 +33,26 @@ struct WatcherCLITests {
         #expect(try String(contentsOfFile: path, encoding: .utf8).hasPrefix("-----BEGIN CERTIFICATE-----"))
     }
 
+    /// A closed terminal makes every write fail; the command must still finish its work instead of crashing.
+    @Test
+    func anOutputThatCannotBeWrittenDoesNotStopTheCommand() throws {
+        let home = try TemporaryDirectory(prefix: "watcher-e2e")
+        let process = Process()
+        process.executableURL = try WatcherCLIBinary.locate()
+        process.arguments = ["cert"]
+        process.environment = ProcessInfo.processInfo.environment.merging(["WATCHER_HOME": home.url.path]) { $1 }
+        let unwritable = try FileHandle(forReadingFrom: URL(fileURLWithPath: "/dev/null"))
+        process.standardOutput = unwritable
+        process.standardError = unwritable
+
+        try process.run()
+        process.waitUntilExit()
+
+        #expect(process.terminationReason == .exit)
+        #expect(process.terminationStatus == 0)
+        #expect(FileManager.default.fileExists(atPath: home.appending("watcher-ca.pem").path))
+    }
+
     @Test
     func aToolSwitchedOnIsInTheExportedRules() throws {
         let home = try TemporaryDirectory(prefix: "watcher-e2e")

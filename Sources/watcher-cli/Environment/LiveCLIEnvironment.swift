@@ -4,8 +4,9 @@ import WatcherCore
 extension CLIEnvironment {
     /// The real terminal, disk, programs and network interfaces.
     static let live = CLIEnvironment(
-        output: { FileHandle.standardOutput.write(Data("\($0)\n".utf8)) },
-        errorOutput: { FileHandle.standardError.write(Data("\($0)\n".utf8)) },
+        // The throwing write: the older one raises an uncatchable exception once a closed terminal fails it.
+        output: { try? FileHandle.standardOutput.write(contentsOf: Data("\($0)\n".utf8)) },
+        errorOutput: { try? FileHandle.standardError.write(contentsOf: Data("\($0)\n".utf8)) },
         readLine: { Swift.readLine(strippingNewline: true) },
         variables: ProcessInfo.processInfo.environment,
         home: URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true),
