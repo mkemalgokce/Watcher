@@ -10,9 +10,14 @@ public final class SystemProxySpy: SystemProxying, @unchecked Sendable {
     private let log: LockedBox<[String]>
     private var failing = false
     private let pendingRestore: Bool
+    private let enableGate: DispatchSemaphore?
 
-    public init(hasPendingRestore: Bool = false, log: LockedBox<[String]>? = nil) {
+    /// With `enableGate`, `enable` waits for the test to signal it, so a switch can be held half way.
+    public init(
+        hasPendingRestore: Bool = false, log: LockedBox<[String]>? = nil, enableGate: DispatchSemaphore? = nil
+    ) {
         pendingRestore = hasPendingRestore
+        self.enableGate = enableGate
         self.log = log ?? LockedBox([])
     }
 
@@ -29,6 +34,7 @@ public final class SystemProxySpy: SystemProxying, @unchecked Sendable {
     }
 
     public func enable(port: Int) throws {
+        enableGate?.wait()
         try record("enable \(port)")
     }
 
