@@ -16,13 +16,14 @@ final class UpstreamClients: UpstreamSending, @unchecked Sendable {
     private var clientCertificates: [CustomCertificateRule] = []
     private var keyLog: NIOSSLKeyLogCallback?
     private var cache: [String: HTTPClient] = [:]
+    private var retiring: [Task<Void, Never>] = []
 
     init(group: EventLoopGroup, tls: TLSConfiguration, files: FileAccess = .live) {
         self.group = group; self.tls = tls; self.files = files
     }
 
     func update(external: ExternalProxySettings, pac: PACEvaluator?, dnsRules: [DNSSpoofRule], clientCertificates: [CustomCertificateRule]) {
-        Self.shutDown(lock.withLock {
+        retire(lock.withLock {
             let changed = external != self.external || pac !== self.pac
                 || dnsRules != spoofs || clientCertificates != self.clientCertificates
             self.external = external; self.pac = pac
@@ -34,7 +35,7 @@ final class UpstreamClients: UpstreamSending, @unchecked Sendable {
     }
 
     func setKeyLog(_ callback: NIOSSLKeyLogCallback?) {
-        Self.shutDown(lock.withLock { keyLog = callback; return takeCachedLocked() })
+        retire(lock.withLock { keyLog = callback; return takeCachedLocked() })
     }
 
     /// The address to connect to for `host`: a spoofed one if a DNS Spoofing rule matches, else the host itself.
@@ -93,8 +94,10 @@ final class UpstreamClients: UpstreamSending, @unchecked Sendable {
     }
 
     func shutdown() async {
-        for client in lock.withLock({ takeCachedLocked() }) {
-            try? await client.shutdown()
+        retire(lock.withLock { takeCachedLocked() })
+        let pending = lock.withLock { () -> [Task<Void, Never>] in defer { retiring.removeAll() }; return retiring }
+        for task in pending {
+            await task.value
         }
     }
 
@@ -104,11 +107,10 @@ final class UpstreamClients: UpstreamSending, @unchecked Sendable {
         return Array(cache.values)
     }
 
-    /// Shuts replaced clients down without waiting for them.
-    private static func shutDown(_ clients: [HTTPClient]) {
-        for client in clients {
-            Task { try? await client.shutdown() }
-        }
+    /// Shuts replaced clients down in the background; `shutdown()` waits for them so the group never goes down first.
+    private func retire(_ clients: [HTTPClient]) {
+        let tasks: [Task<Void, Never>] = clients.map { client in Task { _ = try? await client.shutdown() } }
+        lock.withLock { retiring.append(contentsOf: tasks) }
     }
 
     private func spoofedAddressLocked(for host: String) -> String? {
