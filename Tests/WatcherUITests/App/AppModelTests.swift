@@ -82,4 +82,25 @@ struct AppModelTests {
         model.proxy.proxyError = "port in use"
         #expect(model.statusLine == "Failed to start · see Settings")
     }
+
+    @Test
+    func deviceSetupHandsOutTheEnginesRootCertificate() throws {
+        let model = try AppModel.test()
+        #expect(model.devices.certificateURL == model.engine.authority.certificateURL)
+    }
+
+    @Test
+    func aModelFollowingTheEngineIsFreedOnceNothingHoldsIt() throws {
+        weak var model: AppModel?
+        weak var list: FlowListViewModel?
+        weak var breakpoints: BreakpointsViewModel?
+        try {
+            let following = try AppModel.test()
+            following.observeEngine()
+            model = following; list = following.list; breakpoints = following.breakpoints
+        }()
+        #expect(model == nil)
+        #expect(list == nil, "the store observation must not keep the list alive")
+        #expect(breakpoints == nil, "the breakpoint observation must not keep its view model alive")
+    }
 }
