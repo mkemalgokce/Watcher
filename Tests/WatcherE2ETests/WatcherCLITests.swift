@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+@testable import watcher_cli
 import WatcherCore
 import WatcherTestSupport
 
@@ -10,7 +11,11 @@ struct WatcherCLITests {
         try withTemporaryDirectory(prefix: "watcher-e2e") { home in
             let help = try WatcherCLIRun.run(["--help"], home: home.url)
             #expect(help.status == 0)
-            for name in ["start", "mcp", "cert", "install-simulator-cert", "android", "tool", "rules", "proxy"] {
+            let names = WatcherCLI.configuration.subcommands.map {
+                $0.configuration.commandName ?? String(describing: $0).lowercased()
+            }
+            #expect(names.contains("rules"))
+            for name in names {
                 #expect(help.text.contains(name), "\(name) missing from: \(help.text)")
             }
         }

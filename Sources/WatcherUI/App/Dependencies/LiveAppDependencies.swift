@@ -35,8 +35,11 @@ extension AppDependencies {
         return preview(in: FileManager.default.temporaryDirectory.appendingPathComponent(name))
     }
 
-    /// The preview wiring over `directory`, which the caller owns and removes.
-    static func preview(in directory: URL) -> AppDependencies {
+    /// The preview wiring over `directory`, which the caller owns and removes; `commands` runs the programs it starts.
+    static func preview(
+        in directory: URL,
+        commands: @escaping CommandRunner = LiveCommandRunner.run
+    ) -> AppDependencies {
         let clipboard = LiveClipboard(NSPasteboard(name: .init(directory.lastPathComponent)))
         let engine = makeEngine(in: directory)
         return AppDependencies(
@@ -46,7 +49,7 @@ extension AppDependencies {
             announce: { _ in },
             panels: LiveFilePanels(),
             files: .live,
-            commands: LiveCommandRunner.run,
+            commands: commands,
             preferences: InMemoryPreferences(),
             runner: engine,
             systemProxy: InertSystemProxy(),

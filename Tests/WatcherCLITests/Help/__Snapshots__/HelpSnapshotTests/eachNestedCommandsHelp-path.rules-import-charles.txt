@@ -1,0 +1,12 @@
+OVERVIEW: Import tool settings (Block/Allow List, Map Local/Remote, Breakpoints, DNS Spoofing) from
+a Charles Proxy XML export.
+
+USAGE: watcher-cli rules import-charles <path> [--mode <mode>]
+
+ARGUMENTS:
+  <path>                  Charles settings XML.
+
+OPTIONS:
+  --mode <mode>           append (add to existing rules) or override (replace the tool rules; port,
+                          SSL and other settings are kept). (default: append)
+  -h, --help              Show help information.

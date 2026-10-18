@@ -107,7 +107,7 @@ struct ImportCharlesCommandTests {
         let cli = CLIHarness()
         cli.files.write(Data(content.utf8), to: "/tmp/charles.xml")
         let command = try ImportCharles.parse(["/tmp/charles.xml"])
-        #expect(throws: (any Error).self) { try command.run(in: cli.environment) }
+        #expect(throws: CharlesSettings.ImportError.self) { try command.run(in: cli.environment) }
         #expect(!cli.files.paths.contains(cli.supportFile("settings.json")))
         #expect(cli.printed.isEmpty)
     }

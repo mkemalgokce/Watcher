@@ -46,13 +46,13 @@ struct FinishedFlowLinesTests {
         #expect(lines.line(for: .updated(flow)) != nil)
     }
 
-    @Test(arguments: [(Flow.State.failed, "ERR"), (.blocked, "BLOCKED")])
-    func aFlowThatGotNoResponseIsPrintedWithWhyItEnded(state: Flow.State, label: String) {
+    @Test
+    func aFlowThatGotNoResponseIsPrintedAsAnError() {
         var flow = Flow.fixture(sequence: 3, status: nil)
-        flow.state = state
+        flow.state = .failed
         flow.duration = 0.25
         var lines = FinishedFlowLines()
-        #expect(lines.line(for: .updated(flow)) == "3  \(label)  GET  https://api.example.com/3  250ms")
+        #expect(lines.line(for: .updated(flow)) == "3  ERR  GET  https://api.example.com/3  250ms")
     }
 
     @Test

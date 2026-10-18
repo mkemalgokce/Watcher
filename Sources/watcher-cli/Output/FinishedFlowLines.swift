@@ -27,11 +27,8 @@ struct FinishedFlowLines {
         return "\(flow.sequence)  \(outcome(of: flow))  \(request.method)  \(request.url)  \(milliseconds)ms\(tools)"
     }
 
-    /// The status, or why the flow ended when no response came.
+    /// The status, or ERR when the flow ended without a response.
     private func outcome(of flow: Flow) -> String {
-        if let response = flow.response {
-            return String(response.status)
-        }
-        return flow.state == .blocked ? "BLOCKED" : "ERR"
+        flow.response.map { String($0.status) } ?? "ERR"
     }
 }

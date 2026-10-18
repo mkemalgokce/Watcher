@@ -16,4 +16,10 @@ struct HelpSnapshotTests {
         let command = try #require(WatcherCLI.subcommandType(named: name))
         assertSnapshot(of: WatcherCLI.helpMessage(for: command, columns: 100), as: .lines, named: name)
     }
+
+    @Test(arguments: WatcherCLI.leafCommandPaths)
+    func eachNestedCommandsHelp(path: String) throws {
+        let command = try #require(WatcherCLI.leafCommand(atPath: path))
+        assertSnapshot(of: WatcherCLI.helpMessage(for: command, columns: 100), as: .lines, named: path)
+    }
 }

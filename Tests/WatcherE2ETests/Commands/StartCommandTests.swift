@@ -38,7 +38,7 @@ struct StartCommandTests {
         }
     }
 
-    /// The engine moves on to a free port when the asked one is busy, so a taken port is no start failure.
+    /// With autoSelectPort on (the default) the engine moves on to a free port when the asked one is busy.
     @Test
     func aPortAnotherListenerHoldsMovesTheProxyToAFreeOne() async throws {
         let listener = try LoopbackListener()
@@ -55,6 +55,30 @@ struct StartCommandTests {
 
             #expect(port != listener.port)
             #expect(cli.terminationStatus == 0)
+        }
+        withExtendedLifetime(listener) {}
+    }
+
+    @Test
+    func aPortAnotherListenerHoldsFailsTheStartWhenAutoSelectIsOff() async throws {
+        let listener = try LoopbackListener()
+        try await withTemporaryDirectory(prefix: "watcher-e2e") { home in
+            try Data(#"{"autoSelectPort": false}"#.utf8).write(to: home.appending("settings.json"))
+            let har = home.appending("session.har")
+            let csv = home.appending("session.csv")
+            let cli = try WatcherCLIProcess(
+                binary: WatcherCLIBinary.locate(),
+                arguments: ["start", "--port", String(listener.port), "--har", har.path, "--csv", csv.path],
+                home: home.url
+            )
+            try cli.run()
+
+            try await cli.waitForExit()
+
+            #expect(cli.terminationStatus != 0)
+            #expect(!cli.printedToStandardError.isEmpty)
+            #expect(!FileManager.default.fileExists(atPath: har.path))
+            #expect(!FileManager.default.fileExists(atPath: csv.path))
         }
         withExtendedLifetime(listener) {}
     }

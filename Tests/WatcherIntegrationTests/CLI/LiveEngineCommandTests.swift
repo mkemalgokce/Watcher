@@ -86,6 +86,7 @@ private final class Terminal: @unchecked Sendable {
     private let errorLines = LockedBox<[String]>([])
     private let input: LockedBox<[String]>
     private let stop = LockedBox<AsyncStream<Void>.Continuation?>(nil)
+    private let pressed = LockedBox(false)
 
     init(input: [String] = []) {
         self.input = LockedBox(input)
@@ -105,6 +106,7 @@ private final class Terminal: @unchecked Sendable {
     }
 
     func pressCtrlC() {
+        pressed.mutate { $0 = true }
         stop.value?.yield()
     }
 
@@ -121,7 +123,14 @@ private final class Terminal: @unchecked Sendable {
         environment.home = home
         environment.currentDirectory = home
         environment.commands = commands.runner
-        environment.shutdownSignal = { [stop] in AsyncStream { new in stop.mutate { $0 = new } } }
+        environment.shutdownSignal = { [stop, pressed] in
+            AsyncStream { new in
+                stop.mutate { $0 = new }
+                if pressed.value {
+                    new.yield()
+                }
+            }
+        }
         return environment
     }
 }

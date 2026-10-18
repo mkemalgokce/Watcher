@@ -16,7 +16,7 @@ fail() {
     failures=$((failures + 1))
 }
 
-# pins <identity:location:state-json>...  writes Package.resolved in the order given
+# pins <identity|location|state-json>...  writes Package.resolved in the order given
 pins() {
     local entries=() spec
     for spec in "$@"; do
