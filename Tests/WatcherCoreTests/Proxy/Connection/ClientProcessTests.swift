@@ -15,12 +15,13 @@ struct ClientProcessTests {
     }
 
     @Test
-    func asksLsofForEstablishedTCPConnectionsOnThePortInFieldForm() {
+    func asksLsofForEstablishedTCPConnectionsOnThePortInFieldFormWithinATimeLimit() {
         let spy = CommandRunnerSpy()
         _ = ClientProcess.name(forLocalPort: 54321, runner: spy.runner)
         #expect(spy.commands == [Command(
             executable: URL(fileURLWithPath: "/usr/sbin/lsof"),
-            arguments: ["-nP", "+c", "0", "-iTCP:54321", "-sTCP:ESTABLISHED", "-Fpcn"]
+            arguments: ["-nP", "+c", "0", "-iTCP:54321", "-sTCP:ESTABLISHED", "-Fpcn"],
+            timeout: 5
         )])
     }
 

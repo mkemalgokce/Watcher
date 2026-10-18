@@ -11,7 +11,9 @@ public enum ClientProcess {
         let lsof = Command(
             executable: URL(fileURLWithPath: "/usr/sbin/lsof"),
             // +c 0: full command names; -F: machine-readable fields (pid, command, name).
-            arguments: ["-nP", "+c", "0", "-iTCP:\(port)", "-sTCP:ESTABLISHED", "-Fpcn"]
+            arguments: ["-nP", "+c", "0", "-iTCP:\(port)", "-sTCP:ESTABLISHED", "-Fpcn"],
+            // It runs for every new client connection, so a stuck lsof must not stall attribution.
+            timeout: 5
         )
         guard let result = try? runner(lsof) else { return nil }
         return parse(result.text, port: port)
