@@ -43,4 +43,15 @@ struct LiveFileAccessTests {
         #expect(files.modificationDate(missing.path) == nil)
         #expect(throws: (any Error).self) { try files.remove(missing) }
     }
+
+    @Test
+    func aFolderListsTheFilesDirectlyInsideIt() throws {
+        let file = temporary.url.appendingPathComponent("a.workspace")
+        try files.writeAtomically(Data(), file)
+        try files.createDirectory(temporary.url.appendingPathComponent("nested/deeper"))
+        let names = try files.contentsOfDirectory(temporary.url).map(\.lastPathComponent).sorted()
+        #expect(names == ["a.workspace", "nested"])
+        let missing = temporary.url.appendingPathComponent("none")
+        #expect(throws: (any Error).self) { try files.contentsOfDirectory(missing) }
+    }
 }

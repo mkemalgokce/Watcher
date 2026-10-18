@@ -13,6 +13,7 @@ public extension FileAccess {
         remove: { try FileManager.default.removeItem(at: $0) },
         move: { try FileManager.default.moveItem(at: $0, to: $1) },
         createDirectory: { try FileManager.default.createDirectory(at: $0, withIntermediateDirectories: true) },
+        contentsOfDirectory: { try FileManager.default.contentsOfDirectory(at: $0, includingPropertiesForKeys: nil) },
         setPermissions: { try FileManager.default.setAttributes([.posixPermissions: $0], ofItemAtPath: $1) },
         modificationDate: { (try? FileManager.default.attributesOfItem(atPath: $0))?[.modificationDate] as? Date },
         temporaryFile: {

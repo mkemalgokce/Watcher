@@ -6,7 +6,7 @@ import WatcherCore
 public final class FileAccessFake: @unchecked Sendable {
     /// The `FileAccess` closures that can throw.
     public enum Operation: Sendable {
-        case read, writeAtomically, remove, move, createDirectory, setPermissions
+        case read, writeAtomically, remove, move, createDirectory, contentsOfDirectory, setPermissions
     }
 
     public struct Failure: Error, Equatable {
@@ -106,6 +106,16 @@ public final class FileAccessFake: @unchecked Sendable {
                 }
             },
             createDirectory: { [self] url in try perform(.createDirectory) { _ = directories.insert(url.path) } },
+            contentsOfDirectory: { [self] url in
+                try perform(.contentsOfDirectory) {
+                    let children = (Set(files.keys).union(directories))
+                        .filter { URL(fileURLWithPath: $0).deletingLastPathComponent().path == url.path }
+                    guard directories.contains(url.path) || !children.isEmpty else {
+                        throw CocoaError(.fileReadNoSuchFile)
+                    }
+                    return children.sorted().map(URL.init(fileURLWithPath:))
+                }
+            },
             setPermissions: { [self] mode, path in try perform(.setPermissions) { permissions[path] = mode } },
             modificationDate: { [self] path in lock.withLock { files[path] == nil ? nil : modified[path] } },
             temporaryFile: { [self] pathExtension in
