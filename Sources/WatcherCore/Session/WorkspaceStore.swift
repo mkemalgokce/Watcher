@@ -36,7 +36,7 @@ public final class WorkspaceStore: Sendable {
         let file = try url(for: name)
         try files.createDirectory(directory)
         let workspace = Workspace(name: name, savedAt: now(), flows: flows, settings: settings)
-        try files.writeAtomically(encoder.encode(workspace), file)
+        try files.writePrivately(encoder.encode(workspace), file)
     }
 
     public func load(name: String) throws -> Workspace {

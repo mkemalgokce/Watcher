@@ -90,7 +90,7 @@ public final class MCPServer: @unchecked Sendable {
             },
             ToolDefinition(name: "get_flows", description: "List captured requests (newest last).", properties: ["filter": "Only URLs containing this text", "limit": "Maximum rows, default 50"], required: []) { args in
                 let filter = args["filter"] as? String ?? ""
-                let limit = Int(args["limit"] as? String ?? "") ?? 50
+                let limit = max(0, Int(args["limit"] as? String ?? "") ?? 50)
                 let rows = engine.store.all.filter { filter.isEmpty || $0.request.url.localizedCaseInsensitiveContains(filter) }.suffix(limit)
                 return rows.map { "\($0.sequence)\t\($0.response.map { "\($0.status)" } ?? "-")\t\($0.request.method)\t\($0.request.url)" }.joined(separator: "\n")
             },
@@ -138,7 +138,7 @@ public final class MCPServer: @unchecked Sendable {
                 return "include: \(s.include.joined(separator: ", "))\nexclude: \(s.exclude.joined(separator: ", "))"
             },
             ToolDefinition(name: "get_certificate_status", description: "Location of the root certificate to trust.", properties: [:], required: []) { _ in
-                WatcherPaths.supportDirectory.appendingPathComponent("watcher-ca.pem").path
+                engine.authority.certificateURL.path
             },
             ToolDefinition(name: "create_blacklist", description: "Block requests whose URL matches a pattern (* and ?).", properties: ["pattern": "URL pattern"], required: ["pattern"]) { args in
                 try await edit { $0.blockList.isEnabled = true; $0.blockList.rules.append(BlockRule(matching: matching(args))) }

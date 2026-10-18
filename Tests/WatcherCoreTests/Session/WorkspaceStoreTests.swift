@@ -58,8 +58,8 @@ struct WorkspaceStoreTests {
 
     @Test
     func aFailedWriteIsReported() {
-        files.fail(.writeAtomically)
-        #expect(throws: FileAccessFake.Failure(operation: .writeAtomically)) {
+        files.fail(.writePrivately)
+        #expect(throws: FileAccessFake.Failure(operation: .writePrivately)) {
             try store.save(name: "Draft", flows: [], settings: WatcherSettings())
         }
     }
@@ -70,5 +70,20 @@ struct WorkspaceStoreTests {
             try store.save(name: name, flows: [], settings: WatcherSettings())
         }
         #expect(files.paths.isEmpty)
+    }
+
+    @Test
+    func aWorkspaceHoldsCredentialsSoItIsWrittenOwnerOnly() throws {
+        try store.save(name: "Secrets", flows: [], settings: WatcherSettings())
+        let path = directory.appendingPathComponent("Secrets.workspace").path
+        #expect(files.permissionHistory(of: path) == [0o600])
+    }
+
+    @Test
+    func savingTheSameNameAgainReplacesTheWorkspace() throws {
+        try store.save(name: "Same", flows: [Flow.fixture()], settings: WatcherSettings())
+        try store.save(name: "Same", flows: [], settings: WatcherSettings())
+        #expect(store.list() == ["Same"])
+        #expect(try store.load(name: "Same").flows.isEmpty)
     }
 }
