@@ -24,11 +24,23 @@ check reject "fix: ."
 check accept "feat(proxy)!: drop http/1.0"
 check accept "chore(deps): bump swift-nio to 2.80.0"
 check accept "Merge branch 'main' into feat/x"
+check accept "Merge pull request #4 from a/b"
+check accept "Merge remote-tracking branch 'origin/main'"
+check reject "Merge whatever you like here"
+check reject "Merged stuff"
 check accept 'Revert "feat: x"'
 check accept "fixup! feat: x"
 check accept "squash! feat: x"
 check accept $'# comment from git\nfeat: add x'
 check accept $'feat: add x\n\nBody with Capitals and a period.'
+
+check reject $'feat: add x\n\nCo-Authored-By: Someone <a@b.c>'
+check reject $'feat: add x\n\nco-authored-by: Someone <a@b.c>'
+check reject $'feat: add x\n\nGenerated with a tool'
+check reject $'feat: add x\n\nWritten with Claude'
+check reject $'feat: add x\n\nAI assisted'
+check accept $'feat: add x\n\nMaintain the main chain; said and paid.'
+check accept $'feat: add x\n# Co-Authored-By in a git comment'
 
 check reject "add stuff"
 check reject "feat: "
@@ -39,10 +51,10 @@ check reject "feature: add thing"
 check reject "feat(Proxy): add thing"
 check reject "feat(): add thing"
 check reject ""
-check reject "feat: $(printf 'a%.0s' {1..67})"
+check reject "feat: $(printf 'a%.0s' {1..61})"
 
-check accept "feat: $(printf 'a%.0s' {1..66})"
-check accept "feat: $(printf 'a%.0s' {1..66})  "
+check accept "feat: $(printf 'a%.0s' {1..60})"
+check accept "feat: $(printf 'a%.0s' {1..60})  "
 check accept $'\nfeat: add x'
 check accept $'\n\n# comment\nfeat: add x'
 check accept "feat: add x "

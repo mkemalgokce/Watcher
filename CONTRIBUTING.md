@@ -37,7 +37,7 @@ code owner (@mkemalgokce, see `.github/CODEOWNERS`) before it can be merged.
 
 - Types: `feat`, `fix`, `perf`, `refactor`, `test`, `docs`, `build`, `ci`, `chore`, `style`, `revert`.
 - Scope: the area (`core`, `proxy`, `tls`, `tools`, `export`, `ui`, `cli`, `mcp`) or `repo`, `ci`, `deps`.
-- Subject: English, imperative, lowercase first letter, no trailing period, at most 72 characters.
+- Subject: English, imperative, lowercase first letter, no trailing period, at most 66 characters. No `Co-Authored-By` trailer and no tool attribution.
 - Breaking changes: `type(scope)!: subject` or a `BREAKING CHANGE:` footer.
 
 The `commit-msg` hook runs `scripts/check-commit-msg.sh`.
