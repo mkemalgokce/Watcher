@@ -61,6 +61,36 @@ struct WebSocketComposerTests {
     }
 
     @Test
+    func theHandshakeIsRecordedWithItsEscapesIntact() async throws {
+        let origin = WebSocketEchoOrigin()
+        try await origin.start()
+        let engine = try engine()
+        let url = try #require(URL(string: "ws://127.0.0.1:\(origin.port)/a%20b?q=%20x"))
+        do {
+            try await engine.composeWebSocket(url: url, messages: ["ping1", "ping2"], listenFor: 4)
+        } catch {
+            await origin.stop()
+            throw error
+        }
+        await origin.stop()
+        #expect(engine.store.all.first?.request.path == "/a%20b?q=%20x")
+    }
+
+    @Test
+    func aServerThatDoesNotUpgradeFailsTheFlowAndKeepsItsDuration() async throws {
+        let origin = TestUpstream()
+        try await origin.start()
+        let engine = try engine()
+        let url = try #require(URL(string: "ws://127.0.0.1:\(origin.port)/"))
+        await #expect(throws: (any Error).self) { try await engine.composeWebSocket(url: url, messages: ["hello"]) }
+        await origin.stop()
+        let flow = try #require(engine.store.all.first)
+        #expect(flow.state == .failed)
+        #expect(flow.error != nil)
+        #expect(flow.duration == 2)
+    }
+
+    @Test
     func aURLThatIsNotAWebSocketIsRefusedUnrecorded() async throws {
         let engine = try engine()
         let notWebSocket = try #require(URL(string: "http://x/"))
