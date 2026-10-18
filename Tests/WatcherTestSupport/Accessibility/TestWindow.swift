@@ -30,11 +30,18 @@ public final class TestWindow {
         AccessibilityAPI.find(label)
     }
 
-    /// Presses the control labelled `label`; a label's text matches too, but only something pressable is pressed.
+    /// The first non-nil `find()` within the default wait, or nil when the element never shows up.
+    public func appearing(_ find: () -> AXUIElement?) async -> AXUIElement? {
+        var element: AXUIElement?
+        _ = await eventually { element = find(); return element != nil }
+        return element
+    }
+
+    /// Presses the control labelled `label`, waiting for it to appear; a label's text matches too, but only something
+    /// pressable is pressed.
     public func press(_ label: String) async throws {
-        guard let control = elements(label).first(where: AccessibilityAPI.canPress) else {
-            throw TestSupportError("no control labelled “\(label)”")
-        }
+        let control = await appearing { elements(label).first(where: AccessibilityAPI.canPress) }
+        guard let control else { throw TestSupportError("no control labelled “\(label)”") }
         let result = AccessibilityAPI.press(control)
         await settle()
         guard result == .success else { throw TestSupportError("“\(label)” did not respond to a press (\(result))") }
@@ -42,7 +49,8 @@ public final class TestWindow {
 
     /// Types into the first editable element with `role` whose value starts with `prefix` (empty matches an empty field).
     public func type(_ text: String, intoFieldWithValue prefix: String = "", role: String) async -> Bool {
-        guard let field = AccessibilityAPI.firstElement(withRole: role, valuePrefix: prefix) else { return false }
+        let field = await appearing { AccessibilityAPI.firstElement(withRole: role, valuePrefix: prefix) }
+        guard let field else { return false }
         let typed = AccessibilityAPI.setValue(text, of: field)
         await settle()
         return typed

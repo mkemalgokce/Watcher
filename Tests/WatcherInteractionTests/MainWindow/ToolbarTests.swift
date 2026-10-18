@@ -8,7 +8,7 @@ extension InteractionTests {
     @MainActor
     struct ToolbarTests {
         private func mainWindowModel() throws -> AppModel {
-            let model = try AppModel.demo()
+            let model = try AppModel.demo(sleep: liveSleep)
             model.onboardingDone = true
             return model
         }

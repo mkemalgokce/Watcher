@@ -67,7 +67,7 @@ public extension AppModel {
 
     /// A test model showing the preview's demo requests, the first one selected.
     @MainActor
-    static func demo() throws -> AppModel {
-        try test().showingDemoData()
+    static func demo(sleep: Sleep? = nil) throws -> AppModel {
+        try test(sleep: sleep).showingDemoData()
     }
 }

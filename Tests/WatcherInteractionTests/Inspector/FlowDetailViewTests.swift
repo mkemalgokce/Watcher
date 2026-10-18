@@ -10,7 +10,7 @@ extension InteractionTests {
     struct FlowDetailViewTests {
         @Test
         func headerButtonsStarCopyAndRepeatTheRequest() async throws {
-            let model = try AppModel.demo()
+            let model = try AppModel.demo(sleep: liveSleep)
             model.observeEngine()
             let selected = model.list.flows[0]
             try await withWindow(showing: FlowDetailView().environment(model), width: 900) { window in

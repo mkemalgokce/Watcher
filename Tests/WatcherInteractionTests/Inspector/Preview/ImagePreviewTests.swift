@@ -24,7 +24,7 @@ extension InteractionTests {
             let view = ImagePreview(data: png, mime: "image/png").environment(model)
             try await withWindow(showing: view, width: 500, height: 300) { window in
                 try await window.press("Save Image…")
-                #expect(panels.saveRequests.map(\.suggestedName) == ["image.png"])
+                #expect(await eventually { panels.saveRequests.map(\.suggestedName) == ["image.png"] })
                 #expect(await eventually { files.contents(of: target.path) == png })
                 #expect(await eventually { model.notices.notice?.kind == .success })
             }

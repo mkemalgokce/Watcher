@@ -32,7 +32,9 @@ extension InteractionTests {
             let view = SettingsView().environment(model).defaultAppStorage(unset)
             try await withWindow(showing: view, width: 560, height: 520) { window in
                 try await window.press("Viewer")
-                let segment = window.elements("Preview").first { Self.role(of: $0) == kAXRadioButtonRole }
+                let segment = await window.appearing {
+                    window.elements("Preview").first { Self.role(of: $0) == kAXRadioButtonRole }
+                }
                 let preview = try #require(segment, "Settings offers no Preview mode")
                 #expect(Self.value(of: preview) == 1, "Preview is the selected mode")
             }
