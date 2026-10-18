@@ -38,23 +38,22 @@ struct ComposeView: View {
 
     /// Edit & Repeat: which request this started from, what has been changed, and the way back or to a comparison.
     private func editingBanner(_ source: Flow) -> some View {
-        let changes = viewModel.changes
-        return HStack(spacing: 10) {
+        HStack(spacing: 10) {
             Image(systemName: "square.and.pencil").foregroundStyle(Color.accentColor)
             VStack(alignment: .leading, spacing: 1) {
                 Text("Editing #\(source.sequence) \(source.request.method) \(source.request.path)").font(.callout.weight(.medium)).lineLimit(1).truncationMode(.middle)
                 Text(viewModel.changesSummary)
-                    .font(.caption).foregroundStyle(changes.isEmpty ? Color.secondary : Palette.modified)
+                    .font(.caption).foregroundStyle(viewModel.hasChanges ? Palette.modified : Color.secondary)
             }
             Spacer()
-            if case .received = viewModel.phase, let sent = try? viewModel.build() {
+            if let sent = viewModel.comparableRequest {
                 Button("Compare with Original", systemImage: "arrow.left.arrow.right") {
                     actions.compareWithOriginal(source, sent: sent)
                 }
                 .help("Open Compare with the original response as the base")
             }
             Button("Reset to Original", systemImage: "arrow.uturn.backward") { viewModel.resetToOriginal() }
-                .disabled(changes.isEmpty).help("Throw away your edits")
+                .disabled(!viewModel.hasChanges).help("Throw away your edits")
         }
         .controlSize(.small)
         .padding(.horizontal, Metrics.gutter).padding(.vertical, 8)
@@ -141,8 +140,10 @@ struct ComposeView: View {
                     if viewModel.bodyKind == .json {
                         GlassGroup {
                             HStack(spacing: 2) {
-                                IconButton("Beautify JSON", symbol: "text.alignleft") { viewModel.bodyText = JSONFormatter.pretty(viewModel.bodyText) }
-                                IconButton("Minify JSON", symbol: "arrow.down.right.and.arrow.up.left") { viewModel.bodyText = JSONFormatter.minify(viewModel.bodyText) }
+                                IconButton("Beautify JSON", symbol: "text.alignleft") { viewModel.beautifyBody() }
+                                IconButton("Minify JSON", symbol: "arrow.down.right.and.arrow.up.left") {
+                                    viewModel.minifyBody()
+                                }
                             }
                         }
                         .padding(6)
@@ -170,11 +171,7 @@ struct ComposeView: View {
                 }
                 Spacer()
                 Button("Choose File…") {
-                    Task {
-                        if let chosen = await model.filePicker.choosePart() {
-                            viewModel.file = chosen
-                        }
-                    }
+                    Task { await viewModel.chooseFile(using: model.filePicker) }
                 }
             }
         }
@@ -185,7 +182,7 @@ struct ComposeView: View {
         case let .received(flow):
             MessagePanel(flow: flow, side: .response)
         case .sending:
-            ProgressView("Waiting for \((try? viewModel.build().host) ?? "the server")…").controlSize(.small)
+            ProgressView(viewModel.waitingText).controlSize(.small)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case let .failed(message):
             ContentUnavailableView {
@@ -224,12 +221,6 @@ struct ComposeView: View {
     }
 
     private func send() {
-        if let session = viewModel.webSocketSession {
-            actions.composeWebSocket(url: session.url, headers: session.headers, messages: session.messages)
-            return dismiss()
-        }
-        Task {
-            await viewModel.send(isProxyRunning: proxy.isRunning) { await actions.perform($0, followRedirects: $1) }
-        }
+        Task { await viewModel.submit(using: actions, isProxyRunning: proxy.isRunning) { dismiss() } }
     }
 }

@@ -142,9 +142,19 @@ struct RequestActionsTests {
     }
 
     @Test
+    func aWebSocketSessionWhileStoppedAsksToStartTheProxy() {
+        let sender = RequestSenderSpy()
+        actions(sender: sender).composeWebSocket(url: URL(fileURLWithPath: "/ws"), headers: [], messages: ["hi"])
+        #expect(notices.notice?.kind == .error)
+        #expect(notices.notice?.message == "Start the proxy to send requests.")
+        #expect(sender.webSocketMessages.isEmpty)
+    }
+
+    @Test
     func aFailedWebSocketSessionIsReported() async {
         struct Refused: Error {}
         let sender = RequestSenderSpy(webSocketFailure: Refused())
+        await startProxy()
         actions(sender: sender).composeWebSocket(url: URL(fileURLWithPath: "/ws"), headers: [], messages: ["hi"])
         #expect(await eventually { notices.notice?.kind == .error })
         #expect(sender.webSocketMessages == [["hi"]])

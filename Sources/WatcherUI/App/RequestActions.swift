@@ -91,6 +91,7 @@ final class RequestActions {
     }
 
     func composeWebSocket(url: URL, headers: [Header], messages: [String]) {
+        guard proxy.isRunning else { return notices.notify("Start the proxy to send requests.", .error) }
         Task {
             do {
                 try await sender.composeWebSocket(url: url, headers: headers, messages: messages)
