@@ -16,6 +16,9 @@ public final class TestWindow {
         )
         window.toolbarStyle = .unified
         window.isReleasedWhenClosed = false
+        // Accessibility lists only windows on the Spaces on screen, so the window must follow the user to another
+        // desktop or a full-screen app instead of staying behind on the Space it was opened on.
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         window.contentView = NSHostingView(rootView: view.frame(width: width, height: height))
         window.orderFront(nil)
     }
@@ -32,21 +35,14 @@ public final class TestWindow {
 
     /// Whether an element labelled `label` shows up within the default wait.
     public func shows(_ label: String) async -> Bool {
-        await eventually { exposeToAccessibility(); return !elements(label).isEmpty }
+        await eventually { !elements(label).isEmpty }
     }
 
     /// The first non-nil `find()` within the default wait, or nil when the element never shows up.
     public func appearing(_ find: () -> AXUIElement?) async -> AXUIElement? {
         var element: AXUIElement?
-        _ = await eventually { exposeToAccessibility(); element = find(); return element != nil }
+        _ = await eventually { element = find(); return element != nil }
         return element
-    }
-
-    /// The service now and then hands out no window at all for seconds on end; ordering the window front again brings it back.
-    private func exposeToAccessibility() {
-        if AccessibilityAPI.firstWindowRole() != "AXWindow" {
-            window.orderFront(nil)
-        }
     }
 
     /// Presses the control labelled `label`, waiting for it to appear; a label's text matches too, but only something
