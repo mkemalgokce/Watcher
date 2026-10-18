@@ -111,7 +111,7 @@ final class SocksHandler: ChannelInboundHandler, RemovableChannelHandler {
             let tunnel = TunnelTarget(scheme: isTLS ? "https" : "http", host: host, port: port)
             let http1 = server.http1Pipeline(tunnel: tunnel, details: details)
             var handlers: [ChannelHandler] = http1.handlers
-            if isTLS, server.authority != nil {
+            if isTLS {
                 let tls = try server.tlsHandlers(host: host, port: port, http1: http1.handlers, details: details)
                 handlers.insert(contentsOf: tls, at: 0)
             }

@@ -83,7 +83,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
         }
         let port = parts.count > 1 ? Int(parts[1]) ?? 443 : 443
 
-        if server.shouldIntercept(host: host), let authority = server.authority {
+        if server.shouldIntercept(host: host) {
             do {
                 acknowledgeConnect(context).flatMap { [self] in
                     // After CONNECT the decoder switches to raw pass-through; swap in a fresh one for the decrypted stream.

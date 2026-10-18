@@ -16,15 +16,7 @@ struct CustomCertificatesTests {
         .enabled(if: ExternalTool.python3.isAvailable, "needs python3")
     )
     func aCustomServerCertificateIsPresentedInsteadOfAGeneratedOne() async throws {
-        let key = directory.appending("k.pem").path, cert = directory.appending("c.pem").path
-        let p12 = directory.appending("id.p12").path
-        try openssl([
-            "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", key, "-out", cert,
-            "-subj", "/CN=pinned.test", "-days", "2",
-        ])
-        try openssl(["pkcs12", "-export", "-inkey", key, "-in", cert, "-out", p12, "-passout", "pass:secret"])
-
-        let rule = CustomCertificateRule(host: "pinned.test", role: .server, p12Path: p12, passphrase: "secret")
+        let rule = try pinnedServerRule()
         #expect(throws: Never.self) { try CustomCertificates.serverContext(rule) }
         var wrong = rule; wrong.passphrase = "nope"
         #expect(throws: (any Error).self) { try CustomCertificates.serverContext(wrong) }
@@ -38,6 +30,43 @@ struct CustomCertificatesTests {
         let other = try subjectAndIssuer(#require(output.first { $0.hasPrefix("other.test") }))
         #expect(pinned.contains("CN=pinned.test") && !pinned.contains("Watcher Root CA"), "\(pinned)")
         #expect(other.contains("Watcher Root CA"), "\(other)")
+    }
+
+    @Test(
+        .enabled(if: ExternalTool.openssl.isAvailable, "needs openssl"),
+        .enabled(if: ExternalTool.python3.isAvailable, "needs python3")
+    )
+    func aCustomServerCertificateDecryptsWithoutAWatcherAuthorityOverConnectAndSocks() async throws {
+        let server = ProxyServer(authority: nil, clientApp: { _ in nil }, localAddresses: { [] })
+        let rule = try pinnedServerRule()
+        server.updateUpstream(external: ExternalProxySettings(), pac: nil, dnsRules: [], certificates: [rule])
+        let socksPort = try freeLoopbackPort()
+        do {
+            let proxyPort = try await server.start(port: 0)
+            #expect(await server.setSocks(SocksSettings(isEnabled: true, port: socksPort), host: "127.0.0.1") == nil)
+            let script = handshakes(proxyPort: proxyPort, socksPort: socksPort)
+            let output = try runPython(script).components(separatedBy: "\n")
+            for route in ["connect", "socks"] {
+                let line = try #require(output.first { $0.hasPrefix(route) }, "\(output)")
+                #expect(try subjectAndIssuer(line).contains("CN=pinned.test"), "\(route)")
+            }
+        } catch {
+            try? await server.stop()
+            throw error
+        }
+        try await server.stop()
+    }
+
+    /// A server rule for `pinned.test` backed by a fresh self-signed P12.
+    private func pinnedServerRule() throws -> CustomCertificateRule {
+        let key = directory.appending("k.pem").path, cert = directory.appending("c.pem").path
+        let p12 = directory.appending("id.p12").path
+        try openssl([
+            "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", key, "-out", cert,
+            "-subj", "/CN=pinned.test", "-days", "2",
+        ])
+        try openssl(["pkcs12", "-export", "-inkey", key, "-in", cert, "-out", p12, "-passout", "pass:secret"])
+        return CustomCertificateRule(host: "pinned.test", role: .server, p12Path: p12, passphrase: "secret")
     }
 
     private func openssl(_ arguments: [String]) throws {
@@ -56,6 +85,24 @@ struct CustomCertificatesTests {
             ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
             der = ctx.wrap_socket(s, server_hostname=host).getpeercert(binary_form=True)
             print(host, ssl.DER_cert_to_PEM_cert(der).replace("\\n", "|"))
+        """
+    }
+
+    /// Handshakes for `pinned.test` once after an HTTP CONNECT and once after a SOCKS5 connect, printing each certificate.
+    private func handshakes(proxyPort: Int, socksPort: Int) -> String {
+        """
+        import socket, ssl
+        def show(route, s):
+            ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
+            der = ctx.wrap_socket(s, server_hostname="pinned.test").getpeercert(binary_form=True)
+            print(route, ssl.DER_cert_to_PEM_cert(der).replace("\\n", "|"))
+        s = socket.create_connection(("127.0.0.1", \(proxyPort)), timeout=10)
+        s.sendall(b"CONNECT pinned.test:443 HTTP/1.1\\r\\nHost: pinned.test:443\\r\\n\\r\\n"); s.recv(4096)
+        show("connect", s)
+        s = socket.create_connection(("127.0.0.1", \(socksPort)), timeout=10)
+        s.sendall(bytes([5, 1, 0])); s.recv(2)
+        s.sendall(bytes([5, 1, 0, 3, 11]) + b"pinned.test" + bytes([1, 187])); s.recv(10)
+        show("socks", s)
         """
     }
 
