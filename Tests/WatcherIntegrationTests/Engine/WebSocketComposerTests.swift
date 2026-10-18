@@ -6,17 +6,27 @@ import WatcherTestSupport
 @Suite(.timeLimit(.minutes(1)), .tags(.integration, .network))
 struct WebSocketComposerTests {
     private let waits = LockedBox<[Duration]>([])
+    private let recorded = LockedBox<FlowStore?>(nil)
+    private let ticks = LockedBox(0.0)
 
-    /// Listening is cut to a short real wait, enough for a loopback echo, and the asked-for length is recorded.
+    /// Listening ends once both echoes are recorded, and the asked-for length is kept; the clock moves 2 s per reading.
     private func engine() throws -> WatcherEngine {
-        try WatcherEngine(
+        let engine = try WatcherEngine(
             directory: URL(fileURLWithPath: "/fake-home/.watcher"),
             files: FileAccessFake().access,
-            sleep: { [waits] duration in
+            sleep: { [waits, recorded] duration in
                 waits.mutate { $0.append(duration) }
-                try await Task.sleep(for: .milliseconds(300))
+                _ = await eventually {
+                    recorded.value?.all.first?.webSocketMessages.filter { $0.direction == .serverToClient }.count == 2
+                }
+            },
+            now: { [ticks] in
+                ticks.mutate { $0 += 2 }
+                return Date(timeIntervalSince1970: ticks.value)
             }
         )
+        recorded.mutate { $0 = engine.store }
+        return engine
     }
 
     @Test
@@ -41,6 +51,7 @@ struct WebSocketComposerTests {
         #expect(flow.request.path == "/chat?room=1")
         #expect(flow.response?.status == 101)
         #expect(flow.state == .completed)
+        #expect(flow.duration == 2)
         func payloads(_ direction: WebSocketMessage.Direction) -> [String?] {
             flow.webSocketMessages.filter { $0.direction == direction }
                 .map { String(bytes: $0.payload, encoding: .utf8) }
@@ -67,5 +78,6 @@ struct WebSocketComposerTests {
         let flow = try #require(engine.store.all.first)
         #expect(flow.state == .failed)
         #expect(flow.error != nil)
+        #expect(flow.duration == 2)
     }
 }

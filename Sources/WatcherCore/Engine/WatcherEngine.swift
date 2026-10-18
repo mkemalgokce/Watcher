@@ -26,10 +26,11 @@ public final class WatcherEngine: @unchecked Sendable {
     private let files: FileAccess
     private let pacLoader: @Sendable (String) async throws -> PACEvaluator
     private let sleep: Sleep
+    let now: @Sendable () -> Date
     private let makeServer: @Sendable (FlowStore, CertificateAuthority) -> ProxyServer
 
     /// `makeServer` builds the proxy for each start; tests pass one with their own TLS trust or app lookup.
-    /// `sleep` paces the check for settings edited outside the engine.
+    /// `sleep` paces the check for settings edited outside the engine; `now` times composed WebSockets.
     public init(
         directory: URL = WatcherPaths.supportDirectory,
         files: FileAccess = .live,
@@ -37,11 +38,12 @@ public final class WatcherEngine: @unchecked Sendable {
             try await PACEvaluator.load(from: $0)
         },
         sleep: @escaping Sleep = liveSleep,
+        now: @escaping @Sendable () -> Date = { Date() },
         makeServer: @escaping @Sendable (FlowStore, CertificateAuthority) -> ProxyServer = {
             ProxyServer(store: $0, authority: $1)
         }
     ) throws {
-        self.files = files; self.pacLoader = pacLoader; self.sleep = sleep; self.makeServer = makeServer
+        self.files = files; self.pacLoader = pacLoader; self.sleep = sleep; self.now = now; self.makeServer = makeServer
         authority = try CertificateAuthority(directory: directory, files: files)
         settings = SettingsStore(url: directory.appendingPathComponent("settings.json"), files: files)
         workspaces = WorkspaceStore(
