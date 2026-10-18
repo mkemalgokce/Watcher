@@ -24,8 +24,12 @@ public enum Converter {
         guard !text.isEmpty else { throw Failure(description: "Enter some text first.") }
         let dates = DateWriter(locale: locale, timeZone: timeZone)
         switch operation {
-        case .base64Encode, .urlEncode, .hexEncode: return encode(input, operation)
-        case .base64Decode, .urlDecode, .hexDecode: return try decode(text, operation)
+        case .base64Encode: return Data(input.utf8).base64EncodedString()
+        case .urlEncode: return input.addingPercentEncoding(withAllowedCharacters: unreserved) ?? input
+        case .hexEncode: return Data(input.utf8).hexDigits()
+        case .base64Decode: return try base64Decode(text)
+        case .urlDecode: return try urlDecode(text)
+        case .hexDecode: return try hexDecode(text)
         case .jsonPretty, .jsonMinify: return try json(text, minify: operation == .jsonMinify)
         case .timestamp: return try timestamp(text, dates: dates)
         case .jwt: return try jwt(text, now: now, dates: dates)
@@ -43,36 +47,29 @@ public enum Converter {
 
     private static let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
 
-    private static func encode(_ input: String, _ operation: Operation) -> String {
-        switch operation {
-        case .base64Encode: Data(input.utf8).base64EncodedString()
-        case .hexEncode: Data(input.utf8).hexDigits()
-        default: input.addingPercentEncoding(withAllowedCharacters: unreserved) ?? input
-        }
+    private static func base64Decode(_ text: String) throws -> String {
+        guard let data = Base64Finder.decode(text) else { throw Failure(description: "This is not valid Base64.") }
+        guard let text = String(data: data, encoding: .utf8) else { return BodyFormatter.hexDump(data) }
+        return JSONFormatter.looksLikeJSON(text) ? JSONFormatter.pretty(text) : text
     }
 
-    private static func decode(_ text: String, _ operation: Operation) throws -> String {
-        switch operation {
-        case .base64Decode:
-            guard let data = Base64Finder.decode(text) else { throw Failure(description: "This is not valid Base64.") }
-            guard let text = String(data: data, encoding: .utf8) else { return BodyFormatter.hexDump(data) }
-            return JSONFormatter.looksLikeJSON(text) ? JSONFormatter.pretty(text) : text
-        case .urlDecode:
-            guard let decoded = text.replacingOccurrences(of: "+", with: " ").removingPercentEncoding else {
-                throw Failure(description: "Invalid percent-encoding.")
-            }
-            return decoded
-        default:
-            let hex = text.filter { !$0.isWhitespace && $0 != ":" }
-            guard hex.count % 2 == 0, !hex.isEmpty, hex.allSatisfy(\.isHexDigit) else {
-                throw Failure(description: "Enter an even number of hex digits.")
-            }
-            let bytes = stride(from: 0, to: hex.count, by: 2).compactMap { offset -> UInt8? in
-                let start = hex.index(hex.startIndex, offsetBy: offset)
-                return UInt8(hex[start ..< hex.index(start, offsetBy: 2)], radix: 16)
-            }
-            return String(data: Data(bytes), encoding: .utf8) ?? BodyFormatter.hexDump(Data(bytes))
+    private static func urlDecode(_ text: String) throws -> String {
+        guard let decoded = text.replacingOccurrences(of: "+", with: " ").removingPercentEncoding else {
+            throw Failure(description: "Invalid percent-encoding.")
         }
+        return decoded
+    }
+
+    private static func hexDecode(_ text: String) throws -> String {
+        let hex = text.filter { !$0.isWhitespace && $0 != ":" }
+        guard hex.count % 2 == 0, !hex.isEmpty, hex.allSatisfy(\.isHexDigit) else {
+            throw Failure(description: "Enter an even number of hex digits.")
+        }
+        let bytes = stride(from: 0, to: hex.count, by: 2).compactMap { offset -> UInt8? in
+            let start = hex.index(hex.startIndex, offsetBy: offset)
+            return UInt8(hex[start ..< hex.index(start, offsetBy: 2)], radix: 16)
+        }
+        return String(data: Data(bytes), encoding: .utf8) ?? BodyFormatter.hexDump(Data(bytes))
     }
 
     private static func json(_ text: String, minify: Bool) throws -> String {
