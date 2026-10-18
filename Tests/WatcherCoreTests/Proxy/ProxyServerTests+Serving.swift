@@ -98,6 +98,24 @@ extension ProxyServerTests {
             try await server.stop()
         }
 
+        @Test
+        func aResponseThatBreaksAfterConnectingIsAnswered502AndTheFlowFailsAfterItsFirstByte() async throws {
+            let broken = AsyncThrowingStream<ByteBuffer, any Error> {
+                $0.yield(ByteBuffer(string: "par"))
+                $0.finish(throwing: CocoaError(.fileReadUnknown))
+            }
+            let server = server(UpstreamStub(response: { HTTPClientResponse(status: .ok, body: .stream(broken)) }))
+            let response = try await buffered(server.serve(.fixture(host: "flaky.example"), allowStreaming: false))
+            #expect(response.status == 502)
+            let text = String(bytes: response.body, encoding: .utf8) ?? ""
+            #expect(text.hasPrefix("The connection to flaky.example broke before the response ended"), "\(text)")
+            let flow = try #require(server.store.all.first)
+            #expect(flow.state == .failed)
+            #expect(flow.error != nil)
+            #expect(flow.timeToFirstByte != nil, "the head did arrive")
+            try await server.stop()
+        }
+
         @Test(arguments: [(false, 1), (true, 0)])
         func aBlockedRequestIsAnswered403AndHiddenOnlyWhenAsked(hidden: Bool, listed: Int) async throws {
             let upstream = UpstreamStub()
