@@ -13,18 +13,19 @@ extension ConverterTests {
         private func run(
             _ operation: Converter.Operation,
             _ input: String,
-            now: Date = Date(),
+            now: Date = Date(timeIntervalSince1970: 0),
             zone: String = "UTC"
         ) throws -> String {
             try Converter.run(operation, input, now: now, locale: posix, timeZone: #require(TimeZone(identifier: zone)))
         }
 
-        @Test(arguments: [("UTC", "January 1, 1970", "12:00:00"), ("Asia/Tokyo", "January 1, 1970", "9:00:00")])
-        func aTimestampIsWrittenInTheGivenTimeZone(zone: String, day: String, time: String) throws {
+        @Test(arguments: [
+            ("UTC", "Thursday, January 1, 1970 at 12:00:00\u{202F}AM"),
+            ("Asia/Tokyo", "Thursday, January 1, 1970 at 9:00:00\u{202F}AM"),
+        ])
+        func aTimestampIsWrittenInTheGivenTimeZone(zone: String, written: String) throws {
             let lines = try run(.timestamp, "0", zone: zone).split(separator: "\n")
-            #expect(lines.first == "1970-01-01T00:00:00Z")
-            #expect(lines.last?.contains(day) == true)
-            #expect(lines.last?.contains(time) == true)
+            #expect(lines == ["1970-01-01T00:00:00Z", Substring(written)])
         }
 
         @Test(arguments: [(999.0, "// expires"), (1000, "// expires"), (1001, "// expired")])
