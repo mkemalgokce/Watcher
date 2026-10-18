@@ -145,6 +145,19 @@ struct CurlImportTests {
         #expect(request.headers.value(for: "a") == "b")
     }
 
+    @Test
+    func aMethodAttachedToItsShortOptionIsRead() throws {
+        #expect(try CurlImport.parse("curl -XPOST https://x.com/").method == "POST")
+    }
+
+    @Test
+    func headerAndDataAttachedToTheirShortOptionsAreRead() throws {
+        let request = try CurlImport.parse("curl -H'A: b' -d'a=1' -uuser:pw https://x.com/")
+        #expect(request.headers.value(for: "a") == "b")
+        #expect(request.body == Data("a=1".utf8))
+        #expect(request.headers.value(for: "authorization") == "Basic " + Data("user:pw".utf8).base64EncodedString())
+    }
+
     @Test(arguments: [
         ("curl -G -d 'q=hello world' https://x.com/s", "/s?q=hello%20world"),
         ("curl -G -d 'q=100%' https://x.com/s?a=1", "/s?a=1&q=100%25"),

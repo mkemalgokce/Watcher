@@ -19,6 +19,21 @@ public enum CurlImport {
         "-D", "--dump-header", "--trace", "--trace-ascii", "--cert-type", "--key-type", "--ciphers", "--max-redirs",
     ]
 
+    /// Short options that take a value, which may be attached to them.
+    private static let shortWithValue = Set(["-X", "-H", "-d", "-b", "-u", "-A", "-e"])
+        .union(ignoredWithValue.filter { $0.count == 2 })
+
+    /// Splits `--header=value` and `-Hvalue` (as in `-XPOST`) into the option and its inline value.
+    private static func option(_ word: String) -> (name: String, inline: String?) {
+        if word.hasPrefix("--"), let equals = word.firstIndex(of: "=") {
+            return (String(word[..<equals]), String(word[word.index(after: equals)...]))
+        }
+        if !word.hasPrefix("--"), word.count > 2, shortWithValue.contains(String(word.prefix(2))) {
+            return (String(word.prefix(2)), String(word.dropFirst(2)))
+        }
+        return (word, nil)
+    }
+
     public static func parse(_ command: String) throws -> RequestRecord {
         var words = try tokenize(command)
         guard words.first == "curl" else { throw Failure(description: "This is not a curl command.") }
@@ -39,12 +54,7 @@ public enum CurlImport {
         }
 
         while index < words.count {
-            var word = words[index]
-            var inline: String?
-            // --header=value and the like.
-            if word.hasPrefix("--"), let equals = word.firstIndex(of: "=") {
-                inline = String(word[word.index(after: equals)...]); word = String(word[..<equals])
-            }
+            let (word, inline) = option(words[index])
             func argument() throws -> String {
                 try inline ?? value(for: word)
             }
