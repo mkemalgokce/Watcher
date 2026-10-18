@@ -25,6 +25,18 @@ public extension WatcherSettings {
         settings.includeProxyInCURL = true; settings.noCachingOnRepeat = true; settings.composeTimeoutSeconds = 9
         settings.autoSystemProxy = true
         settings.breakpointTemplates = [BreakpointTemplate(name: "t", status: 418)]
+        settings.sslProxying = SSLProxyingSettings(include: ["*.a"], exclude: ["b"])
+        settings.mapLocal = RuleSet(isEnabled: true, rules: [MapLocalRule(matching: match, source: .directory("/d"))])
+        settings.breakpoints = RuleSet(isEnabled: true, rules: [BreakpointRule(matching: match)])
+        settings.scripting = RuleSet(isEnabled: true, rules: [ScriptRule(matching: match, source: "s")])
+        settings.dnsSpoofing = RuleSet(isEnabled: true, rules: [DNSSpoofRule(host: "h", address: "1.2.3.4")])
+        settings.reverseProxy = RuleSet(isEnabled: true, rules: [ReverseProxyRule(localPort: 1, remoteHost: "r")])
+        settings.protobuf = RuleSet(isEnabled: true, rules: [ProtobufRule(matching: match, requestType: "R")])
+        settings.customCertificates = RuleSet(
+            isEnabled: true,
+            rules: [CustomCertificateRule(host: "h", role: .client, p12Path: "/c.p12")]
+        )
+        settings.previewers = RuleSet(isEnabled: true, rules: [PreviewerRule(matching: match, source: "p")])
         return settings
     }
 }

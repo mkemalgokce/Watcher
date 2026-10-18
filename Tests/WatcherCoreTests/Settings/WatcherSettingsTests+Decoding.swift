@@ -11,6 +11,18 @@ extension WatcherSettingsTests {
         }
 
         @Test
+        func theChangedFixtureMovesEverySettingOffItsDefault() {
+            let defaults = Mirror(reflecting: WatcherSettings()).children
+            let changed = Mirror(reflecting: WatcherSettings.everythingChanged).children
+            for (fallback, moved) in zip(defaults, changed) {
+                #expect(
+                    String(describing: moved.value) != String(describing: fallback.value),
+                    "\(moved.label ?? "?") still has its default"
+                )
+            }
+        }
+
+        @Test
         func everyChangedSettingSurvivesARoundTrip() throws {
             let settings = WatcherSettings.everythingChanged
             #expect(settings != WatcherSettings())
