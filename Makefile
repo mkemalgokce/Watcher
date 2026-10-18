@@ -3,10 +3,13 @@ SWIFTLINT := .tools/swiftlint
 BASELINE := .swiftlint-baseline.json
 ANALYZE_BASELINE := .swiftlint-analyze-baseline.json
 ANALYZE_PATH := .build/analyze
-# Drives the UI through the accessibility API, which needs a permission CI and fresh machines lack.
-NON_UNIT_TESTS := WatcherInteractionTests
+UNIT_TESTS := WatcherCoreTests|WatcherUITests
+# Interaction tests need the Accessibility permission CI lacks, snapshots are gated per macOS and E2E runs a child
+# process coverage cannot see; the gate measures unit and integration tests only.
+OUTSIDE_COVERAGE := WatcherInteractionTests|WatcherSnapshotTests|WatcherE2ETests
 
-.PHONY: bootstrap tools format format-check lint lint-baseline lint-analyze lint-analyze-baseline test test-unit changelog coverage dmg
+.PHONY: bootstrap tools format format-check lint lint-baseline lint-analyze lint-analyze-baseline test test-unit \
+	test-integration test-smoke test-e2e test-snapshot snapshots-record test-interaction changelog coverage dmg
 
 bootstrap:
 	brew bundle --no-upgrade
@@ -42,11 +45,34 @@ lint-analyze-baseline:
 	rm -f .build/analyze.log && $(MAKE) .build/analyze.log
 	$(SWIFTLINT) analyze --quiet --write-baseline $(ANALYZE_BASELINE) --compiler-log-path .build/analyze.log || true
 
+# Network, process and window tests measure time, so they run one at a time, as XCTest did. Interaction tests drive
+# every window of the process, so they run alone in test-interaction.
 test:
-	swift test
+	swift test --no-parallel --skip WatcherInteractionTests
 
 test-unit:
-	swift test --skip '$(NON_UNIT_TESTS)'
+	swift test --filter '$(UNIT_TESTS)'
+
+test-integration:
+	swift test --no-parallel --filter WatcherIntegrationTests
+
+test-smoke:
+	swift test --filter WatcherIntegrationTests.SmokeTests
+
+# Built first because a test cannot run swift build while swift test holds the build lock.
+test-e2e:
+	swift build --product watcher-cli
+	WATCHER_CLI="$$(swift build --show-bin-path)/watcher-cli" swift test --filter WatcherE2ETests
+
+test-snapshot:
+	swift test --filter WatcherSnapshotTests
+
+# Rewrites every reference for this macOS; each rewritten snapshot is reported as a failure, so the run exits non-zero.
+snapshots-record:
+	SNAPSHOT_TESTING_RECORD=all swift test --filter WatcherSnapshotTests
+
+test-interaction:
+	swift test --filter WatcherInteractionTests
 
 changelog:
 	git cliff -o CHANGELOG.md
@@ -56,4 +82,4 @@ dmg:
 	scripts/package-release.sh $(or $(VERSION),0.0.0) 1
 
 coverage:
-	scripts/coverage.sh --skip '$(NON_UNIT_TESTS)'
+	scripts/coverage.sh --no-parallel --skip '$(OUTSIDE_COVERAGE)'

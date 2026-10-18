@@ -1,0 +1,6 @@
+var request = URLRequest(url: URL(string: "https://api.example.com/v1/users?page=2&sort=name")!)
+request.httpMethod = "POST"
+request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+request.setValue("Bearer it's-a-token", forHTTPHeaderField: "Authorization")
+request.httpBody = Data("{\"name\":\"O'Brien\",\"tags\":[\"a\",\"b\"]}".utf8)
+let (data, response) = try await URLSession.shared.data(for: request)

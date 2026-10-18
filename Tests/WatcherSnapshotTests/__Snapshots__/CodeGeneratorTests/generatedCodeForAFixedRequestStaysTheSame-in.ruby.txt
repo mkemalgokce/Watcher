@@ -1,0 +1,9 @@
+require 'net/http'
+
+uri = URI("https://api.example.com/v1/users?page=2&sort=name")
+request = Net::HTTP::Post.new(uri)
+request["Content-Type"] = "application/json"
+request["Authorization"] = "Bearer it's-a-token"
+request.body = "{\"name\":\"O'Brien\",\"tags\":[\"a\",\"b\"]}"
+response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https') { |http| http.request(request) }
+puts response.code, response.body

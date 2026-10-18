@@ -1,0 +1,9 @@
+import requests
+
+response = requests.request(
+    "POST",
+    "https://api.example.com/v1/users?page=2&sort=name",
+    headers={"Content-Type": "application/json", "Authorization": "Bearer it's-a-token"},
+    data="{\"name\":\"O'Brien\",\"tags\":[\"a\",\"b\"]}",
+)
+print(response.status_code, response.text)

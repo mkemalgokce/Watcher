@@ -23,9 +23,11 @@ code owner (@mkemalgokce, see `.github/CODEOWNERS`) before it can be merged.
 | `make lint` | SwiftLint, strict; violations recorded in `.swiftlint-baseline.json` are tolerated, new ones fail |
 | `make lint-baseline` | Rewrites the baseline; only to drop violations that were fixed, never to accept new ones |
 | `make lint-analyze` / `make lint-analyze-baseline` | SwiftLint's unused-code analyzer (a full build, a few minutes; CI runs it nightly) against `.swiftlint-analyze-baseline.json` / rewrites that baseline |
-| `make test` | Every test, including `WatcherInteractionTests` (they skip without the Accessibility permission) |
-| `make test-unit` | Every test except `WatcherInteractionTests`; CI runs it with coverage on every pull request |
-| `make coverage` | `test-unit` with coverage, gated by `scripts/coverage-thresholds.txt` |
+| `make test` | Every test target but `WatcherInteractionTests`, which drive the process's windows and so run alone |
+| `make test-unit` / `make test-integration` / `make test-smoke` | `WatcherCoreTests` + `WatcherUITests` / `WatcherIntegrationTests` / its `SmokeTests` |
+| `make test-e2e` / `make test-snapshot` / `make test-interaction` | `WatcherE2ETests` / `WatcherSnapshotTests` / `WatcherInteractionTests` (skipped without the Accessibility permission) |
+| `make snapshots-record` | Rewrites the snapshot references for this macOS |
+| `make coverage` | Unit and integration tests with coverage, gated by `scripts/coverage-thresholds.txt`; CI runs it with `test-snapshot` and `test-e2e` |
 | `make changelog` | Regenerates `CHANGELOG.md` with git-cliff |
 | `make dmg` | Builds `dist/Watcher-$(VERSION).dmg` (default 0.0.0) like a release, signed ad hoc and not notarized |
 
@@ -67,6 +69,32 @@ The DMG window's background is `tools/dmg/background.svg`; after editing it, run
 - Views only render; state and intents live in view models.
 - Colors and typography come from `Sources/WatcherUI/Design`.
 
+## Tests
+
+New tests use Swift Testing (`@Suite`, `@Test`, `#expect`, `#require`), one suite per subject in `<Subject>Tests.swift`,
+with test names that read as behaviour sentences. A test file sits at the path of its subject's source:
+`Sources/<Module>/<Folder>/<Subject>.swift` is tested in `Tests/<Target>/<Folder>/<Subject>Tests.swift`. A subject too
+large for one file keeps one top-level suite and splits it into `<Subject>Tests+<Aspect>.swift` files, each holding
+`extension <Subject>Tests { struct <Aspect> { … } }`. The kind of test is chosen by its target:
+
+| Target | Holds |
+|---|---|
+| `WatcherCoreTests`, `WatcherUITests` | Unit tests: logic and view models, no network or external tools |
+| `WatcherIntegrationTests` | A real proxy on loopback, local origins, external tools, WebKit; `SmokeTests` is the fast subset |
+| `WatcherE2ETests` | The built `watcher-cli` run as a process with its own `WATCHER_HOME` |
+| `WatcherSnapshotTests` | Text and image snapshots (swift-snapshot-testing) |
+| `WatcherInteractionTests` | The real window driven through the Accessibility API; local only |
+
+Builders (`Flow.fixture`, `RequestRecord.fixture`, `ResponseRecord.fixture`), the proxy `Harness`, local origins, test
+doubles, async helpers and the Swift Testing tags live in `Tests/WatcherTestSupport`, one type per file. Support code
+never asserts and never imports XCTest: it returns values or throws `TestSupportError`. Use tags such as `.timing`,
+`.network` and `.externalTool`, and gate tools with `.enabled(if: ExternalTool.python3.isAvailable)`.
+
+Snapshots: prefer text snapshots, which are the same on every macOS. Image references are stored per macOS major
+version in `__Snapshots__/macOS-<major>/`; an image suite skips on a macOS without references when recording is off. A
+missing reference is recorded locally (the test fails once, then passes); CI sets `SNAPSHOT_TESTING_RECORD=never`, so
+there it fails instead. Commit references only for screens whose change you have looked at.
+
 ## Test doubles
 
 | Name | Does |
@@ -78,6 +106,6 @@ The DMG window's background is `tools/dmg/background.svg`; after editing it, run
 
 ## Adding a module
 
-1. Write its first test in `Tests/<Module>Tests/<Type>Tests.swift`.
+1. Write its first test in `Tests/<Module>Tests/<Folder>/<Type>Tests.swift`, mirroring `Sources/<Module>/<Folder>/<Type>.swift`.
 2. Add the target and its test target to `Package.swift`.
 3. Add `Sources/<Module> <percent>` to `scripts/coverage-thresholds.txt`.
