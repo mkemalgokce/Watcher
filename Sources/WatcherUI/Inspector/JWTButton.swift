@@ -3,28 +3,27 @@ import WatcherCore
 
 /// Shown in the inspector header when the request carries a JWT: one click shows what is inside it.
 struct JWTButton: View {
-    let flow: Flow
+    let summary: JWTSummary
     @State private var showing = false
 
-    /// Only headers are searched: that is where tokens travel, and it keeps the header instant for large bodies.
-    private var tokens: [JWT] {
-        JWT.find(in: (flow.request.headers + (flow.response?.headers ?? [])).map { "\($0.name): \($0.value)" }.joined(separator: "\n"))
-    }
-
     var body: some View {
-        let tokens = tokens
+        let tokens = summary.tokens
         if !tokens.isEmpty {
+            let tint = summary.anyExpired ? Palette.error : Palette.modified
             Button { showing.toggle() } label: {
-                Label(tokens.count == 1 ? "JWT" : "\(tokens.count) JWTs", systemImage: "key.fill").font(.caption.weight(.semibold))
-                    .foregroundStyle(tokens.contains { $0.isExpired() } ? Palette.error : Palette.modified)
+                Label(summary.title, systemImage: "key.fill").font(.caption.weight(.semibold))
+                    .foregroundStyle(tint)
                     .padding(.horizontal, 7).padding(.vertical, 2)
-                    .background((tokens.contains { $0.isExpired() } ? Palette.error : Palette.modified).opacity(0.14), in: Capsule())
+                    .background(tint.opacity(0.14), in: Capsule())
             }
             .buttonStyle(.plain)
-            .help(tokens.contains { $0.isExpired() } ? "Carries an expired JSON Web Token. Click to decode it." : "Carries a JSON Web Token. Click to decode it.")
+            .help(summary.help)
             .popover(isPresented: $showing, arrowEdge: .bottom) {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 16) { ForEach(tokens, id: \.raw) { TokenView(token: $0) } }.padding(14)
+                    VStack(alignment: .leading, spacing: 16) {
+                        ForEach(tokens, id: \.raw) { TokenView(token: $0, expiry: summary.expiry(of: $0)) }
+                    }
+                    .padding(14)
                 }
                 .frame(width: 560, height: min(560, CGFloat(tokens.count) * 220 + 40))
             }
@@ -34,19 +33,15 @@ struct JWTButton: View {
 
 struct TokenView: View {
     let token: JWT
-
-    private var status: (text: String, color: Color, icon: String)? {
-        guard let expires = token.expiresAt else { return nil }
-        let relative = RelativeDateTimeFormatter().localizedString(for: expires, relativeTo: Date())
-        return token.isExpired() ? ("Expired \(relative)", .red, "xmark.circle.fill") : ("Expires \(relative)", .green, "checkmark.circle.fill")
-    }
+    let expiry: (text: String, isExpired: Bool)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Label("Token", systemImage: "key").font(.subheadline.weight(.medium))
-                if let status {
-                    Label(status.text, systemImage: status.icon).font(.caption.weight(.medium)).foregroundStyle(status.color)
+                if let expiry {
+                    Label(expiry.text, systemImage: expiry.isExpired ? "xmark.circle.fill" : "checkmark.circle.fill")
+                        .font(.caption.weight(.medium)).foregroundStyle(expiry.isExpired ? .red : .green)
                 }
             }
             HStack(alignment: .top, spacing: 8) {

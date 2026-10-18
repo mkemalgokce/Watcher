@@ -9,8 +9,12 @@ struct ComposeView: View {
     @Environment(RequestActions.self) private var actions
     @Environment(\.dismiss) private var dismiss
     @Environment(AppModel.self) private var model
-    @State private var viewModel = ComposeViewModel()
+    @State private var viewModel: ComposeViewModel
     @FocusState private var urlFocused: Bool
+
+    init(now: @escaping @Sendable () -> Date) {
+        _viewModel = State(initialValue: ComposeViewModel(now: now))
+    }
 
     var body: some View {
         VStack(spacing: 0) {

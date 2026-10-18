@@ -61,7 +61,7 @@ private struct InspectorHeader: View {
                     Pill(text: flow.appliedTools.joined(separator: " · "), tint: Palette.modified)
                         .help("Changed by \(flow.appliedTools.joined(separator: ", "))")
                 }
-                JWTButton(flow: flow)
+                JWTButton(summary: JWTSummary(flow: flow, now: model.now()))
                 Spacer(minLength: 8)
                 actions
             }

@@ -43,7 +43,7 @@ public struct ContentView: View {
             switch sheet {
             case .tools: ToolsView()
             case .breakpoints: BreakpointsView()
-            case .compose: ComposeView()
+            case .compose: ComposeView(now: model.now)
             case .devices: DeviceSetupView()
             case .welcome: WelcomeView()
             case .converter: ConverterView()

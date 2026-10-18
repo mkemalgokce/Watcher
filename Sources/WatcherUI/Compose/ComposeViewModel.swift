@@ -71,6 +71,11 @@ final class ComposeViewModel {
 
     /// Guards the URL ↔ params sync against bouncing between the two.
     @ObservationIgnored private var syncing = false
+    @ObservationIgnored private let now: @Sendable () -> Date
+
+    init(now: @escaping @Sendable () -> Date = Date.init) {
+        self.now = now
+    }
 
     var isWebSocket: Bool {
         address.hasPrefix("ws://") || address.hasPrefix("wss://")
@@ -273,10 +278,10 @@ final class ComposeViewModel {
         let request: RequestRecord
         do { request = try build() } catch { phase = .failed("\(error)"); return }
         phase = .sending
-        let started = Date()
+        let started = now()
         let response = await perform(request, followRedirects)
         var flow = Flow(sequence: 0, request: request)
-        flow.response = response; flow.state = .completed; flow.duration = Date().timeIntervalSince(started)
+        flow.response = response; flow.state = .completed; flow.duration = now().timeIntervalSince(started)
         phase = .received(flow)
         // Watcher answers 502/504 itself when the server cannot be reached; the body says why, the note says where to look.
         if response.status >= 500 {

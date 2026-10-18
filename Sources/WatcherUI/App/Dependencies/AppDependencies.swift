@@ -22,6 +22,7 @@ public struct AppDependencies {
     var focusFilterField: @MainActor () -> Void
     var devices: DevicesViewModel.DeviceProbe
     var loginItem: LoginItem
+    var now: @Sendable () -> Date
 
     var requestServices: RequestActions.Services {
         RequestActions.Services(sender: sender, clipboard: clipboard, workspace: workspace, paths: paths, files: files)

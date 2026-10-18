@@ -22,7 +22,8 @@ extension AppDependencies {
             paths: SupportPaths(directory: WatcherPaths.supportDirectory),
             focusFilterField: LiveSearchFocus.focusFilterField,
             devices: .live,
-            loginItem: .live
+            loginItem: .live,
+            now: Date.init
         )
     }
 
@@ -50,7 +51,8 @@ extension AppDependencies {
             paths: SupportPaths(directory: directory),
             focusFilterField: {},
             devices: .none,
-            loginItem: .inert
+            loginItem: .inert,
+            now: Date.init
         )
     }
 

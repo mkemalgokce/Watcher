@@ -55,7 +55,11 @@ extension AppModel {
 
     #Preview("Device setup") { DeviceSetupView().environment(AppModel.preview()) }
     #Preview("Settings") { SettingsView().environment(AppModel.preview()) }
-    #Preview("Compose") { ComposeView().environment(AppModel.preview()) }
+    #Preview("Compose") {
+        let model = AppModel.preview()
+        return ComposeView(now: model.now).environment(model)
+    }
+
     #Preview("Tools") { ToolsView().environment(AppModel.preview()) }
     #Preview("Breakpoints") { BreakpointsView().environment(AppModel.preview()) }
     #Preview("Android setup") { DeviceSetupView(target: .android).environment(AppModel.preview()) }

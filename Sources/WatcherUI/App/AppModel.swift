@@ -26,6 +26,8 @@ public final class AppModel {
     let viewer: ViewerOptions
     let filePicker: FilePicker
     let settingsPane: SettingsViewModel
+    /// The time the inspector and Compose measure against.
+    let now: @Sendable () -> Date
     /// Set once the first-run setup has been completed or skipped.
     var onboardingDone: Bool {
         didSet { preferences.onboardingDone = onboardingDone }
@@ -42,6 +44,7 @@ public final class AppModel {
         let engine = dependencies.engine
         self.engine = engine
         clipboard = dependencies.clipboard
+        now = dependencies.now
         preferences = dependencies.preferences
         onboardingDone = dependencies.preferences.onboardingDone
         viewer = ViewerOptions(preferences: dependencies.preferences)
