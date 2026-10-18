@@ -185,7 +185,10 @@ private struct GettingStarted: View {
                 Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Palette.error).font(.callout)
                     .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
             }
-            step(1, done: proxy.isRunning, "Start the proxy", detail: "Watcher listens on 127.0.0.1:\(port).", shortcut: "⇧⌘P") {
+            step(
+                1, done: proxy.isRunning, "Start the proxy", detail: "Watcher listens on 127.0.0.1:\(port).",
+                shortcut: "⌘E"
+            ) {
                 HStack {
                     Button(proxy.proxyError == nil ? "Start Proxy" : "Try Again") { proxy.toggleRunning() }
                         .buttonStyle(.borderedProminent)
