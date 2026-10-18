@@ -4,10 +4,15 @@ import WatcherCore
 /// An in-memory file system: files are paths with contents; folders and executables are sets of paths.
 /// Every write stamps the file with the next of a sequence of modification dates, so two writes always differ.
 public final class FileAccessFake: @unchecked Sendable {
-    public struct Failure: Error, Equatable {
-        public let operation: String
+    /// The `FileAccess` closures that can throw.
+    public enum Operation: Sendable {
+        case read, writeAtomically, remove, move, createDirectory, setPermissions
+    }
 
-        public init(operation: String) {
+    public struct Failure: Error, Equatable {
+        public let operation: Operation
+
+        public init(operation: Operation) {
             self.operation = operation
         }
     }
@@ -20,7 +25,7 @@ public final class FileAccessFake: @unchecked Sendable {
     private var permissions: [String: Int] = [:]
     private var writeCount = 0
     private var temporaryCount = 0
-    private var failingOperations: Set<String> = []
+    private var failingOperations: Set<Operation> = []
 
     public init(files: [String: Data] = [:], executables: Set<String> = [], directories: Set<String> = []) {
         self.files = [:]; self.executables = executables; self.directories = directories
@@ -52,12 +57,12 @@ public final class FileAccessFake: @unchecked Sendable {
         lock.withLock { _ = files.removeValue(forKey: path) }
     }
 
-    /// Makes `operation` (`"write"`, `"move"`, ...) throw `Failure` until `succeed` is called.
-    public func fail(_ operation: String) {
+    /// Makes `operation` throw `Failure` until `succeed` is called.
+    public func fail(_ operation: Operation) {
         lock.withLock { _ = failingOperations.insert(operation) }
     }
 
-    public func succeed(_ operation: String) {
+    public func succeed(_ operation: Operation) {
         lock.withLock { _ = failingOperations.remove(operation) }
     }
 
@@ -67,7 +72,7 @@ public final class FileAccessFake: @unchecked Sendable {
         modified[path] = Date(timeIntervalSinceReferenceDate: Double(writeCount))
     }
 
-    private func perform<T>(_ operation: String, _ body: () throws -> T) throws -> T {
+    private func perform<T>(_ operation: Operation, _ body: () throws -> T) throws -> T {
         try lock.withLock {
             guard !failingOperations.contains(operation) else { throw Failure(operation: operation) }
             return try body()
@@ -80,19 +85,19 @@ public final class FileAccessFake: @unchecked Sendable {
             fileExists: { [self] path in lock.withLock { files[path] != nil || directories.contains(path) } },
             isDirectory: { [self] path in lock.withLock { directories.contains(path) } },
             read: { [self] url in
-                try perform("read") {
+                try perform(.read) {
                     guard let data = files[url.path] else { throw CocoaError(.fileReadNoSuchFile) }
                     return data
                 }
             },
-            writeAtomically: { [self] data, url in try perform("write") { store(data, at: url.path) } },
+            writeAtomically: { [self] data, url in try perform(.writeAtomically) { store(data, at: url.path) } },
             remove: { [self] url in
-                try perform("remove") {
+                try perform(.remove) {
                     guard files.removeValue(forKey: url.path) != nil else { throw CocoaError(.fileNoSuchFile) }
                 }
             },
             move: { [self] source, destination in
-                try perform("move") {
+                try perform(.move) {
                     guard files[destination.path] == nil, let data = files.removeValue(forKey: source.path) else {
                         throw CocoaError(.fileWriteFileExists)
                     }
@@ -100,8 +105,8 @@ public final class FileAccessFake: @unchecked Sendable {
                     modified[destination.path] = modified.removeValue(forKey: source.path)
                 }
             },
-            createDirectory: { [self] url in try perform("createDirectory") { _ = directories.insert(url.path) } },
-            setPermissions: { [self] mode, path in try perform("setPermissions") { permissions[path] = mode } },
+            createDirectory: { [self] url in try perform(.createDirectory) { _ = directories.insert(url.path) } },
+            setPermissions: { [self] mode, path in try perform(.setPermissions) { permissions[path] = mode } },
             modificationDate: { [self] path in lock.withLock { files[path] == nil ? nil : modified[path] } },
             temporaryFile: { [self] pathExtension in
                 lock.withLock {

@@ -89,7 +89,7 @@ struct SettingsStoreTests {
     func writesAreRefusedWhileAnUnreadableFileCannotBeMovedAside() throws {
         let original = Data("not json".utf8)
         files.write(original, to: path)
-        files.fail("move")
+        files.fail(.move)
         let store = store()
 
         #expect(store.loadIssue != nil)
@@ -106,8 +106,8 @@ struct SettingsStoreTests {
     func aFailedWriteThrowsAndKeepsTheOldValue() throws {
         let store = store()
         try store.update { $0.port = 1 }
-        files.fail("write")
-        #expect(throws: FileAccessFake.Failure(operation: "write")) { try store.update { $0.port = 2 } }
+        files.fail(.writeAtomically)
+        #expect(throws: FileAccessFake.Failure(operation: .writeAtomically)) { try store.update { $0.port = 2 } }
         #expect(store.value.port == 1)
     }
 
@@ -138,7 +138,7 @@ struct SettingsStoreTests {
     @Test
     func anUnreadableFileIsNotAChange() {
         files.write(Data("{}".utf8), to: path)
-        files.fail("read")
+        files.fail(.read)
         let store = store()
         #expect(!store.reloadIfChanged())
         #expect(store.loadIssue == nil)
