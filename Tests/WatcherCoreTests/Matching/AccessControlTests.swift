@@ -29,4 +29,16 @@ struct AccessControlTests {
         #expect(control.allows("FE80::1"))
         #expect(!control.allows("fe81::1"))
     }
+
+    @Test(arguments: ["::ffff:127.0.0.1", "::FFFF:192.168.1.50"])
+    func anIPv4PeerOnADualStackListenerIsCheckedAsIPv4(address: String) {
+        let control = AccessControlSettings(isEnabled: true, allowedAddresses: ["192.168.1.*"]).compile()
+        #expect(control.allows(address))
+    }
+
+    @Test
+    func aMappedAddressOutsideTheListIsStillRefused() {
+        let control = AccessControlSettings(isEnabled: true, allowedAddresses: ["192.168.1.*"]).compile()
+        #expect(!control.allows("::ffff:192.168.2.50"))
+    }
 }
