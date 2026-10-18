@@ -95,6 +95,9 @@ public final class AppModel {
         settings.onChange = { [list] _, new in list.hidesAppleTraffic = new.hideAppleTraffic }
         proxy.restoreLeftoverSystemProxy()
         dependencies.onTerminate { [proxy] in proxy.applicationWillTerminate() }
+        if let problem = dependencies.startupProblem {
+            notices.notify(problem, .error)
+        }
     }
 
     /// Follows the store and paused breakpoints; separate from init so tests can watch a model that has no system side effects.

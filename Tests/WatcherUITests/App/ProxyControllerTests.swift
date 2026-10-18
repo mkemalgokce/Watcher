@@ -82,6 +82,23 @@ struct ProxyControllerTests {
     }
 
     @Test
+    func aFailedStartOffersTryAgainWhichStartsTheProxyOnceMore() async throws {
+        let runner = ProxyRunnerStub(log: log)
+        runner.failStarting()
+        let (proxy, _, _) = controller(runner: runner)
+        proxy.toggleRunning()
+        #expect(await eventually { !proxy.isSwitchingProxy })
+        let retry = try #require(notices.notice?.action)
+        #expect(retry.title == "Try Again")
+
+        runner.failStarting(nil)
+        retry.perform()
+        #expect(await eventually { proxy.isRunning && !proxy.isSwitchingProxy })
+        #expect(proxy.proxyError == nil)
+        #expect(runner.calls == ["start 9090", "start 9090"])
+    }
+
+    @Test
     func pauseStopsAtOnceWhenTheSystemProxyIsOff() async {
         let (proxy, runner, systemProxy) = controller()
         proxy.toggleRunning()

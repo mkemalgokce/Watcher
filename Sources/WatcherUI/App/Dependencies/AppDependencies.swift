@@ -6,6 +6,8 @@ import WatcherCore
 @MainActor
 public struct AppDependencies {
     var engine: WatcherEngine
+    /// Why the engine is not on the user's own data folder; shown as an error when the window opens.
+    var startupProblem: String?
     var clipboard: any Clipboard
     var sleep: Sleep
     var announce: Announce

@@ -30,6 +30,20 @@ struct AppModelTests {
     }
 
     @Test
+    func aStartupProblemIsShownAsAnErrorNoticeAtLaunch() throws {
+        var dependencies = try AppDependencies.test()
+        dependencies.startupProblem = "Cannot open Watcher's data in /x: nope."
+        let model = AppModel(dependencies: dependencies)
+        #expect(model.notices.notice?.message == "Cannot open Watcher's data in /x: nope.")
+        #expect(model.notices.notice?.kind == .error)
+    }
+
+    @Test
+    func noNoticeIsShownAtLaunchWhenNothingWentWrong() throws {
+        #expect(try AppModel.test().notices.notice == nil)
+    }
+
+    @Test
     func theProxyDoesNotStartUntilRecordIsPressed() throws {
         let runner = ProxyRunnerStub()
         let model = try AppModel(dependencies: .test(runner: runner))

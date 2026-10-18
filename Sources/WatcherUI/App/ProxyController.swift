@@ -115,7 +115,9 @@ final class ProxyController {
             let message = "Cannot start the proxy: \(error). Another app may be using port \(settings.port); "
                 + "pick a different port in Settings."
             proxyError = message
-            notices.notify(message, .error)
+            notices.notify(message, .error, action: NoticeAction(title: "Try Again") { [weak self] in
+                self?.toggleRunning()
+            })
         }
     }
 
