@@ -92,10 +92,9 @@ struct SocksHandlerTests {
         #expect(try await replies(of: channel) == Self.success)
     }
 
-    @Test(arguments: [(UInt8(2), UInt8(7)), (3, 7), (1, 8)])
-    func anUnsupportedRequestIsRefusedWithItsReplyCodeAndClosed(command: UInt8, code: UInt8) async throws {
+    @Test(arguments: [(UInt8(2), UInt8(1), UInt8(7)), (3, 1, 7), (1, 9, 8)])
+    func anUnsupportedRequestIsRefusedWithItsReplyCodeAndClosed(command: UInt8, type: UInt8, code: UInt8) async throws {
         let channel = try await channel()
-        let type: UInt8 = command == 1 ? 9 : 1
         try await send(Self.greeting + [5, command, 0, type, 10, 0, 0, 1, 0, 80], to: channel)
         #expect(try await replies(of: channel) == [5, 0, 5, code, 0, 1, 0, 0, 0, 0, 0, 0])
         try await channel.closeFuture.get()

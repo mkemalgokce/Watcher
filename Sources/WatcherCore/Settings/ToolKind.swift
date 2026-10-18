@@ -15,7 +15,7 @@ public enum ToolKind: String, CaseIterable, Sendable {
     case externalProxy = "external-proxy"
 
     /// The setting that switches the tool on or off.
-    public var switchPath: WritableKeyPath<WatcherSettings, Bool> {
+    var switchPath: WritableKeyPath<WatcherSettings, Bool> {
         switch self {
         case .blockList: \.blockList.isEnabled
         case .allowList: \.allowList.isEnabled
@@ -43,7 +43,7 @@ public enum ToolKind: String, CaseIterable, Sendable {
         case .scripting: return Self.rules(settings.scripting)
         case .dnsSpoofing: return Self.rules(settings.dnsSpoofing)
         case .reverseProxy: return Self.rules(settings.reverseProxy)
-        case .networkCondition: return settings.throttle.isEnabled ? "on (\(settings.throttle.profile.name))" : state
+        case .networkCondition: return state == "on" ? "on (\(settings.throttle.profile.name))" : state
         case .noCaching, .externalProxy: return state
         }
     }

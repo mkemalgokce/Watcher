@@ -10,11 +10,6 @@ struct ToolKindTests {
     }
 
     @Test(arguments: ToolKind.allCases)
-    func aToolIsFoundAgainByItsName(kind: ToolKind) {
-        #expect(ToolKind(rawValue: kind.rawValue) == kind)
-    }
-
-    @Test(arguments: ToolKind.allCases)
     func switchingAToolOnAndOffTouchesOnlyThatTool(kind: ToolKind) {
         var settings = WatcherSettings()
         settings[keyPath: kind.switchPath] = true

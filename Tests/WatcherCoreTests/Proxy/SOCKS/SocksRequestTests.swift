@@ -23,7 +23,6 @@ struct SocksRequestTests {
         (request(type: 1, address: [10, 20, 30, 40], port: [0x01, 0xBB]), "10.20.30.40", 443),
         (request(type: 1, address: [1, 2, 3, 4], port: [0xFF, 0xFF]), "1.2.3.4", 65535),
         (request(type: 3, address: [5] + Array("a.com".utf8)), "a.com", 8080),
-        (request(type: 3, address: [0]), "", 8080),
         (request(type: 3, address: [255] + longName), String(repeating: "a", count: 255), 8080),
         (request(type: 4, address: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]), "0:0:0:0:0:0:0:1", 8080),
         (request(type: 4, address: documentationAddress), "2001:db8:0:0:0:0:0:abcd", 8080),
@@ -47,6 +46,11 @@ struct SocksRequestTests {
     @Test(arguments: [0, 2, 5, 255] as [UInt8])
     func anUnknownAddressTypeIsRefusedWithCode8(type: UInt8) {
         #expect(SocksRequest.parse(Self.request(type: type, address: [1, 2, 3, 4])) == .unsupported(code: 8))
+    }
+
+    @Test(arguments: [[0], [2, 0xFF, 0xFE]] as [[UInt8]])
+    func aDomainThatIsEmptyOrNotUTF8IsRefusedAsUnreachable(address: [UInt8]) {
+        #expect(SocksRequest.parse(Self.request(type: 3, address: address)) == .unsupported(code: 4))
     }
 
     @Test

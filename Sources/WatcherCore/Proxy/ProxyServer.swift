@@ -265,7 +265,7 @@ extension ProxyServer {
     }
 
     /// Event streams, bodies of unknown length and very large bodies are relayed instead of buffered.
-    static func shouldStream(_ response: HTTPClientResponse, limit: Int = maxBodyBytes) -> Bool {
+    static func shouldStream(_ response: HTTPClientResponse, limit: Int) -> Bool {
         // The client sees these as complete at the head, so a streamed end can race its close and fail the flow.
         let code = response.status.code
         if code < 200 || code == 204 || code == 304 {
