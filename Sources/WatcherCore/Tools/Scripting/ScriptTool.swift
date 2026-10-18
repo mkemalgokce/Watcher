@@ -18,10 +18,18 @@ struct ScriptTool: Tool {
 
     private let entries: [Entry]
     private let log: @Sendable (String) -> Void
+    private let read: @Sendable (URL) throws -> Data
 
-    init(rules: [ScriptRule], log: @escaping @Sendable (String) -> Void) {
-        self.log = log
-        entries = rules.map { Entry(matcher: $0.matching.compile(), engine: ScriptEngine(source: $0.source, log: log)) }
+    init(
+        rules: [ScriptRule],
+        log: @escaping @Sendable (String) -> Void,
+        timeout: Duration = .seconds(10),
+        read: @escaping @Sendable (URL) throws -> Data = FileAccess.live.read
+    ) {
+        self.log = log; self.read = read
+        entries = rules.map {
+            Entry(matcher: $0.matching.compile(), engine: ScriptEngine(source: $0.source, log: log, timeout: timeout))
+        }
     }
 
     func intercept(request: inout RequestRecord) async -> RequestDecision {
@@ -42,7 +50,7 @@ struct ScriptTool: Tool {
             do {
                 let args = try "[{}, \(ScriptPayload.json(request.url)), \(ScriptPayload.encode(request: request)), \(ScriptPayload.encode(response: response))]"
                 let result = try await entry.engine.call("onResponse", argumentsJSON: args)
-                try ScriptPayload.apply(responseJSON: result, to: &response)
+                try ScriptPayload.apply(responseJSON: result, to: &response, read: read)
             } catch {
                 log("onResponse failed for \(request.url): \(error)")
             }
@@ -99,7 +107,11 @@ enum ScriptPayload {
         }
     }
 
-    static func apply(responseJSON: String, to response: inout ResponseRecord) throws {
+    static func apply(
+        responseJSON: String,
+        to response: inout ResponseRecord,
+        read: (URL) throws -> Data
+    ) throws {
         guard let object = try dictionary(responseJSON) else { return }
         if let status = (object["statusCode"] as? NSNumber)?.intValue {
             response.status = status
@@ -111,7 +123,7 @@ enum ScriptPayload {
             response.body = body
         }
         if let path = object["bodyFilePath"] as? String,
-           let data = try? Data(contentsOf: URL(fileURLWithPath: (path as NSString).expandingTildeInPath))
+           let data = try? read(URL(fileURLWithPath: (path as NSString).expandingTildeInPath))
         {
             response.body = data
         }

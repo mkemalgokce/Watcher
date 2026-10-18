@@ -1,5 +1,5 @@
 import Foundation
 
-struct ScriptError: Error, CustomStringConvertible {
+struct ScriptError: Error, Equatable, CustomStringConvertible {
     let description: String
 }
