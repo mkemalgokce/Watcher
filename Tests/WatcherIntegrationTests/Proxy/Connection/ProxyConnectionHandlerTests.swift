@@ -42,13 +42,18 @@ struct ProxyConnectionHandlerTests {
         try await engine.stop(); await upstream.stop()
     }
 
-    /// GET through the proxy over HTTP/1.1, trusting only `trust`.
-    private func get(_ url: String, proxyPort: Int, trust: TLSConfiguration) async throws -> (Int, String) {
+    /// GET through the proxy, over HTTP/1.1 unless `httpVersion` lets the client offer h2, trusting only `trust`.
+    private func get(
+        _ url: String,
+        proxyPort: Int,
+        trust: TLSConfiguration,
+        httpVersion: HTTPClient.Configuration.HTTPVersion = .http1Only
+    ) async throws -> (Int, String) {
         var configuration = HTTPClient.Configuration(
             tlsConfiguration: trust,
             proxy: .server(host: "127.0.0.1", port: proxyPort)
         )
-        configuration.httpVersion = .http1Only
+        configuration.httpVersion = httpVersion
         let client = HTTPClient(eventLoopGroupProvider: .singleton, configuration: configuration)
         do {
             let response = try await client.execute(HTTPClientRequest(url: url), timeout: .seconds(10))
@@ -74,6 +79,20 @@ struct ProxyConnectionHandlerTests {
             #expect(flow.request.port == originPort)
             #expect(flow.clientTLS?.isEmpty == false)
             #expect(flow.response?.status == 200)
+        }
+    }
+
+    @Test
+    func anHTTP2RequestReachesTheOriginOnTheTunnelledPort() async throws {
+        try await withProxy { engine, proxyPort, originPort in
+            let trust = try OriginAuthority.trusting(engine.authority)
+            let url = "https://secure.test:\(originPort)/h2"
+            let (status, body) = try await get(url, proxyPort: proxyPort, trust: trust, httpVersion: .automatic)
+            #expect(status == 200)
+            #expect(body.hasPrefix("GET /h2 host=secure.test:\(originPort)"))
+            let flow = try #require(engine.store.all.first)
+            #expect(flow.request.port == originPort)
+            #expect(flow.clientTLS?.contains("h2") == true)
         }
     }
 

@@ -7,9 +7,17 @@ import NIOTLS
 /// Lets decrypted connections speak HTTP/2 to the client when it offers it (ALPN `h2`); everything else stays HTTP/1.1.
 extension ProxyServer {
     /// TLS plus the ALPN switch, in pipeline order. `http1` are the handlers to drop if `h2` wins.
-    func tlsHandlers(host: String, http1: [RemovableChannelHandler], details: ConnectionDetails) throws -> [ChannelHandler] {
+    func tlsHandlers(
+        host: String,
+        port: Int,
+        http1: [RemovableChannelHandler],
+        details: ConnectionDetails
+    ) throws -> [ChannelHandler] {
         guard authority != nil || hasCustomServerCertificate(for: host) else { return [] }
-        return try [NIOSSLServerHandler(context: serverContext(for: host)), http2Switch(host: host, port: 443, http1: http1, details: details)]
+        return try [
+            NIOSSLServerHandler(context: serverContext(for: host)),
+            http2Switch(host: host, port: port, http1: http1, details: details),
+        ]
     }
 
     func http2Switch(host: String, port: Int, http1: [RemovableChannelHandler], details: ConnectionDetails) -> ApplicationProtocolNegotiationHandler {

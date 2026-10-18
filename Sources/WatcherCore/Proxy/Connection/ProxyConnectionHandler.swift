@@ -92,10 +92,11 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
                 }.flatMap { [self] in
                     let fresh = ProxyServer.requestDecoder()
                     decoder = fresh
-                    return context.pipeline.addHandler(fresh, position: .before(self))
-                }.flatMap { [self] in
+                    return context.pipeline.addHandler(fresh, position: .before(self)).map { fresh }
+                }.flatMap { [self] fresh in
                     do {
-                        let handlers = try server.tlsHandlers(host: host, http1: [codecs[0], decoder!, self], details: details)
+                        let http1: [RemovableChannelHandler] = [codecs[0], fresh, self]
+                        let handlers = try server.tlsHandlers(host: host, port: port, http1: http1, details: details)
                         return context.pipeline.addHandlers(handlers, position: .first)
                     } catch { return context.eventLoop.makeFailedFuture(error) }
                 }.whenComplete { [self] result in
