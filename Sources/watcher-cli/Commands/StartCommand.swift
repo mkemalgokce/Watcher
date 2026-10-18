@@ -41,7 +41,13 @@ struct Start: AsyncParsableCommand {
         // Caught before the system proxy is pointed at Watcher, so a stop from then on still puts it back.
         let stopRequests = environment.shutdownSignal()
         if systemProxy {
-            try environment.systemProxy.enable(port: bound)
+            do {
+                try environment.systemProxy.enable(port: bound)
+            } catch {
+                tasks.forEach { $0.cancel() }
+                try? await shutDown(engine, in: environment)
+                throw error
+            }
         }
         for await _ in stopRequests {
             break
