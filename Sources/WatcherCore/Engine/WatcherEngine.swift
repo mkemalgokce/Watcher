@@ -29,11 +29,12 @@ public final class WatcherEngine: @unchecked Sendable {
     private var appliedReverseProxies: [ReverseProxyRule]?
     private var appliedSocks: SocksSettings?
     private let previewers = PreviewerRunner()
-    private var protobufSchema: (files: [String], schema: ProtobufSchema?) = ([], nil)
+    private var protobufSchema = LoadedSchemas()
     private var loadedPAC: (location: String, evaluator: PACEvaluator)?
     private let files: FileAccess
     private let pacLoader: @Sendable (String) async throws -> PACEvaluator
     private let sleep: Sleep
+    private let pacTimeout: Duration
     let now: @Sendable () -> Date
     private let makeServer: @Sendable (FlowStore, CertificateAuthority) -> ProxyServer
 
@@ -43,13 +44,15 @@ public final class WatcherEngine: @unchecked Sendable {
         directory: URL = WatcherPaths.supportDirectory,
         files: FileAccess = .live,
         pacLoader: (@Sendable (String) async throws -> PACEvaluator)? = nil,
+        pacTimeout: Duration = .seconds(10),
         sleep: @escaping Sleep = liveSleep,
         now: @escaping @Sendable () -> Date = { Date() },
         makeServer: @escaping @Sendable (FlowStore, CertificateAuthority) -> ProxyServer = {
             ProxyServer(store: $0, authority: $1)
         }
     ) throws {
-        self.files = files; self.sleep = sleep; self.now = now; self.makeServer = makeServer
+        self.files = files; self.pacTimeout = pacTimeout; self.sleep = sleep
+        self.now = now; self.makeServer = makeServer
         self.pacLoader = pacLoader ?? { try await PACEvaluator.load(from: $0) }
         authority = try CertificateAuthority(directory: directory, files: files)
         settings = SettingsStore(url: WatcherPaths.settingsFile(in: directory), files: files)
@@ -111,7 +114,8 @@ public final class WatcherEngine: @unchecked Sendable {
         watcher = Task { [weak self, sleep] in
             while !Task.isCancelled {
                 try? await sleep(.seconds(1))
-                if let self, settings.reloadIfChanged() {
+                guard let self else { return }
+                if settings.reloadIfChanged() {
                     await apply(settings.value)
                 }
             }
@@ -249,20 +253,70 @@ public final class WatcherEngine: @unchecked Sendable {
         return response
     }
 
+    private func pacEvaluator(for external: ExternalProxySettings) async -> PACEvaluator? {
+        guard external.isEnabled, external.kind == .pac, !external.pacURL.isEmpty else { return nil }
+        if let loaded = lock.withLock({ loadedPAC }), loaded.location == external.pacURL {
+            return loaded.evaluator
+        }
+        do {
+            let (loader, location) = (pacLoader, external.pacURL)
+            let evaluator = try await withTimeout(pacTimeout, "PAC download", sleep: sleep) {
+                try await loader(location)
+            }
+            lock.withLock { loadedPAC = (external.pacURL, evaluator) }
+            return evaluator
+        } catch {
+            onLog("PAC: \(error)")
+            return nil
+        }
+    }
+}
+
+private extension WatcherEngine {
+    static func listenHost(for settings: WatcherSettings) -> String {
+        settings.listenOnAllInterfaces ? (settings.listenOnIPv6 ? "::" : "0.0.0.0") : "127.0.0.1"
+    }
+}
+
+public extension WatcherEngine {
+    /// The port the SOCKS5 listener is actually on while it runs (differs from the setting when that is 0).
+    var socksPort: Int? {
+        lock.withLock { server }?.socksPort
+    }
+
+    /// The ports of the running reverse-proxy listeners, in rule order.
+    var reversePorts: [Int] {
+        lock.withLock { server }?.reversePorts ?? []
+    }
+}
+
+private struct LoadedSchemas {
+    var files: [String] = []
+    var schema: ProtobufSchema?
+    var hadFailures = false
+}
+
+extension WatcherEngine {
     /// Reads all `.desc` files into one schema; unreadable files are reported and skipped.
     private func loadProtobufSchemas(_ paths: [String], log: @Sendable (String) -> Void) {
-        guard paths != lock.withLock({ protobufSchema.files }) else { return }
+        let loaded = lock.withLock { protobufSchema }
+        // A file that failed to load is tried again on the next apply, which runs when the settings change.
+        guard paths != loaded.files || loaded.hadFailures || (loaded.schema == nil && !paths.isEmpty) else { return }
         var combined = Data()
+        var hadFailures = false
         for file in paths {
             do { try combined.append(files.read(URL(fileURLWithPath: (file as NSString).expandingTildeInPath)))
                 // A FileDescriptorSet is a repeated field, so concatenated sets are themselves a valid set.
-            } catch { log("Protobuf schema \(file): \(error)") }
+            } catch {
+                hadFailures = true
+                log("Protobuf schema \(file): \(error)")
+            }
         }
         let schema = combined.isEmpty ? nil : try? ProtobufSchema(descriptorSet: combined)
         if !paths.isEmpty, schema == nil {
             log("Protobuf schemas could not be parsed")
         }
-        lock.withLock { protobufSchema = (paths, schema) }
+        lock.withLock { protobufSchema = LoadedSchemas(files: paths, schema: schema, hadFailures: hadFailures) }
     }
 
     /// Body text for display: a schema-decoded protobuf when a rule names the message type, else the generic preview.
@@ -280,26 +334,5 @@ public final class WatcherEngine: @unchecked Sendable {
             }
         }
         return BodyPreview.text(data, contentType: contentType)
-    }
-
-    private func pacEvaluator(for external: ExternalProxySettings) async -> PACEvaluator? {
-        guard external.isEnabled, external.kind == .pac, !external.pacURL.isEmpty else { return nil }
-        if let loaded = lock.withLock({ loadedPAC }), loaded.location == external.pacURL {
-            return loaded.evaluator
-        }
-        do {
-            let evaluator = try await pacLoader(external.pacURL)
-            lock.withLock { loadedPAC = (external.pacURL, evaluator) }
-            return evaluator
-        } catch {
-            onLog("PAC: \(error)")
-            return nil
-        }
-    }
-}
-
-private extension WatcherEngine {
-    static func listenHost(for settings: WatcherSettings) -> String {
-        settings.listenOnAllInterfaces ? (settings.listenOnIPv6 ? "::" : "0.0.0.0") : "127.0.0.1"
     }
 }

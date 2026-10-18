@@ -1,30 +1,47 @@
 import Foundation
+import NIOSSL
 @testable import WatcherCore
 
-/// Engine + echo origin, with requests sent through the proxy. `upstream.test` resolves to the echo origin.
+/// Engine + echo origin, with requests sent through the proxy. `host` (`upstream.test` unless told otherwise)
+/// resolves to the echo origin.
 public final class Harness {
-    public let upstream = TestUpstream()
+    public let upstream: TestUpstream
     public let engine: WatcherEngine
     public var proxyPort = 0
     public var originURL: String {
-        "http://upstream.test:\(upstream.port)"
+        "http://\(host):\(upstream.port)"
     }
 
-    /// The engine's data folder, removed when the harness goes away.
-    private let directory: TemporaryDirectory
+    private let host: String
+    /// The engine's data folder when it is on disk, removed when the harness goes away.
+    private let directory: TemporaryDirectory?
 
     /// `clientApp` names the program behind a client port; by default none, so no test runs `lsof` per connection.
-    public init(clientApp: @escaping @Sendable (Int) -> String? = { _ in nil }) throws {
-        directory = try TemporaryDirectory()
-        engine = try WatcherEngine(directory: directory.url) { store, authority in
-            ProxyServer(store: store, authority: authority, clientApp: clientApp)
+    /// With `origin`, the echo origin speaks HTTPS and the proxy trusts `origin.trust` upstream; with `files`, the
+    /// engine's data lives in that fake file system instead of a folder on disk.
+    public init(
+        host: String = "upstream.test",
+        origin: OriginAuthority? = nil,
+        files: FileAccessFake? = nil,
+        clientApp: @escaping @Sendable (Int) -> String? = { _ in nil }
+    ) throws {
+        self.host = host
+        upstream = try TestUpstream(tls: origin?.serverContext(for: host))
+        let trust = try origin?.trust ?? .makeClientConfiguration()
+        let access = files?.access ?? .live
+        directory = files == nil ? try TemporaryDirectory() : nil
+        let location = directory?.url ?? URL(fileURLWithPath: "/fake-home/.watcher")
+        engine = try WatcherEngine(directory: location, files: access) { store, authority in
+            ProxyServer(
+                store: store, authority: authority, upstreamTLS: trust, clientApp: clientApp, files: access
+            )
         }
     }
 
     public func start(configure: (inout WatcherSettings) -> Void = { _ in }) async throws {
         try await upstream.start()
         try engine.settings.update {
-            let spoof = DNSSpoofRule(host: "upstream.test", address: "127.0.0.1")
+            let spoof = DNSSpoofRule(host: host, address: "127.0.0.1")
             $0.dnsSpoofing = RuleSet(isEnabled: true, rules: [spoof])
             configure(&$0)
         }

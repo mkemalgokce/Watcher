@@ -38,7 +38,10 @@ final class WebSocketRecorder: @unchecked Sendable {
             if message.compressed, let inflated = inflate(payload, direction: direction) {
                 payload = inflated; stillCompressed = false
             }
-            store.appendWebSocketMessage(WebSocketMessage(direction: direction, kind: message.kind, payload: payload, isCompressed: stillCompressed), to: flowID)
+            let recorded = WebSocketMessage(
+                direction: direction, kind: message.kind, payload: payload, isCompressed: stillCompressed
+            )
+            store.appendWebSocketMessage(recorded, to: flowID)
         }
     }
 

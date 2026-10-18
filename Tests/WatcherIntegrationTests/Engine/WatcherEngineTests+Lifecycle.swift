@@ -16,6 +16,8 @@ extension WatcherEngineTests {
             pacLoader: @escaping @Sendable (String) async throws -> PACEvaluator = { _ in
                 throw PACEvaluator.LoadError(description: "no PAC in this test")
             },
+            pacTimeout: Duration = .seconds(10),
+            sleep: @escaping Sleep = { _ in try await Task.sleep(for: .milliseconds(5)) },
             makeServer: @escaping @Sendable (FlowStore, CertificateAuthority) -> ProxyServer = {
                 ProxyServer(store: $0, authority: $1, clientApp: { _ in nil })
             }
@@ -24,7 +26,8 @@ extension WatcherEngineTests {
                 directory: URL(fileURLWithPath: "/fake-home/.watcher"),
                 files: (files ?? self.files).access,
                 pacLoader: pacLoader,
-                sleep: { _ in try await Task.sleep(for: .milliseconds(5)) },
+                pacTimeout: pacTimeout,
+                sleep: sleep,
                 makeServer: makeServer
             )
             engine.onLog = { [logged] line in logged.mutate { $0.append(line) } }
@@ -65,22 +68,14 @@ extension WatcherEngineTests {
             try await other.stop()
         }
 
-        private func accepts(port: Int) async -> Bool {
-            let channel = try? await ClientBootstrap(group: MultiThreadedEventLoopGroup.singleton)
-                .connect(host: "127.0.0.1", port: port).get()
-            try? await channel?.close()
-            return channel != nil
-        }
-
         @Test
         func startingARunningEngineStopsTheServerItReplaces() async throws {
             let engine = try engine()
-            let first = try freeLoopbackPort(), second = try freeLoopbackPort()
+            let first = try await engine.start(port: 0)
+            let second = try await engine.start(port: 0)
             try #require(first != second)
-            try await engine.start(port: first)
-            try await engine.start(port: second)
-            #expect(await !accepts(port: first))
-            #expect(await accepts(port: second))
+            #expect(await !Loopback.accepts(port: first))
+            #expect(await Loopback.accepts(port: second))
             try await engine.stop()
         }
 
@@ -94,17 +89,68 @@ extension WatcherEngineTests {
             })
             let starting = Task { try await engine.start(port: 0) }
             #expect(await eventually { building.value })
-            let socksPort = try freeLoopbackPort()
             var settings = engine.settings.value
-            settings.socks = SocksSettings(isEnabled: true, port: socksPort)
+            settings.socks = SocksSettings(isEnabled: true, port: 0)
             let applied = LockedBox(false)
             let applying = Task { await engine.apply(settings); applied.mutate { $0 = true } }
             #expect(await !eventually(timeout: 0.5) { applied.value }, "the apply ran before the start finished")
             mayBuild.signal()
             _ = try await starting.value
             await applying.value
-            #expect(await accepts(port: socksPort))
+            let socksPort = try #require(engine.socksPort)
+            #expect(await Loopback.accepts(port: socksPort))
             try await engine.stop()
+        }
+
+        @Test
+        func aPACScriptThatNeverArrivesDoesNotHoldUpTheStart() async throws {
+            let engine = try engine(
+                pacLoader: { _ in
+                    try await sleepUntilCancelled(.zero)
+                    throw PACEvaluator.LoadError(description: "cancelled")
+                },
+                pacTimeout: .seconds(3),
+                sleep: { duration in
+                    guard duration == .seconds(3) else { return try await sleepUntilCancelled(duration) }
+                }
+            )
+            try engine.settings.update {
+                $0.externalProxy.isEnabled = true; $0.externalProxy.kind = .pac
+                $0.externalProxy.pacURL = "http://pac.test/proxy.pac"
+            }
+            _ = try await engine.start(port: 0)
+            #expect(engine.isRunning)
+            #expect(logged.value.contains { $0.hasPrefix("PAC:") && $0.contains("did not answer") }, "\(logged.value)")
+            try await engine.stop()
+        }
+
+        @Test
+        func theSettingsWatcherEndsWhenTheEngineGoesAway() async throws {
+            let gate = SleepGate()
+            let servers = LockedBox<[ProxyServer]>([])
+            weak var gone: WatcherEngine?
+            do {
+                let engine = try WatcherEngine(
+                    directory: URL(fileURLWithPath: "/fake-home/.watcher"),
+                    files: files.access,
+                    sleep: gate.sleep,
+                    makeServer: {
+                        let server = ProxyServer(store: $0, authority: $1, clientApp: { _ in nil })
+                        servers.mutate { $0.append(server) }
+                        return server
+                    }
+                )
+                gone = engine
+                try await engine.start(port: 0)
+            }
+            #expect(await eventually { gate.waitingCount == 1 }, "the watcher never started waiting")
+            #expect(await eventually { gone == nil }, "something still holds the engine")
+            gate.releaseAll()
+            #expect(await eventually { gate.returnedCount == 1 })
+            #expect(await !eventually(timeout: 0.5) { gate.waitingCount > 0 }, "the watcher kept waiting")
+            for server in servers.value {
+                try await server.stop()
+            }
         }
 
         @Test
@@ -131,16 +177,13 @@ extension WatcherEngineTests {
         @Test
         func socksAnswersOverIPv6WhenListeningOnAllInterfacesWithIPv6() async throws {
             let engine = try engine()
-            let socksPort = try freeLoopbackPort()
             try engine.settings.update {
                 $0.listenOnAllInterfaces = true; $0.listenOnIPv6 = true
-                $0.socks = SocksSettings(isEnabled: true, port: socksPort)
+                $0.socks = SocksSettings(isEnabled: true, port: 0)
             }
             _ = try await engine.start(port: 0)
-            let channel = try? await ClientBootstrap(group: MultiThreadedEventLoopGroup.singleton)
-                .connect(host: "::1", port: socksPort).get()
-            #expect(channel != nil)
-            try? await channel?.close()
+            let socksPort = try #require(engine.socksPort)
+            #expect(await Loopback.accepts(host: "::1", port: socksPort))
             try await engine.stop()
         }
 

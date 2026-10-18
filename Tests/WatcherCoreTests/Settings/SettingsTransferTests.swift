@@ -4,7 +4,7 @@ import WatcherTestSupport
 
 /// Export and append-import must cover every tool's rules, not only the eight the transfer code first listed.
 @Suite(.tags(.unit))
-struct RuleTransferTests {
+struct SettingsTransferTests {
     private let match = MatchingRule(pattern: "*")
 
     /// Settings whose Protobuf, Previewer and Custom Certificate tools hold the given rules, plus non-rule settings.

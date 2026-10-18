@@ -1,7 +1,7 @@
 import NIO
 import NIOHTTP1
 
-/// Answers `/redirect`, `/notmodified`, HEAD and the bodiless paths specially, and echoes everything else.
+/// Answers `/redirect`, `/notmodified`, HEAD and the bodiless paths specially, delays `/slow`, and echoes everything else.
 final class EchoHandler: ChannelInboundHandler {
     typealias InboundIn = HTTPServerRequestPart
     typealias OutboundOut = HTTPServerResponsePart
@@ -31,7 +31,14 @@ final class EchoHandler: ChannelInboundHandler {
         if ["/empty", "/nocontent", "/close"].contains(head.uri) {
             return sendBodiless(to: head.uri, context: context)
         }
+        if head.uri == "/slow" {
+            return respondAfterDelay(to: head, context: context)
+        }
         sendEcho(of: head, context: context)
+    }
+
+    private func respondAfterDelay(to head: HTTPRequestHead, context: ChannelHandlerContext) {
+        context.eventLoop.scheduleTask(in: .milliseconds(300)) { self.sendEcho(of: head, context: context) }
     }
 
     private func sendBodiless(to uri: String, context: ChannelHandlerContext) {

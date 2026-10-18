@@ -43,6 +43,10 @@ extension ProxyServer {
         do {
             let sending = Sending(request: request, upload: upload, timeout: timeout)
             return try await forward(sending, allowStreaming: allowStreaming, exchange: exchange, tools: requestTools)
+        } catch is NIOTooManyBytesError {
+            let reason = "Watcher cannot inspect a response larger than \(bodyLimit) bytes"
+            let failure = Self.message(502, reason)
+            return exchange.finish(request, failure, state: .failed, tools: requestTools, error: reason)
         } catch {
             let failure = Self.message(502, "Watcher could not reach \(request.host): \(error)")
             return exchange.finish(request, failure, state: .failed, tools: requestTools, error: "\(error)")
@@ -75,10 +79,10 @@ extension ProxyServer {
                 Self.hopByHop.contains($0.name.lowercased()) ? nil : Header($0.name, $0.value)
             }
         )
-        if allowStreaming, !tools.inspectsResponses, Self.shouldStream(upstreamResponse) {
+        if allowStreaming, !tools.inspectsResponses, Self.shouldStream(upstreamResponse, limit: bodyLimit) {
             return exchange.stream(request, head: head, body: upstreamResponse.body, tools: requestTools)
         }
-        var body = try await upstreamResponse.body.collect(upTo: Self.maxBodyBytes)
+        var body = try await upstreamResponse.body.collect(upTo: bodyLimit)
         var response = head
         response.body = Data(body.readBytes(length: body.readableBytes) ?? [])
         let responseTools = await tools.applyResponse(&response, for: request)

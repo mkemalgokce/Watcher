@@ -88,7 +88,7 @@ extension MCPServerTests {
                 "block-list: on, 1 rule(s)", "allow-list: off, 0 rule(s)", "map-local: off, 0 rule(s)",
                 "map-remote: off, 0 rule(s)", "breakpoint: off, 0 rule(s)", "scripting: off, 0 rule(s)",
                 "dns-spoofing: off, 0 rule(s)", "reverse-proxy: off, 0 rule(s)", "network-condition: on (3G)",
-                "no-caching: on",
+                "no-caching: on", "external-proxy: off",
             ].joined(separator: "\n")
             #expect(try await call("list_rules").text == expected)
         }

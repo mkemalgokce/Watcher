@@ -37,6 +37,21 @@ extension ProxyServerTests {
         }
 
         @Test
+        func aResponseTooLargeToInspectIsAnsweredWithAClearMessage() async throws {
+            let upstream = UpstreamStub {
+                HTTPClientResponse(status: .ok, body: .bytes(ByteBuffer(string: String(repeating: "x", count: 20))))
+            }
+            let server = ProxyServer(authority: nil, upstream: upstream, bodyLimit: 8)
+            server.tools.set([ToolStub(inspectsResponses: true)])
+            let response = try await buffered(server.serve(.fixture(), allowStreaming: false))
+            let text = try #require(String(bytes: response.body, encoding: .utf8))
+            #expect(response.status == 502)
+            #expect(text == "Watcher cannot inspect a response larger than 8 bytes", "\(text)")
+            #expect(server.store.all.first?.state == .failed)
+            try await server.stop()
+        }
+
+        @Test
         func aForwardedRequestIsAnsweredByTheUpstreamWithoutConnectionHeaders() async throws {
             let upstream = UpstreamStub(response: Self.answer)
             let server = server(upstream)

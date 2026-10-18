@@ -15,12 +15,13 @@ public struct RequestMatcher: Sendable {
         methods = Set(rule.methods.map { $0.uppercased() })
         graphQLQueryName = rule.graphQLQueryName
         appTest = rule.app.flatMap { $0.isEmpty ? nil : Wildcard($0) }
-        let pattern = rule.pattern.isEmpty ? "*" : rule.pattern
         switch rule.mode {
         case .wildcard:
+            let pattern = rule.pattern.isEmpty ? "*" : rule.pattern
             let glob = Wildcard(rule.includeSubpaths && !pattern.hasSuffix("*") ? pattern + "*" : pattern)
             urlTest = { glob.matches($0) }
         case .regex:
+            let pattern = rule.pattern.isEmpty ? ".*" : rule.pattern
             let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
             urlTest = { regex?.firstMatch(in: $0, range: NSRange($0.startIndex..., in: $0)) != nil }
         }

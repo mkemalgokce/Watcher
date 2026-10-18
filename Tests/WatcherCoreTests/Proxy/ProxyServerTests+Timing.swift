@@ -29,6 +29,18 @@ extension ProxyServerTests {
             try await server.stop()
         }
 
+        @Test(arguments: [101, 502])
+        func aTunnelledUpgradeLastsUntilTheOriginAnswers(status: Int) async throws {
+            let store = FlowStore(now: { Date(timeIntervalSince1970: 100) })
+            let server = ProxyServer(store: store, authority: nil, now: { Date(timeIntervalSince1970: 101.5) })
+            guard case let .tunnel(_, id) = await server.prepareUpgrade(.fixture()) else {
+                throw TestSupportError("the upgrade was answered by a tool")
+            }
+            server.finishUpgrade(id, status: status)
+            #expect(store.all.first?.duration == 1.5)
+            try await server.stop()
+        }
+
         @Test(arguments: answers)
         func anUpgradeAnsweredByAToolLastsAsLongAsTheClockSays(decision: RequestDecision) async throws {
             let server = server(answering: decision)

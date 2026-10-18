@@ -52,7 +52,11 @@ extension ProxyServer {
     func finishUpgrade(_ id: Flow.ID, status: Int, message: String? = nil, state: Flow.State = .completed, error: String? = nil) -> ResponseRecord {
         let response = message.map { Self.message(status, $0) }
             ?? ResponseRecord(status: status, headers: [Header("Upgrade", "websocket")])
-        store.update(id) { $0.response = response; $0.state = state; $0.error = error }
+        let finished = now()
+        store.update(id) {
+            $0.response = response; $0.state = state; $0.error = error
+            $0.duration = finished.timeIntervalSince($0.startedAt)
+        }
         return response
     }
 }

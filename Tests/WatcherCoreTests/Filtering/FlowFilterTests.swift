@@ -4,7 +4,7 @@ import Testing
 import WatcherTestSupport
 
 @Suite(.tags(.unit))
-struct FilterTests {
+struct FlowFilterTests {
     private func flow(
         _ method: String = "GET",
         host: String = "api.example.com",

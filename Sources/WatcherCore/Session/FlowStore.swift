@@ -82,9 +82,12 @@ public final class FlowStore: @unchecked Sendable {
     /// shortcut: keeps only the newest messages per socket so a chatty connection cannot grow the session without bound.
     static let maxWebSocketMessages = 2000
 
+    /// The message is dated by the store's clock, whoever built it.
     func appendWebSocketMessage(_ message: WebSocketMessage, to id: UUID) {
+        var dated = message
+        dated.date = now()
         update(id) {
-            $0.webSocketMessages.append(message)
+            $0.webSocketMessages.append(dated)
             if $0.webSocketMessages.count > Self.maxWebSocketMessages {
                 $0.webSocketMessages.removeFirst($0.webSocketMessages.count - Self.maxWebSocketMessages)
             }

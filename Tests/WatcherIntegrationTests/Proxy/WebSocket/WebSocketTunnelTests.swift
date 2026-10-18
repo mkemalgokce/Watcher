@@ -4,7 +4,7 @@ import Testing
 import WatcherTestSupport
 
 @Suite(.timeLimit(.minutes(1)), .tags(.integration, .network))
-struct WebSocketTests {
+struct WebSocketTunnelTests {
     @Test
     func upgradeIsRecordedAndBytesAreRelayedBothWays() async throws {
         let origin = UpgradeOrigin()
@@ -38,6 +38,33 @@ struct WebSocketTests {
             #expect(flow.response?.status == 101)
             #expect(flow.request.path == "/ws")
         }
+    }
+
+    @Test
+    func anUpgradePipelinedBehindASlowRequestWaitsForItsAnswer() async throws {
+        let origin = UpgradeOrigin()
+        try await origin.start()
+        do {
+            try await withHarness { harness in
+                let client = RawClient()
+                try await client.connect(port: harness.proxyPort)
+                let port = harness.upstream.port
+                try await client.send(
+                    "GET http://127.0.0.1:\(port)/slow HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\n\r\n"
+                        + "GET http://127.0.0.1:\(origin.port)/ws HTTP/1.1\r\nHost: 127.0.0.1:\(origin.port)\r\n"
+                        + "Upgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+                )
+                let reply = await client.received(containing: "101 Switching Protocols")
+                await client.close()
+                let slow = try #require(reply.range(of: "GET /slow"), "\(reply)")
+                let upgrade = try #require(reply.range(of: "101 Switching Protocols"), "\(reply)")
+                #expect(slow.lowerBound < upgrade.lowerBound)
+            }
+        } catch {
+            await origin.stop()
+            throw error
+        }
+        await origin.stop()
     }
 
     @Test
