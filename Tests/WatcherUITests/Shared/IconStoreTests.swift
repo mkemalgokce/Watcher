@@ -6,6 +6,7 @@ import WatcherTestSupport
 
 /// A sidebar with hundreds of domains must not redraw every row each time one site's icon arrives.
 @MainActor
+@Suite(.tags(.unit))
 struct IconStoreTests {
     @Test
     func aFaviconArrivingRedrawsOnlyItsOwnRow() {

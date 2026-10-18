@@ -52,21 +52,28 @@ struct MCPServerTests {
         #expect(text(of: curl) == "curl 'https://a.com/x' -H 'Accept: */*'")
     }
 
+    @Test(arguments: ["get_flow_detail", "export_flow_curl"])
+    func outputRedactsSecrets(tool: String) async throws {
+        loadAFlowWithSecrets()
+        let shown = try await text(of: callTool(tool, arguments: #"{"sequence":"1"}"#))
+        #expect(!shown.contains("SECRET"), "\(shown)")
+        #expect(shown.contains("[redacted]"))
+    }
+
     @Test
-    func outputRedactsSecretsUnlessSwitchedOff() async throws {
+    func secretsAreShownWhenRedactionIsSwitchedOff() async throws {
+        loadAFlowWithSecrets()
+        try engine.settings.update { $0.mcpRedaction = false }
+        let plain = try await text(of: callTool("get_flow_detail", arguments: #"{"sequence":"1"}"#))
+        #expect(plain.contains("SECRET-TOKEN"))
+    }
+
+    private func loadAFlowWithSecrets() {
         engine.store.load([Flow.fixture(
             request: .fixture(host: "a.com", headers: [Header("Authorization", "Bearer SECRET-TOKEN")]),
             response: .fixture(headers: [Header("Set-Cookie", "sid=SECRET-COOKIE")]),
             state: .pending
         )])
-        for tool in ["get_flow_detail", "export_flow_curl"] {
-            let shown = try await text(of: callTool(tool, arguments: #"{"sequence":"1"}"#))
-            #expect(!shown.contains("SECRET"), "\(tool): \(shown)")
-            #expect(shown.contains("[redacted]"))
-        }
-        try engine.settings.update { $0.mcpRedaction = false }
-        let plain = try await text(of: callTool("get_flow_detail", arguments: #"{"sequence":"1"}"#))
-        #expect(plain.contains("SECRET-TOKEN"))
     }
 
     private func callTool(_ name: String, arguments: String) async throws -> [String: Any] {

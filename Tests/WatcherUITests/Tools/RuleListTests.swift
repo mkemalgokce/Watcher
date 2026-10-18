@@ -1,8 +1,10 @@
 import Testing
 @testable import WatcherCore
+import WatcherTestSupport
 @testable import WatcherUI
 
 /// Rule list editing in Tools: what is selected after each change.
+@Suite(.tags(.unit))
 struct RuleListTests {
     private func rule(_ name: String) -> BlockRule {
         BlockRule(name: name, matching: MatchingRule(pattern: "\(name)/*"))

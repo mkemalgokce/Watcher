@@ -6,7 +6,7 @@ import WatcherTestSupport
 @Suite(.tags(.unit))
 struct CertificatePageTests {
     @Test
-    func routesAndFormats() throws {
+    func servesTheCertificateInEveryFormatAndRejectsOtherPaths() throws {
         let directory = try TemporaryDirectory()
         let authority = try CertificateAuthority(directory: directory.url)
         let page = CertificatePage(authority: authority)

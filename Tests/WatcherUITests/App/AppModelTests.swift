@@ -6,7 +6,7 @@ import WatcherTestSupport
 
 /// How the window's model turns store events into what the list, sidebar and status bar show.
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .tags(.unit))
 struct AppModelTests {
     private static let tenBytes = Data(repeating: 0, count: 10)
 

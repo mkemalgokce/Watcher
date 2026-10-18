@@ -4,12 +4,11 @@ import WatcherTestSupport
 @testable import WatcherUI
 
 extension InteractionTests {
+    /// The first-run sheet. The onboarding flag lives in the test runner's own UserDefaults domain, not Watcher's.
     @MainActor
     struct WelcomeTests {
-        /// First run: skipping closes the sheet without capturing; Start Capturing remembers the choice and starts the
-        /// proxy. (UserDefaults here are the test runner's own domain, not Watcher's.)
         @Test
-        func welcomeSkipAndStart() async throws {
+        func skippingClosesTheWelcomeWithoutCapturing() async throws {
             let skipping = AppModel(listening: false)
             skipping.onboardingDone = false
             skipping.sheet = .welcome
@@ -19,7 +18,10 @@ extension InteractionTests {
                 #expect(skipping.sheet == nil)
                 #expect(!skipping.isRunning, "skipping does not start capturing")
             }
+        }
 
+        @Test
+        func startCapturingRemembersTheChoiceAndStartsTheProxy() async throws {
             let starting = AppModel(listening: false)
             try starting.useFreePort(searchingFrom: 21000, fallback: 29998)
             starting.onboardingDone = false

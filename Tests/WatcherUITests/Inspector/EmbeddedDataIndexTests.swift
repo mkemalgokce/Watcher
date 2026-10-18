@@ -6,6 +6,7 @@ import WatcherTestSupport
 
 /// Base64 payloads inside a body: found, described for saving, and scanned once per body.
 @MainActor
+@Suite(.tags(.unit))
 struct EmbeddedDataIndexTests {
     @Test
     func embeddedBase64IsFoundAndDescribed() {

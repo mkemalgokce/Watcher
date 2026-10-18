@@ -6,11 +6,12 @@ import WatcherTestSupport
 
 /// Comparing a request with a base: the states the Compare window shows and what each subject compares.
 @MainActor
+@Suite(.tags(.unit))
 struct DiffViewModelTests {
     private static let json = [Header("Content-Type", "application/json")]
 
     @Test
-    func diffStates() async {
+    func stateShowsAMissingBaseTheSameFlowOrTheChanges() async {
         let viewModel = DiffViewModel()
         let base = Flow.fixture(sequence: 1, response: .fixture(headers: Self.json, body: Data(#"{"a":1}"#.utf8)))
         let changed = Flow.fixture(sequence: 2, response: .fixture(headers: Self.json, body: Data(#"{"a":2}"#.utf8)))
@@ -34,7 +35,7 @@ struct DiffViewModelTests {
     }
 
     @Test
-    func diffSubjects() {
+    func eachSubjectComparesItsOwnPartOfTheFlows() {
         let base = Flow.fixture(sequence: 1, request: .fixture(headers: [Header("X-Trace", "1")]))
         let current = Flow.fixture(sequence: 2, request: .fixture(headers: [Header("X-Trace", "2")]))
         #expect(DiffViewModel.text(base, .headers).contains("X-Trace: 1"))

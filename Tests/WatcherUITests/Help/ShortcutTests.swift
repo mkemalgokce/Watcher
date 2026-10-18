@@ -4,6 +4,7 @@ import WatcherTestSupport
 @testable import WatcherUI
 
 /// The shortcuts Help lists: how VoiceOver reads them, and that they cover every menu shortcut.
+@Suite(.tags(.unit))
 struct ShortcutTests {
     @Test
     func spokenShortcutsReadTheModifiers() {
@@ -16,25 +17,22 @@ struct ShortcutTests {
     func helpListsEveryMenuShortcut() throws {
         let source = try SourceTree.text("Sources/WatcherUI/App/WatcherCommands.swift")
         let listed = Set(Shortcut.groups.flatMap(\.items).map(\.keys))
-        let pattern = try NSRegularExpression(pattern: #"\.keyboardShortcut\("(.)"(?:, modifiers: \[?([^)\]]*)\]?)?\)"#)
         var missing: [String] = []
-        let matches = pattern.matches(in: source, range: NSRange(source.startIndex..., in: source))
-        #expect(matches.count > 30, "the pattern no longer finds the menu shortcuts")
-        for match in matches {
-            let key = try String(source[#require(Range(match.range(at: 1), in: source))]).uppercased()
-            let modifiers = try match.range(at: 2).location == NSNotFound ? ".command"
-                : String(source[#require(Range(match.range(at: 2), in: source))])
+        let shortcuts = try MenuShortcut.all(in: source).filter { $0.isCharacter && $0.key.count == 1 }
+        #expect(shortcuts.count > 30, "the pattern no longer finds the menu shortcuts")
+        for shortcut in shortcuts {
+            let key = shortcut.key.uppercased()
             var symbol = ""
-            if modifiers.contains(".control") {
+            if shortcut.modifiers.contains(".control") {
                 symbol += "⌃"
             }
-            if modifiers.contains(".option") {
+            if shortcut.modifiers.contains(".option") {
                 symbol += "⌥"
             }
-            if modifiers.contains(".shift") {
+            if shortcut.modifiers.contains(".shift") {
                 symbol += "⇧"
             }
-            symbol += "⌘" + (key == "\\" ? "\\" : key)
+            symbol += "⌘" + key
             // Ranges such as "⌘1 – ⌘4" cover the numbered items.
             let covered = listed.contains(symbol) || listed.contains {
                 $0.contains("–") && $0.hasPrefix(String(symbol.dropLast())) && key.allSatisfy(\.isNumber)

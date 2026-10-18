@@ -6,6 +6,7 @@ import WatcherTestSupport
 
 /// The Compose window's form: URL and parameters, pasted cURL, building and sending, and Edit & Repeat.
 @MainActor
+@Suite(.tags(.unit))
 struct ComposeViewModelTests {
     private static let captured = RequestRecord.fixture(
         method: "POST",
@@ -65,7 +66,7 @@ struct ComposeViewModelTests {
     }
 
     @Test
-    func sendStates() async {
+    func sendingNeedsTheProxyAndAValidURLAndKeepsErrorAnswers() async {
         let viewModel = ComposeViewModel()
         viewModel.address = "https://api.example.com/x"
         await viewModel.send(isProxyRunning: false) { _, _ in

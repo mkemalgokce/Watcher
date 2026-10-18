@@ -1,8 +1,10 @@
 import SwiftUI
 import Testing
+import WatcherTestSupport
 @testable import WatcherUI
 
 /// The colours that tell a status or a method apart at a glance.
+@Suite(.tags(.unit))
 struct PaletteTests {
     @Test
     func statusColoursFollowTheStatusClass() {

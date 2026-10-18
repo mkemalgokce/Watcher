@@ -1,11 +1,13 @@
 import Testing
 @testable import WatcherCore
+import WatcherTestSupport
 @testable import WatcherUI
 
 /// Rule mistakes Tools warns about, so a rule never fails silently.
+@Suite(.tags(.unit))
 struct ToolValidationTests {
     @Test
-    func patterns() {
+    func anEmptyPatternOrABrokenRegexIsAProblem() {
         #expect(ToolValidation.problems(MatchingRule(pattern: "api.example.com/*")) == [])
         #expect(ToolValidation.problems(MatchingRule(pattern: "  ")).count == 1, "empty matches everything")
         var regex = MatchingRule(pattern: "api\\.example\\.com/v[0-9]+")
@@ -16,7 +18,7 @@ struct ToolValidationTests {
     }
 
     @Test
-    func dnsSpoofing() {
+    func aDNSRuleNeedsAPlainHostAndAnIPAddress() {
         func problems(_ host: String, _ address: String) -> [String] {
             ToolValidation.problems(DNSSpoofRule(host: host, address: address))
         }
@@ -30,7 +32,7 @@ struct ToolValidationTests {
     }
 
     @Test
-    func reverseProxies() {
+    func aReverseProxyNeedsItsOwnFreePortAndARemoteHost() {
         let rule = ReverseProxyRule(localPort: 9191, remoteHost: "api.example.com")
         #expect(ToolValidation.problems(rule, proxyPort: 9090, others: []) == [])
         let onProxyPort = ReverseProxyRule(localPort: 9090, remoteHost: "x")
@@ -47,7 +49,7 @@ struct ToolValidationTests {
     }
 
     @Test
-    func certificates() {
+    func aCertificateRuleNeedsAHostAndAnExistingFile() {
         let rule = CustomCertificateRule(host: "api.example.com", role: .client, p12Path: "~/certs/client.p12")
         #expect(
             ToolValidation.problems(rule) { $0.hasSuffix("/certs/client.p12") && !$0.hasPrefix("~") } == [],

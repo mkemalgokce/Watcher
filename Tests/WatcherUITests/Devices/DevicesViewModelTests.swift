@@ -1,10 +1,12 @@
 import Foundation
 import Testing
 @testable import WatcherCore
+import WatcherTestSupport
 @testable import WatcherUI
 
 /// Device setup: scanning, trust and the status of the last action, with the system calls replaced.
 @MainActor
+@Suite(.tags(.unit))
 struct DevicesViewModelTests {
     private struct Boom: Error, CustomStringConvertible {
         var description: String {
@@ -34,7 +36,7 @@ struct DevicesViewModelTests {
     }
 
     @Test
-    func trustCheckAlone() async {
+    func refreshingMacTrustAloneDoesNotScanDevices() async {
         let devices = viewModel(trusted: false)
         await devices.refreshMacTrust()
         #expect(!devices.macTrusted)

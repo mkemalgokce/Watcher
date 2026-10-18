@@ -5,6 +5,7 @@ import WatcherTestSupport
 @testable import WatcherUI
 
 /// How long a request waited for the server and how long it took to download, as the Timing tab shows it.
+@Suite(.tags(.unit))
 struct TimingBreakdownTests {
     @Test
     func timingSplitsWaitingAndDownload() {
@@ -16,7 +17,7 @@ struct TimingBreakdownTests {
     }
 
     @Test
-    func timingEdgeCases() {
+    func missingSkewedAndUnfinishedTimingsNeverGoNegative() {
         // No first-byte time: everything counts as waiting.
         #expect(TimingBreakdown(.fixture(duration: 1)).phases.map(\.fraction) == [1, 0])
         #expect(TimingBreakdown(.fixture(duration: 1)).verdict.contains("server"))

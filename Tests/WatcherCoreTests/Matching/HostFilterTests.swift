@@ -5,7 +5,7 @@ import WatcherTestSupport
 @Suite(.tags(.unit))
 struct HostFilterTests {
     @Test
-    func excludeWins() {
+    func anExcludedHostIsRejectedEvenWhenItIsIncluded() {
         let filter = HostFilter(include: ["*.example.com"], exclude: ["secure.example.com"])
         #expect(filter.allows("api.example.com"))
         #expect(!filter.allows("secure.example.com"))

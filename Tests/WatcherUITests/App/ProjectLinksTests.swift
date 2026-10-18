@@ -1,7 +1,9 @@
 import Testing
+import WatcherTestSupport
 @testable import WatcherUI
 
 /// The About window and Help menu point at the real project, author and sponsor pages.
+@Suite(.tags(.unit))
 struct ProjectLinksTests {
     @Test
     func linksPointAtTheProjectOnGitHub() {

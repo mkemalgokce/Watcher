@@ -3,6 +3,7 @@ import Testing
 import WatcherTestSupport
 
 /// A misspelled or unavailable SF Symbol draws nothing and fails silently, so every name in the UI sources must exist.
+@Suite(.tags(.unit))
 struct SymbolNamesTests {
     @Test
     func everySymbolNameExists() throws {

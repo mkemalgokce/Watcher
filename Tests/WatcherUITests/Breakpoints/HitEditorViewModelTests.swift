@@ -6,6 +6,7 @@ import WatcherTestSupport
 
 /// Editing a message paused at a breakpoint.
 @MainActor
+@Suite(.tags(.unit))
 struct HitEditorViewModelTests {
     private static let login = RequestRecord.fixture(
         method: "POST",
@@ -33,20 +34,30 @@ struct HitEditorViewModelTests {
         #expect(String(data: request.body, encoding: .utf8) == #"{"user":"grace"}"#)
     }
 
-    @Test
-    func invalidFormsCannotBeSent() {
+    @Test(arguments: ["", "api.example.com/x", "ftp://example.com/x", "https://"])
+    func aRequestWithAnInvalidURLCannotBeSent(url: String) {
         let request = HitEditorViewModel(hit: .init(phase: .request, request: Self.login))
-        for bad in ["", "api.example.com/x", "ftp://example.com/x", "https://"] {
-            request.urlText = bad
-            #expect(!request.canExecute, "\(bad)")
-            #expect(request.resolution() == nil, "\(bad)")
-        }
-        let response = HitEditorViewModel(hit: .init(phase: .response, request: Self.login, response: .fixture()))
-        for bad in ["", "abc", "99", "600"] {
-            response.status = bad; #expect(!response.canExecute, "\(bad)")
-        }
+        request.urlText = url
+        #expect(!request.canExecute)
+        #expect(request.resolution() == nil)
+    }
+
+    @Test(arguments: ["", "abc", "99", "600"])
+    func aResponseWithAnInvalidStatusCannotBeSent(status: String) {
+        let response = Self.pausedResponse()
+        response.status = status
+        #expect(!response.canExecute)
+    }
+
+    @Test
+    func spacesAroundTheStatusAreIgnored() {
+        let response = Self.pausedResponse()
         response.status = " 404 "
         #expect(response.statusCode == 404)
+    }
+
+    private static func pausedResponse() -> HitEditorViewModel {
+        HitEditorViewModel(hit: .init(phase: .response, request: login, response: .fixture()))
     }
 
     @Test

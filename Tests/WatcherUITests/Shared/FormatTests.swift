@@ -1,7 +1,9 @@
 import Testing
+import WatcherTestSupport
 @testable import WatcherUI
 
 /// Sizes and durations as the list and inspector print them.
+@Suite(.tags(.unit))
 struct FormatTests {
     @Test
     func bytesReadExactlyForSmallAndEmptyBodies() {
@@ -12,7 +14,7 @@ struct FormatTests {
     }
 
     @Test
-    func durations() {
+    func durationsReadInMillisecondsBelowASecondAndSecondsAbove() {
         #expect(Format.duration(0.184) == "184 ms")
         #expect(Format.duration(0) == "0 ms")
         #expect(Format.duration(5) == "5.00 s")

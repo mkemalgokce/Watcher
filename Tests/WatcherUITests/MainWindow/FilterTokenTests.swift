@@ -1,8 +1,10 @@
 import Testing
 @testable import WatcherCore
+import WatcherTestSupport
 @testable import WatcherUI
 
 /// The search field's tokens: what they filter, how they read, and what is offered while typing.
+@Suite(.tags(.unit))
 struct FilterTokenTests {
     @Test
     func tokensRoundTripThroughTheFilter() {
@@ -58,15 +60,20 @@ struct FilterTokenTests {
     }
 
     @Test
-    func typingOffersWhereToLookAndMatchingQuickFilters() {
-        let hosts = ["api.example.com", "posts.dev", "other.net"]
-        let offered = FilterToken.suggestions(for: "po", hosts: hosts, excluding: [])
+    func typingOffersMatchingQuickFiltersAndHosts() {
+        let offered = Self.suggestionsForPo()
         #expect(offered.first == .method("POST"), "an exact kind of filter comes first")
         #expect(offered.contains(.term(.init(scope: .host, text: "posts.dev"))))
         #expect(!offered.contains(.term(.init(scope: .host, text: "other.net"))))
-        for scope in [FlowFilter.Scope.url, .header, .body, .all] {
-            #expect(offered.contains(.term(.init(scope: scope, text: "po"))), "\(scope)")
-        }
+    }
+
+    @Test(arguments: [FlowFilter.Scope.url, .header, .body, .all])
+    func typingOffersToLookForTheTextIn(scope: FlowFilter.Scope) {
+        #expect(Self.suggestionsForPo().contains(.term(.init(scope: scope, text: "po"))))
+    }
+
+    private static func suggestionsForPo() -> [FilterToken] {
+        FilterToken.suggestions(for: "po", hosts: ["api.example.com", "posts.dev", "other.net"], excluding: [])
     }
 
     /// A blank field counts as empty, so it offers what an empty one does first.

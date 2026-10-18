@@ -9,7 +9,7 @@ extension InteractionTests {
     @MainActor
     struct InspectorTests {
         @Test
-        func inspectorHeaderActions() async throws {
+        func headerButtonsStarCopyAndRepeatTheRequest() async throws {
             let model = AppModel.preview()
             model.observeEngine()
             let selected = model.flows[0]

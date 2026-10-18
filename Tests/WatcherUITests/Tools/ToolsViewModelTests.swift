@@ -1,12 +1,14 @@
 import Testing
 @testable import WatcherCore
+import WatcherTestSupport
 @testable import WatcherUI
 
 /// The Tools sidebar: counts, problem marks and the spoken summary come from the view model.
 @MainActor
+@Suite(.tags(.unit))
 struct ToolsViewModelTests {
     @Test
-    func summariesAndProblems() {
+    func summariesCountRulesAndFlagTheOnesThatNeedAttention() {
         let model = AppModel(listening: false)
         let tools = ToolsViewModel(model: model)
         #expect(tools.summary(.block) == "Off")
