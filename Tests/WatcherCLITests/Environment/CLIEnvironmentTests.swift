@@ -1,3 +1,4 @@
+import ArgumentParser
 import Foundation
 import Testing
 @testable import watcher_cli
@@ -38,5 +39,25 @@ struct CLIEnvironmentTests {
         #expect(live.currentDirectory.path == FileManager.default.currentDirectoryPath)
         let variables = ProcessInfo.processInfo.environment
         #expect(live.supportDirectory == WatcherPaths.directory(environment: variables, home: home))
+    }
+
+    @Test
+    func anEngineThatCannotOpenIsReportedOnStandardErrorWithAFailureExit() async {
+        let cli = CLIHarness(opensEngine: false)
+        await #expect(throws: ExitCode.failure) { try await cli.environment.startEngine(port: nil) { _ in } }
+        #expect(cli.printedToErrorOutput == [
+            "Cannot open Watcher's data in \(CLIHarness.supportDirectory): Failure(). Check the folder is readable.",
+        ])
+        #expect(cli.printed.isEmpty)
+    }
+
+    @Test
+    func aProxyThatCannotStartIsReportedOnStandardErrorWithAFailureExit() async {
+        let cli = CLIHarness(engine: { EngineFake(settings: $0, failsToStart: true) })
+        await #expect(throws: ExitCode.failure) { try await cli.environment.startEngine(port: 8080) { _ in } }
+        #expect(cli.printedToErrorOutput == [
+            "Cannot start the proxy: Failure(). Another program may be using the port; try --port.",
+        ])
+        #expect(cli.printed.isEmpty)
     }
 }

@@ -1,3 +1,4 @@
+import ArgumentParser
 import Foundation
 import WatcherCore
 
@@ -51,16 +52,25 @@ struct CLIEnvironment {
     }
 
     /// Opens the engine on the support folder with its log going to `log`, and starts the proxy on `port` (or the
-    /// stored one), decrypting HTTPS only when `decryptsHTTPS`.
+    /// stored one), decrypting HTTPS only when `decryptsHTTPS`. A failure is written to standard error and ends the
+    /// command with a failure exit code.
     func startEngine(
         port: Int?,
         decryptsHTTPS: Bool = true,
         log: @escaping @Sendable (String) -> Void
     ) async throws -> (engine: any EngineControlling, port: Int) {
-        let engine = try makeEngine(supportDirectory)
+        let engine: any EngineControlling
+        do { engine = try makeEngine(supportDirectory) } catch {
+            let folder = supportDirectory.path
+            errorOutput("Cannot open Watcher's data in \(folder): \(error). Check the folder is readable.")
+            throw ExitCode.failure
+        }
         engine.onLog = log
         engine.decryptsHTTPS = decryptsHTTPS
-        return try await (engine, engine.start(port: port))
+        do { return try await (engine, engine.start(port: port)) } catch {
+            errorOutput("Cannot start the proxy: \(error). Another program may be using the port; try --port.")
+            throw ExitCode.failure
+        }
     }
 
     /// Puts back the system proxy a crashed `--system-proxy` session left pointing at Watcher, telling `report`.

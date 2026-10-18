@@ -4,7 +4,7 @@ import Foundation
 import WatcherTestSupport
 
 /// A `CLIEnvironment` over an in-memory file system, a command spy and an engine fake, whose output the test reads back.
-/// The support folder is `/fake-home/.watcher`, as `WATCHER_HOME` names it, and the working directory is `/work`; standard input answers `input` line by line.
+/// `opensEngine: false` makes `makeEngine` throw, as an unreadable settings file or root certificate does. The support folder is `/fake-home/.watcher`, as `WATCHER_HOME` names it, and the working directory is `/work`; standard input answers `input` line by line.
 final class CLIHarness {
     static let supportDirectory = "/fake-home/.watcher"
 
@@ -16,6 +16,7 @@ final class CLIHarness {
     private let errorLines = LockedBox<[String]>([])
     private let input: LockedBox<[String]>
     private let lanAddresses: [LocalNetwork.Address]
+    private let opensEngine: Bool
 
     init(
         files: FileAccessFake = FileAccessFake(),
@@ -23,9 +24,11 @@ final class CLIHarness {
         lanAddresses: [LocalNetwork.Address] = [],
         input: [String] = [],
         shutdown: ShutdownTrigger = ShutdownTrigger(),
+        opensEngine: Bool = true,
         engine: ((SettingsStore) -> EngineFake)? = nil
     ) {
         self.files = files; self.commands = commands; self.lanAddresses = lanAddresses; self.shutdown = shutdown
+        self.opensEngine = opensEngine
         self.input = LockedBox(input)
         let settings = SettingsStore(
             url: WatcherPaths.settingsFile(in: URL(fileURLWithPath: Self.supportDirectory)),
@@ -63,7 +66,12 @@ final class CLIHarness {
             files: files.access,
             commands: commands.runner,
             lanAddresses: { [lanAddresses] in lanAddresses },
-            makeEngine: { [engine] _ in engine },
+            makeEngine: { [engine, opensEngine] _ in
+                if !opensEngine {
+                    throw EngineFake.Failure()
+                }
+                return engine
+            },
             shutdownSignal: shutdown.signal,
             now: { Date(timeIntervalSince1970: 1_700_000_000) }
         )

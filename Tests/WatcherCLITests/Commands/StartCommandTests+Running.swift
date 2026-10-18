@@ -1,3 +1,4 @@
+import ArgumentParser
 import Foundation
 import Testing
 @testable import watcher_cli
@@ -19,7 +20,7 @@ extension StartCommandTests {
         func failingToStartStopsBeforePrintingOrTouchingTheSystemProxy() async throws {
             let cli = CLIHarness(engine: { EngineFake(settings: $0, failsToStart: true) })
             let command = try Start.parse(["--system-proxy"])
-            await #expect(throws: EngineFake.Failure()) { try await command.run(in: cli.environment) }
+            await #expect(throws: ExitCode.failure) { try await command.run(in: cli.environment) }
             #expect(cli.printed.isEmpty)
             #expect(cli.commands.commands.isEmpty)
         }
