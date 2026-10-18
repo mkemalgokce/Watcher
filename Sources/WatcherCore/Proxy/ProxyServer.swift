@@ -197,7 +197,7 @@ public final class ProxyServer: @unchecked Sendable {
 
     private func listen(host: String, port: Int, origin: ReverseOrigin?) async throws -> Channel {
         try await bind(host: host, port: port) { [self] channel in
-            channel.pipeline.addHandlers(http1Pipeline(origin: origin).handlers)
+            channel.pipeline.addHandlers(http1Pipeline(origin: origin))
         }
     }
 
