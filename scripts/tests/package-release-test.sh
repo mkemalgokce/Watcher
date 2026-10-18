@@ -32,6 +32,12 @@ check 1 "build number required" -- 1.2.3
 check 1 "build number must be an integer: 1.0" -- 1.2.3 1.0
 check 1 "build number must be an integer: -1" -- 1.2.3 -1
 check 1 "build number must be an integer: 7a" -- 1.2.3 7a
+check 1 "version must look like 1.2.3: ../x" -- ../x 7
+check 1 "version must look like 1.2.3: 1.2 3" -- "1.2 3" 7
+check 1 "version must look like 1.2.3: 1.2" -- 1.2 7
+check 1 "version must look like 1.2.3: v1.2.3" -- v1.2.3 7
+check 99 "build-app reached" -- 1.2.3-beta.1 7
+check 99 "build-app reached" -- 0.0.0 1
 check 1 "REQUIRE_NOTARIZATION=1 needs CODESIGN_IDENTITY" REQUIRE_NOTARIZATION=1 -- 1.2.3 7
 check 1 "REQUIRE_NOTARIZATION=1 needs CODESIGN_IDENTITY" REQUIRE_NOTARIZATION=1 CODESIGN_IDENTITY=x NOTARY_KEY=k \
     NOTARY_KEY_ID=i -- 1.2.3 7

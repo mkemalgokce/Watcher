@@ -9,6 +9,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 version="${1:?usage: package-release.sh <version> <build-number>}"
 build="${2:?build number required}"
+[[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "version must look like 1.2.3: $version" >&2; exit 1; }
 [[ "$build" =~ ^[0-9]+$ ]] || { echo "build number must be an integer: $build" >&2; exit 1; }
 
 notarize=false
