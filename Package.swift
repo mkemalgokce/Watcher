@@ -125,7 +125,9 @@ let package = Package(
                 "WatcherCore",
                 "WatcherTestSupport",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
             ],
+            exclude: ["Help/__Snapshots__"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(

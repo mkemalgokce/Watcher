@@ -1,0 +1,7 @@
+OVERVIEW: Trust the Watcher root certificate in an iOS Simulator.
+
+USAGE: watcher-cli install-simulator-cert [--device <device>]
+
+OPTIONS:
+  --device <device>       `booted`, `all` or a simulator UDID. (default: booted)
+  -h, --help              Show help information.

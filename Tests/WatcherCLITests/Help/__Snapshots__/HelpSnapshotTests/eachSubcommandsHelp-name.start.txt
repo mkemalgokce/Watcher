@@ -1,0 +1,11 @@
+OVERVIEW: Run the proxy and print traffic live.
+
+USAGE: watcher-cli start [--port <port>] [--no-decrypt] [--har <har>] [--csv <csv>] [--system-proxy]
+
+OPTIONS:
+  --port <port>           Port to listen on (default: from settings, 9090).
+  --no-decrypt            Tunnel HTTPS untouched instead of decrypting it.
+  --har <har>             Write the session to this HAR file when you press Ctrl-C.
+  --csv <csv>             Write the session to this CSV file when you press Ctrl-C.
+  --system-proxy          Point the macOS system proxy at Watcher while running.
+  -h, --help              Show help information.

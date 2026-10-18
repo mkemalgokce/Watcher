@@ -1,0 +1,20 @@
+OVERVIEW: Capture and debug HTTP(S) traffic from the terminal.
+
+USAGE: watcher-cli <subcommand>
+
+OPTIONS:
+  -h, --help              Show help information.
+
+SUBCOMMANDS:
+  start (default)         Run the proxy and print traffic live.
+  mcp                     Run Watcher as an MCP server on stdin/stdout so an AI agent can inspect
+                          traffic and manage rules.
+  cert                    Print the root certificate path; trust it to decrypt HTTPS.
+  install-simulator-cert  Trust the Watcher root certificate in an iOS Simulator.
+  android                 List Android devices, copy the root certificate to one, or point its
+                          proxy at Watcher.
+  tool                    Switch a debugging tool on or off.
+  rules                   Export or import every tool's rules as one JSON file.
+  proxy                   Turn the macOS system HTTP(S) proxy on or off.
+
+  See 'watcher-cli help <subcommand>' for detailed help.

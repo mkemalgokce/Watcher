@@ -1,0 +1,14 @@
+OVERVIEW: Export or import every tool's rules as one JSON file.
+
+USAGE: watcher-cli rules <subcommand>
+
+OPTIONS:
+  -h, --help              Show help information.
+
+SUBCOMMANDS:
+  export
+  import
+  import-charles          Import tool settings (Block/Allow List, Map Local/Remote, Breakpoints,
+                          DNS Spoofing) from a Charles Proxy XML export.
+
+  See 'watcher-cli help rules <subcommand>' for detailed help.

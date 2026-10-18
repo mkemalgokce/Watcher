@@ -10,10 +10,7 @@ struct WatcherCLITests {
         #expect(try WatcherCLI.parseAsRoot([]) is Start)
     }
 
-    @Test(arguments: [
-        ("start", "Start"), ("mcp", "Mcp"), ("cert", "Cert"), ("install-simulator-cert", "SimulatorCert"),
-        ("android", "AndroidCommand"), ("tool", "Tool"), ("rules", "Rules"), ("proxy", "SystemProxyCommand"),
-    ])
+    @Test(arguments: WatcherCLI.subcommands)
     func eachSubcommandNameRunsItsCommand(name: String, type: String) throws {
         let arguments = name == "tool" ? [name, "map-local", "on"] : name == "proxy" ? [name, "on"] : [name]
         let command = try WatcherCLI.parseAsRoot(arguments)
@@ -21,9 +18,15 @@ struct WatcherCLITests {
     }
 
     @Test
+    func theSubcommandTableCoversEverySubcommand() {
+        let registered = WatcherCLI.configuration.subcommands.map { String(describing: $0) }
+        #expect(registered == WatcherCLI.subcommands.map(\.type))
+    }
+
+    @Test
     func helpListsEverySubcommand() {
         let help = WatcherCLI.helpMessage()
-        for name in ["start", "mcp", "cert", "install-simulator-cert", "android", "tool", "rules", "proxy"] {
+        for name in WatcherCLI.subcommandNames {
             #expect(help.contains(name), "\(name) missing from: \(help)")
         }
     }

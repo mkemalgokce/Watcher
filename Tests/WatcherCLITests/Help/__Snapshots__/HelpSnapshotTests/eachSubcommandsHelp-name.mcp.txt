@@ -1,0 +1,8 @@
+OVERVIEW: Run Watcher as an MCP server on stdin/stdout so an AI agent can inspect traffic and
+manage rules.
+
+USAGE: watcher-cli mcp [--port <port>]
+
+OPTIONS:
+  --port <port>           Port to listen on (default: from settings).
+  -h, --help              Show help information.

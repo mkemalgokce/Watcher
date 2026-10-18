@@ -1,0 +1,14 @@
+OVERVIEW: Switch a debugging tool on or off.
+
+USAGE: watcher-cli tool <tool> <state>
+
+ARGUMENTS:
+  <tool>                  One of: breakpoint, map-local, map-remote, scripting, block-list,
+                          allow-list, reverse-proxy, network-condition, no-caching, dns-spoofing,
+                          external-proxy. (values: breakpoint, map-local, map-remote, scripting,
+                          block-list, allow-list, reverse-proxy, network-condition, no-caching,
+                          dns-spoofing, external-proxy)
+  <state>
+
+OPTIONS:
+  -h, --help              Show help information.
