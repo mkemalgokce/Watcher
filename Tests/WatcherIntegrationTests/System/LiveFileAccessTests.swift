@@ -3,7 +3,7 @@ import Testing
 @testable import WatcherCore
 import WatcherTestSupport
 
-@Suite(.tags(.integration))
+@Suite(.timeLimit(.minutes(1)), .tags(.integration))
 struct LiveFileAccessTests {
     private let files = FileAccess.live
     private let temporary: TemporaryDirectory
@@ -31,6 +31,36 @@ struct LiveFileAccessTests {
     }
 
     @Test
+    func aPrivateWriteReplacesTheFileWithOneOnlyTheOwnerCanReadAndLeavesNothingBehind() throws {
+        let file = temporary.url.appendingPathComponent("secret")
+        try files.writeAtomically(Data("old".utf8), file)
+        try files.writePrivately(Data("new".utf8), file)
+        #expect(try files.read(file) == Data("new".utf8))
+        let mode = try #require(FileManager.default.attributesOfItem(atPath: file.path)[.posixPermissions] as? Int)
+        #expect(mode == 0o600)
+        #expect(try files.contentsOfDirectory(temporary.url).map(\.lastPathComponent) == ["secret"])
+    }
+
+    @Test
+    func aPrivateWriteIntoAMissingFolderThrows() {
+        let file = temporary.url.appendingPathComponent("none/secret")
+        #expect(throws: (any Error).self) { try files.writePrivately(Data(), file) }
+    }
+
+    @Test
+    func aPrivateAppendCreatesAnOwnerOnlyFileAndKeepsWhatItHolds() throws {
+        let file = temporary.url.appendingPathComponent("keys.log")
+        try files.appendPrivately(Data("a\n".utf8), file)
+        try files.appendPrivately(Data("b\n".utf8), file)
+        #expect(try files.read(file) == Data("a\nb\n".utf8))
+        let mode = try #require(FileManager.default.attributesOfItem(atPath: file.path)[.posixPermissions] as? Int)
+        #expect(mode == 0o600)
+        #expect(throws: (any Error).self) {
+            try files.appendPrivately(Data(), temporary.url.appendingPathComponent("none/keys.log"))
+        }
+    }
+
+    @Test
     func temporaryFilesAreUniqueAndCarryTheirExtension() {
         let first = files.temporaryFile("har"), second = files.temporaryFile("har")
         #expect(first != second)
@@ -42,5 +72,16 @@ struct LiveFileAccessTests {
         let missing = temporary.url.appendingPathComponent("missing")
         #expect(files.modificationDate(missing.path) == nil)
         #expect(throws: (any Error).self) { try files.remove(missing) }
+    }
+
+    @Test
+    func aFolderListsTheFilesDirectlyInsideIt() throws {
+        let file = temporary.url.appendingPathComponent("a.workspace")
+        try files.writeAtomically(Data(), file)
+        try files.createDirectory(temporary.url.appendingPathComponent("nested/deeper"))
+        let names = try files.contentsOfDirectory(temporary.url).map(\.lastPathComponent).sorted()
+        #expect(names == ["a.workspace", "nested"])
+        let missing = temporary.url.appendingPathComponent("none")
+        #expect(throws: (any Error).self) { try files.contentsOfDirectory(missing) }
     }
 }

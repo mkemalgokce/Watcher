@@ -13,9 +13,12 @@ public final class Harness {
     /// The engine's data folder, removed when the harness goes away.
     private let directory: TemporaryDirectory
 
-    public init() throws {
+    /// `clientApp` names the program behind a client port; by default none, so no test runs `lsof` per connection.
+    public init(clientApp: @escaping @Sendable (Int) -> String? = { _ in nil }) throws {
         directory = try TemporaryDirectory()
-        engine = try WatcherEngine(directory: directory.url)
+        engine = try WatcherEngine(directory: directory.url) { store, authority in
+            ProxyServer(store: store, authority: authority, clientApp: clientApp)
+        }
     }
 
     public func start(configure: (inout WatcherSettings) -> Void = { _ in }) async throws {

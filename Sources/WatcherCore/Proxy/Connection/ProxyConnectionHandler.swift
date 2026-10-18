@@ -20,27 +20,26 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
     private var body = Data()
     private var tooLarge = false
     /// Set after a CONNECT (or SOCKS) we handle ourselves: every request now belongs to this origin.
-    private var tunnel: (scheme: String, host: String, port: Int)?
+    private var tunnel: TunnelTarget?
     /// Feeds a large upload to the upstream while it is still arriving.
     private var upload: AsyncStream<ByteBuffer>.Continuation?
-    private let clientApp = ClientAppResolver()
+    private let clientApp: ClientAppResolver
     private let details: ConnectionDetails
+    private let writer: ResponseWriter
 
     init(
         server: ProxyServer,
         codecs: [RemovableChannelHandler],
         origin: ReverseOrigin?,
-        tunnel: (scheme: String, host: String, port: Int)? = nil,
+        tunnel: TunnelTarget? = nil,
         isHTTP2: Bool = false,
         details: ConnectionDetails = ConnectionDetails()
     ) {
         self.details = details
+        writer = ResponseWriter(isHTTP2: isHTTP2)
+        clientApp = ClientAppResolver(lookup: server.clientApp)
         self.server = server; self.codecs = codecs; self.origin = origin; self.tunnel = tunnel; self.isHTTP2 = isHTTP2
         decoder = codecs.count > 1 ? codecs[1] : nil
-    }
-
-    private func keepAlive(_ head: HTTPRequestHead) -> Bool {
-        isHTTP2 || head.isKeepAlive
     }
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
@@ -61,11 +60,11 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
                 upload.finish(); self.upload = nil; return
             }
             if tooLarge {
-                return respond(ProxyServer.message(413, "Body too large for Watcher"), to: context.channel, head: head)
+                return writer.respond(413, "Body too large for Watcher", to: context.channel, head: head)
             }
             if head.method == .CONNECT {
                 if isHTTP2 {
-                    respond(ProxyServer.message(501, "CONNECT is not supported over HTTP/2"), to: context.channel, head: head)
+                    writer.respond(501, "CONNECT is not supported over HTTP/2", to: context.channel, head: head)
                 } else {
                     connect(context, head)
                 }
@@ -78,35 +77,36 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
     // MARK: CONNECT
 
     private func connect(_ context: ChannelHandlerContext, _ head: HTTPRequestHead) {
-        let parts = head.uri.split(separator: ":", maxSplits: 1)
+        let parts = head.uri.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
         guard let host = parts.first.map(String.init), !host.isEmpty else {
-            return respond(ProxyServer.message(400, "Bad CONNECT target"), to: context.channel, head: head)
+            return writer.respond(400, "Bad CONNECT target", to: context.channel, head: head)
         }
         let port = parts.count > 1 ? Int(parts[1]) ?? 443 : 443
 
-        if server.shouldIntercept(host: host), let authority = server.authority {
+        if server.shouldIntercept(host: host) {
             do {
                 acknowledgeConnect(context).flatMap { [self] in
                     // After CONNECT the decoder switches to raw pass-through; swap in a fresh one for the decrypted stream.
                     guard let decoder else { return context.eventLoop.makeFailedFuture(ChannelError.ioOnClosedChannel) }
                     return context.pipeline.removeHandler(decoder)
                 }.flatMap { [self] in
-                    let fresh = ByteToMessageHandler(HTTPRequestDecoder(leftOverBytesStrategy: .forwardBytes))
+                    let fresh = ProxyServer.requestDecoder()
                     decoder = fresh
-                    return context.pipeline.addHandler(fresh, position: .before(self))
-                }.flatMap { [self] in
+                    return context.pipeline.addHandler(fresh, position: .before(self)).map { fresh }
+                }.flatMap { [self] fresh in
                     do {
-                        let handlers = try server.tlsHandlers(host: host, http1: [codecs[0], decoder!, self], details: details)
+                        let http1: [RemovableChannelHandler] = [codecs[0], fresh, self]
+                        let handlers = try server.tlsHandlers(host: host, port: port, http1: http1, details: details)
                         return context.pipeline.addHandlers(handlers, position: .first)
                     } catch { return context.eventLoop.makeFailedFuture(error) }
                 }.whenComplete { [self] result in
                     switch result {
-                    case .success: tunnel = ("https", host, port)
+                    case .success: tunnel = TunnelTarget(scheme: "https", host: host, port: port)
                     case .failure: context.close(promise: nil)
                     }
                 }
             } catch {
-                respond(ProxyServer.message(502, "TLS setup failed: \(error)"), to: context.channel, head: head)
+                writer.respond(502, "TLS setup failed: \(error)", to: context.channel, head: head)
             }
         } else {
             blindTunnel(context, host: host, port: port, head: head)
@@ -123,17 +123,15 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
 
     private func blindTunnel(_ context: ChannelHandlerContext, host: String, port: Int, head: HTTPRequestHead) {
         let client = context.channel
-        ClientBootstrap(group: context.eventLoop).connect(host: server.resolve(host), port: port).whenComplete { [self] result in
+        server.connectBlind(to: host, port: port, on: context.eventLoop).whenComplete { [self] result in
             switch result {
             case let .failure(error):
-                respond(ProxyServer.message(502, "Tunnel to \(host):\(port) failed: \(error)"), to: client, head: head)
+                writer.respond(502, "Tunnel to \(host):\(port) failed: \(error)", to: client, head: head)
             case let .success(upstream):
                 acknowledgeConnect(context).flatMap { [self] in
                     EventLoopFuture.andAllSucceed(codecs.map { context.pipeline.removeHandler($0) }, on: context.eventLoop)
                 }.flatMap {
-                    context.pipeline.addHandler(RelayHandler(peer: upstream))
-                }.flatMap {
-                    upstream.pipeline.addHandler(RelayHandler(peer: client))
+                    RelayHandler.join(client, upstream)
                 }.flatMap {
                     context.pipeline.removeHandler(self)
                 }.whenFailure { _ in client.close(promise: nil); upstream.close(promise: nil) }
@@ -145,28 +143,24 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
 
     private func forward(_ context: ChannelHandlerContext, _ head: HTTPRequestHead) {
         guard let record = makeRecord(head) else {
-            return respond(ProxyServer.message(400, "Cannot determine target host"), to: context.channel, head: head)
+            return writer.respond(400, "Cannot determine target host", to: context.channel, head: head)
         }
         let channel = context.channel
         let server = server
         if origin == nil, tunnel == nil, let page = server.certificatePage,
-           CertificatePage.isAddressed(host: record.host, port: record.port, proxyPort: channel.localAddress?.port)
+           CertificatePage.isAddressed(
+               host: record.host,
+               port: record.port,
+               proxyPort: channel.localAddress?.port,
+               localAddresses: server.localAddresses()
+           )
         {
-            return respond(page.response(forPath: record.path), to: channel, head: head)
+            return writer.respond(page.response(forPath: record.path), to: channel, head: head)
         }
         if !isHTTP2, head.headers.contains(name: "Upgrade") {
             return upgrade(channel, head: head, record: record)
         }
-        Task {
-            var record = record
-            record.clientApp = await self.clientApp.app(for: channel)
-            switch await server.serve(record, allowStreaming: true, connection: self.details.summary) {
-            case let .buffered(response):
-                channel.eventLoop.execute { self.respond(response, to: channel, head: head) }
-            case let .streamed(response, body, complete):
-                await self.stream(response, body: body, to: channel, head: head, complete: complete)
-            }
-        }
+        dispatch(record, upload: nil, on: channel, head: head)
     }
 
     /// Bodies above the threshold are streamed upstream as they arrive, unless a tool needs to read the body.
@@ -176,13 +170,25 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
               !server.tools.needsRequestBody, let record = makeRecord(head) else { return }
         let (stream, continuation) = AsyncStream<ByteBuffer>.makeStream()
         upload = continuation
+        dispatch(record, upload: .init(body: stream, length: length), on: channel, head: head)
+    }
+
+    /// Serves the request off the event loop and writes the answer back, whole or streamed.
+    private func dispatch(
+        _ record: RequestRecord,
+        upload: ProxyServer.Upload?,
+        on channel: Channel,
+        head: HTTPRequestHead
+    ) {
         let server = server
         Task {
             var record = record
             record.clientApp = await self.clientApp.app(for: channel)
-            switch await server.serve(record, allowStreaming: true, upload: .init(body: stream, length: length), connection: self.details.summary) {
-            case let .buffered(response): channel.eventLoop.execute { self.respond(response, to: channel, head: head) }
-            case let .streamed(response, body, complete): await self.stream(response, body: body, to: channel, head: head, complete: complete)
+            switch await server.serve(record, allowStreaming: true, upload: upload, connection: self.details.summary) {
+            case let .buffered(response):
+                channel.eventLoop.execute { self.writer.respond(response, to: channel, head: head) }
+            case let .streamed(response, body, complete):
+                await self.writer.stream(response, body: body, to: channel, head: head, complete: complete)
             }
         }
     }
@@ -208,7 +214,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
             record.clientApp = await self.clientApp.app(for: client)
             switch await server.prepareUpgrade(record) {
             case let .answer(response):
-                client.eventLoop.execute { self.respond(response, to: client, head: head) }
+                client.eventLoop.execute { self.writer.respond(response, to: client, head: head) }
             case let .tunnel(request, flowID):
                 do {
                     let recorder = WebSocketRecorder(store: server.store, flowID: flowID)
@@ -223,7 +229,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
                     server.finishUpgrade(flowID, status: 101)
                 } catch {
                     let response = server.finishUpgrade(flowID, status: 502, message: "WebSocket tunnel failed: \(error)", state: .failed, error: "\(error)")
-                    client.eventLoop.execute { self.respond(response, to: client, head: head) }
+                    client.eventLoop.execute { self.writer.respond(response, to: client, head: head) }
                 }
             }
         }
@@ -244,9 +250,8 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
             scheme = url.scheme ?? "http"; host = urlHost
             port = url.port ?? RequestRecord.defaultPort(for: scheme)
             path = (url.percentEncodedPath.isEmpty ? "/" : url.percentEncodedPath) + (url.percentEncodedQuery.map { "?\($0)" } ?? "")
-        } else if let hostHeader = head.headers.first(name: "Host") {
-            let parts = hostHeader.split(separator: ":", maxSplits: 1)
-            (scheme, host, port, path) = ("http", String(parts[0]), parts.count > 1 ? Int(parts[1]) ?? 80 : 80, head.uri)
+        } else if let named = head.headers.first(name: "Host").flatMap(Self.hostAndPort) {
+            (scheme, host, port, path) = ("http", named.host, named.port, head.uri)
         } else {
             return nil
         }
@@ -261,64 +266,11 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
         )
     }
 
-    /// Relays the upstream body as it arrives (chunked), keeping a bounded copy for the session list.
-    private func stream(
-        _ response: ResponseRecord,
-        body: HTTPClientResponse.Body,
-        to channel: Channel,
-        head: HTTPRequestHead,
-        complete: @Sendable (Data, Error?) -> Void
-    ) async {
-        var captured = Data()
-        do {
-            try await channel.writeAndFlush(HTTPServerResponsePart.head(responseHead(response, bodyLength: nil, keepAlive: keepAlive(head))))
-            for try await chunk in body {
-                if captured.count < ProxyServer.maxCapturedStreamBytes {
-                    captured.append(contentsOf: chunk.readableBytesView)
-                }
-                if head.method != .HEAD {
-                    try await channel.writeAndFlush(HTTPServerResponsePart.body(.byteBuffer(chunk)))
-                }
-            }
-            try await channel.writeAndFlush(HTTPServerResponsePart.end(nil))
-            complete(captured, nil)
-            if !keepAlive(head) {
-                channel.close(promise: nil)
-            }
-        } catch {
-            complete(captured, error)
-            channel.close(promise: nil)
-        }
-    }
-
-    private func responseHead(_ response: ResponseRecord, bodyLength: Int?, keepAlive: Bool) -> HTTPResponseHead {
-        var headers = HTTPHeaders()
-        for header in response.headers where !ProxyServer.hopByHop.contains(header.name.lowercased()) {
-            headers.add(name: header.name, value: header.value)
-        }
-        if let bodyLength {
-            headers.add(name: "Content-Length", value: "\(bodyLength)")
-        }
-        // Connection-specific headers are forbidden in HTTP/2.
-        if !isHTTP2 {
-            headers.add(name: "Connection", value: keepAlive ? "keep-alive" : "close")
-        }
-        return HTTPResponseHead(version: .http1_1, status: .init(statusCode: response.status), headers: headers)
-    }
-
-    private func respond(_ response: ResponseRecord, to channel: Channel, head: HTTPRequestHead) {
-        let keepAlive = keepAlive(head)
-        channel.write(HTTPServerResponsePart.head(responseHead(response, bodyLength: response.body.count, keepAlive: keepAlive)), promise: nil)
-        if head.method != .HEAD, !response.body.isEmpty {
-            var buffer = channel.allocator.buffer(capacity: response.body.count)
-            buffer.writeBytes(response.body)
-            channel.write(HTTPServerResponsePart.body(.byteBuffer(buffer)), promise: nil)
-        }
-        channel.writeAndFlush(HTTPServerResponsePart.end(nil)).whenComplete { _ in
-            if !keepAlive {
-                channel.close(promise: nil)
-            }
-        }
+    /// The host and port a `Host` header names, port 80 when absent or unreadable; nil when it names no host.
+    private static func hostAndPort(_ header: String) -> (host: String, port: Int)? {
+        let parts = header.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
+        guard !parts[0].isEmpty else { return nil }
+        return (String(parts[0]), parts.count > 1 ? Int(parts[1]) ?? 80 : 80)
     }
 
     func errorCaught(context: ChannelHandlerContext, error _: Error) {

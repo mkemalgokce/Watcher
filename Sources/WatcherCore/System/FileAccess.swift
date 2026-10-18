@@ -12,7 +12,12 @@ public struct FileAccess: Sendable {
     public var move: @Sendable (_ from: URL, _ to: URL) throws -> Void
     /// Creates intermediate folders too; succeeds when the folder exists.
     public var createDirectory: @Sendable (URL) throws -> Void
-    public var setPermissions: @Sendable (_ mode: Int, _ path: String) throws -> Void
+    /// The files and folders directly inside a folder; throws when it does not exist.
+    public var contentsOfDirectory: @Sendable (URL) throws -> [URL]
+    /// Like `writeAtomically`, but the file is readable and writable by its owner alone from the moment it appears.
+    public var writePrivately: @Sendable (Data, URL) throws -> Void
+    /// Adds to the end of a file, creating it readable and writable by its owner alone when it is missing.
+    public var appendPrivately: @Sendable (Data, URL) throws -> Void
     public var modificationDate: @Sendable (String) -> Date?
     /// A path in the temporary directory that no other call returns, ending in `.<extension>`.
     public var temporaryFile: @Sendable (_ extension: String) -> URL
@@ -26,13 +31,16 @@ public struct FileAccess: Sendable {
         remove: @escaping @Sendable (URL) throws -> Void,
         move: @escaping @Sendable (_ from: URL, _ to: URL) throws -> Void,
         createDirectory: @escaping @Sendable (URL) throws -> Void,
-        setPermissions: @escaping @Sendable (_ mode: Int, _ path: String) throws -> Void,
+        contentsOfDirectory: @escaping @Sendable (URL) throws -> [URL],
+        writePrivately: @escaping @Sendable (Data, URL) throws -> Void,
+        appendPrivately: @escaping @Sendable (Data, URL) throws -> Void,
         modificationDate: @escaping @Sendable (String) -> Date?,
         temporaryFile: @escaping @Sendable (_ extension: String) -> URL
     ) {
         self.isExecutable = isExecutable; self.fileExists = fileExists; self.isDirectory = isDirectory
         self.read = read; self.writeAtomically = writeAtomically; self.remove = remove; self.move = move
-        self.createDirectory = createDirectory; self.setPermissions = setPermissions
+        self.createDirectory = createDirectory; self.contentsOfDirectory = contentsOfDirectory
+        self.writePrivately = writePrivately; self.appendPrivately = appendPrivately
         self.modificationDate = modificationDate; self.temporaryFile = temporaryFile
     }
 }

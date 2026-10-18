@@ -7,7 +7,7 @@ public final class PythonServer {
     private let process: Process
 
     /// `arguments` reach the script as `sys.argv[1...]`.
-    public init(script: String, arguments: [String] = []) throws {
+    public init(script: String, arguments: [String] = [], startTimeout: TimeInterval = 10) throws {
         let process = Process()
         process.executableURL = try ExternalTool.python3.require()
         process.arguments = ["-c", script] + arguments
@@ -15,6 +15,10 @@ public final class PythonServer {
         process.standardOutput = output
         process.standardError = FileHandle.nullDevice
         do { try process.run() } catch { throw TestSupportError("python3 could not start: \(error)") }
+        // Terminating closes the pipe, so a script that never prints ends the read below instead of blocking it.
+        let watchdog = DispatchWorkItem { process.terminate() }
+        DispatchQueue.global().asyncAfter(deadline: .now() + startTimeout, execute: watchdog)
+        defer { watchdog.cancel() }
         var line = Data()
         while let byte = try output.fileHandleForReading.read(upToCount: 1), !byte.isEmpty, byte != Data("\n".utf8) {
             line.append(byte)
@@ -32,8 +36,12 @@ public final class PythonServer {
         process.isRunning
     }
 
-    public func waitUntilExit() {
-        process.waitUntilExit()
+    /// Waits for the script to end by itself; after `timeout` it is terminated and this throws.
+    public func waitUntilExit(timeout: TimeInterval = 10) async throws {
+        guard await eventually(timeout: timeout, { !process.isRunning }) else {
+            process.terminate()
+            throw TestSupportError("the python server was still running after \(timeout) s")
+        }
     }
 
     deinit {

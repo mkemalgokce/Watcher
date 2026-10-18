@@ -26,7 +26,9 @@ public final class PACEvaluator: @unchecked Sendable {
     function myIpAddress() { return '127.0.0.1'; }
     """
 
-    public init(script: String) throws {
+    /// `timeLimit` bounds each run of the script, so one that never finishes cannot stall loading or a lookup.
+    public init(script: String, timeLimit: Duration = .seconds(1)) throws {
+        ExecutionLimit.apply(timeLimit, to: context)
         let shExpMatch: @convention(block) (String, String) -> Bool = { Wildcard($1).matches($0) }
         context.setObject(shExpMatch, forKeyedSubscript: "shExpMatch" as NSString)
         context.evaluateScript(Self.prelude)
@@ -42,10 +44,18 @@ public final class PACEvaluator: @unchecked Sendable {
     }
 
     public static func load(from location: String) async throws -> PACEvaluator {
+        try await load(from: location) { try await URLSession.shared.data(from: $0).0 }
+    }
+
+    /// Takes `fetch` with no default: Swift 6.2 miscompiles async function values made in default arguments.
+    public static func load(
+        from location: String,
+        fetch: @Sendable (URL) async throws -> Data
+    ) async throws -> PACEvaluator {
         guard let url = URL(string: location), ["http", "https", "file"].contains(url.scheme ?? "") else {
             throw LoadError(description: "PAC location must be an http(s) or file URL")
         }
-        let (data, _) = try await URLSession.shared.data(from: url)
+        let data = try await fetch(url)
         return try PACEvaluator(script: String(decoding: data, as: UTF8.self))
     }
 

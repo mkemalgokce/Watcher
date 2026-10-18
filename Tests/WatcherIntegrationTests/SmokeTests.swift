@@ -4,7 +4,7 @@ import WatcherCore
 import WatcherTestSupport
 @testable import WatcherUI
 
-@Suite(.tags(.smoke, .integration))
+@Suite(.timeLimit(.minutes(1)), .tags(.smoke, .integration))
 struct SmokeTests {
     @Test(.tags(.network))
     func engineStartsOnAFreePortAndForwardsAGetToTheOrigin() async throws {

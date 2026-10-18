@@ -3,7 +3,7 @@ import Testing
 import WatcherCore
 import WatcherTestSupport
 
-@Suite(.tags(.e2e, .network, .externalTool))
+@Suite(.timeLimit(.minutes(1)), .tags(.e2e, .network, .externalTool))
 struct StartCommandTests {
     @Test(.enabled(if: ExternalTool.curl.isAvailable, "needs curl"))
     func proxiesACurlRequestAndWritesItToTheHARFileOnCtrlC() async throws {

@@ -16,31 +16,37 @@ public final class WorkspaceStore: Sendable {
     }
 
     private let directory: URL
+    private let files: FileAccess
+    private let now: @Sendable () -> Date
 
-    public init(directory: URL) {
-        self.directory = directory
+    public init(directory: URL, files: FileAccess = .live, now: @escaping @Sendable () -> Date = { Date() }) {
+        self.directory = directory; self.files = files; self.now = now
     }
 
     public func list() -> [String] {
-        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
-        return files.filter { $0.pathExtension == "workspace" }.map { $0.deletingPathExtension().lastPathComponent }.sorted()
+        let contents = (try? files.contentsOfDirectory(directory)) ?? []
+        return contents.filter { $0.pathExtension == "workspace" }
+            .map { $0.deletingPathExtension().lastPathComponent }
+            .sorted()
     }
 
     public func save(name: String, flows: [Flow], settings: WatcherSettings) throws {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try encoder.encode(Workspace(name: name, savedAt: Date(), flows: flows, settings: settings)).write(to: url(for: name), options: .atomic)
+        let file = try url(for: name)
+        try files.createDirectory(directory)
+        let workspace = Workspace(name: name, savedAt: now(), flows: flows, settings: settings)
+        try files.writeAtomically(encoder.encode(workspace), file)
     }
 
     public func load(name: String) throws -> Workspace {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(Workspace.self, from: Data(contentsOf: url(for: name)))
+        return try decoder.decode(Workspace.self, from: files.read(url(for: name)))
     }
 
     public func delete(name: String) throws {
-        try FileManager.default.removeItem(at: url(for: name))
+        try files.remove(url(for: name))
     }
 
     /// The name becomes a file name, so anything that could leave the directory is refused.

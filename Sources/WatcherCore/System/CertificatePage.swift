@@ -12,12 +12,18 @@ public struct CertificatePage: Sendable {
     }
 
     /// True for requests meant for Watcher itself rather than for the internet.
-    public static func isAddressed(host: String, port: Int, proxyPort: Int?, localAddresses: Set<String> = Set(LocalNetwork.ipv4Addresses().map(\.ip))) -> Bool {
+    /// `localAddresses` is only evaluated for a non-loopback host on the proxy port.
+    public static func isAddressed(
+        host: String,
+        port: Int,
+        proxyPort: Int?,
+        localAddresses: @autoclosure () -> Set<String> = LocalNetwork.addressSet()
+    ) -> Bool {
         if host.lowercased() == magicHost {
             return true
         }
         guard let proxyPort, port == proxyPort else { return false }
-        return host == "127.0.0.1" || host.lowercased() == "localhost" || localAddresses.contains(host)
+        return host == "127.0.0.1" || host.lowercased() == "localhost" || localAddresses().contains(host)
     }
 
     public func response(forPath path: String) -> ResponseRecord {

@@ -5,14 +5,12 @@ import WatcherTestSupport
 
 @Suite(.tags(.unit))
 struct MCPServerTests {
-    private let directory: TemporaryDirectory
     private let engine: WatcherEngine
     private let server: MCPServer
 
     init() throws {
-        directory = try TemporaryDirectory()
-        engine = try WatcherEngine(directory: directory.url)
-        server = MCPServer(engine: engine)
+        engine = try WatcherEngine.inMemory()
+        server = MCPServer(engine: engine, localAddresses: { ["192.168.1.5", "10.0.0.2"] })
     }
 
     @Test
@@ -74,6 +72,18 @@ struct MCPServerTests {
             response: .fixture(headers: [Header("Set-Cookie", "sid=SECRET-COOKIE")]),
             state: .pending
         )])
+    }
+
+    @Test
+    func anUnknownToolIsAnInvalidParameterError() async throws {
+        let reply = try await callTool("make_coffee", arguments: "{}")
+        #expect((reply["error"] as? [String: Any])?["code"] as? Int == -32602)
+    }
+
+    @Test
+    func theStatusNamesThePortStateAndTheMacsLANAddresses() async throws {
+        let status = try await text(of: callTool("get_proxy_status", arguments: "{}"))
+        #expect(status == "running: false, port: -, requests captured: 0, lan: 192.168.1.5, 10.0.0.2")
     }
 
     private func callTool(_ name: String, arguments: String) async throws -> [String: Any] {

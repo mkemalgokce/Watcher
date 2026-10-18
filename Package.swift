@@ -95,8 +95,10 @@ let package = Package(
             dependencies: [
                 "WatcherCore",
                 "WatcherUI",
+                .product(name: "AsyncHTTPClient", package: "async-http-client"),
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
+                .product(name: "NIOSSL", package: "swift-nio-ssl"),
             ],
             path: "Tests/WatcherTestSupport",
             swiftSettings: [.swiftLanguageMode(.v5)]

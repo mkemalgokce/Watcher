@@ -69,9 +69,8 @@ public final class SettingsStore: @unchecked Sendable {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try files.createDirectory(url.deletingLastPathComponent())
-        try files.writeAtomically(encoder.encode(settings), url)
         // May contain proxy credentials.
-        try files.setPermissions(0o600, url.path)
+        try files.writePrivately(encoder.encode(settings), url)
         current = settings
         lastModified = modificationDate
     }

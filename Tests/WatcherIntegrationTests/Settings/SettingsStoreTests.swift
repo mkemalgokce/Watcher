@@ -4,7 +4,7 @@ import Testing
 import WatcherTestSupport
 
 /// The store on a real disk: what the in-memory fake cannot show.
-@Suite(.tags(.integration))
+@Suite(.timeLimit(.minutes(1)), .tags(.integration))
 struct SettingsStoreTests {
     private let temporary: TemporaryDirectory
 

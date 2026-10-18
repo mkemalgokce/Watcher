@@ -3,7 +3,7 @@ import Testing
 @testable import WatcherCore
 import WatcherTestSupport
 
-@Suite(.tags(.integration, .externalTool))
+@Suite(.timeLimit(.minutes(1)), .tags(.integration, .externalTool))
 struct JQTests {
     @Test(.enabled(if: ExternalTool.jq.isAvailable, "needs jq"))
     func runsRealFiltersAndRefusesOptionInjection() {

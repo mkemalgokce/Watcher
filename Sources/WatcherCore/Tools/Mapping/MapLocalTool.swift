@@ -8,15 +8,22 @@ struct MapLocalTool: Tool {
     }
 
     private let entries: [(rule: MapLocalRule, matcher: RequestMatcher)]
+    private let read: @Sendable (URL) throws -> Data
+    private let sleep: Sleep
 
-    init(rules: [MapLocalRule]) {
+    init(
+        rules: [MapLocalRule],
+        read: @escaping @Sendable (URL) throws -> Data = FileAccess.live.read,
+        sleep: @escaping Sleep = liveSleep
+    ) {
         entries = rules.map { ($0, $0.matching.compile()) }
+        self.read = read; self.sleep = sleep
     }
 
     func intercept(request: inout RequestRecord) async -> RequestDecision {
         guard let (rule, _) = entries.first(where: { $0.matcher.matches(request) }) else { return .forward }
         if rule.delayMilliseconds > 0 {
-            try? await Task.sleep(for: .milliseconds(rule.delayMilliseconds))
+            try? await sleep(.milliseconds(rule.delayMilliseconds))
         }
 
         let fileURL: URL
@@ -29,7 +36,7 @@ struct MapLocalTool: Tool {
             }
             fileURL = resolved
         }
-        guard let data = try? Data(contentsOf: fileURL) else {
+        guard let data = try? read(fileURL) else {
             return .respond(ProxyServer.message(404, "Watcher Map Local: file not found: \(fileURL.path)"))
         }
         return .respond(HTTPMessageFile.response(from: data, fileName: fileURL.lastPathComponent))

@@ -5,15 +5,9 @@ import WatcherTestSupport
 
 @Suite(.tags(.unit))
 struct PreviewerRunnerTests {
-    private let directory: TemporaryDirectory
-
-    init() throws {
-        directory = try TemporaryDirectory()
-    }
-
     @Test
     func scriptsDecodeBinaryBodiesAndReportFailures() async throws {
-        let engine = try WatcherEngine(directory: directory.url)
+        let engine = try WatcherEngine.inMemory()
         let b64 = MatchingRule(pattern: "*/b64")
         try engine.settings.update {
             $0.previewers = RuleSet(isEnabled: true, rules: [

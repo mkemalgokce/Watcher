@@ -4,10 +4,6 @@ import Foundation
 /// The original setting is saved before it is overridden, so a proxy the user already had is restored rather than merely
 /// switched off.
 public struct SystemProxy: Sendable {
-    public struct Failure: Error, CustomStringConvertible {
-        public let description: String
-    }
-
     /// Runs `networksetup` with the given arguments and returns its output; replaceable so the command sequence can be tested.
     public typealias Runner = @Sendable ([String]) throws -> String
 
@@ -25,19 +21,21 @@ public struct SystemProxy: Sendable {
 
     private let run: Runner
     private let backupURL: URL
+    private let files: FileAccess
 
     public init(
         run: @escaping Runner = SystemProxy.networksetup,
-        backupURL: URL = WatcherPaths.supportDirectory.appendingPathComponent("system-proxy-backup.json")
+        backupURL: URL = WatcherPaths.supportDirectory.appendingPathComponent("system-proxy-backup.json"),
+        files: FileAccess = .live
     ) {
-        self.run = run; self.backupURL = backupURL
+        self.run = run; self.backupURL = backupURL; self.files = files
     }
 
     public static let shared = SystemProxy()
 
     /// True when an earlier run turned the system proxy on and never put the original back (crash, force quit).
     public var hasPendingRestore: Bool {
-        FileManager.default.fileExists(atPath: backupURL.path)
+        files.fileExists(backupURL.path)
     }
 
     public static func enable(host: String = "127.0.0.1", port: Int) throws {
@@ -51,7 +49,7 @@ public struct SystemProxy: Sendable {
     public func enable(host: String = "127.0.0.1", port: Int) throws {
         let serviceNames = try services()
         // Enabling twice must not replace the real original with Watcher's own settings.
-        if !FileManager.default.fileExists(atPath: backupURL.path) {
+        if !hasPendingRestore {
             try saveBackup(for: serviceNames)
         }
         for service in serviceNames {
@@ -66,7 +64,7 @@ public struct SystemProxy: Sendable {
             try restore(backup[service]?.web, for: service, set: "-setwebproxy", state: "-setwebproxystate")
             try restore(backup[service]?.secure, for: service, set: "-setsecurewebproxy", state: "-setsecurewebproxystate")
         }
-        try? FileManager.default.removeItem(at: backupURL)
+        try? files.remove(backupURL)
     }
 
     /// Enabled network services; the first output line is an explanatory note and disabled services start with `*`.
@@ -81,12 +79,12 @@ public struct SystemProxy: Sendable {
         for service in services {
             backup[service] = try Original(web: Self.parse(run(["-getwebproxy", service])), secure: Self.parse(run(["-getsecurewebproxy", service])))
         }
-        try FileManager.default.createDirectory(at: backupURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try JSONEncoder().encode(backup).write(to: backupURL, options: .atomic)
+        try files.createDirectory(backupURL.deletingLastPathComponent())
+        try files.writeAtomically(JSONEncoder().encode(backup), backupURL)
     }
 
     private func loadBackup() -> [String: Original] {
-        (try? Data(contentsOf: backupURL)).flatMap { try? JSONDecoder().decode([String: Original].self, from: $0) } ?? [:]
+        (try? files.read(backupURL)).flatMap { try? JSONDecoder().decode([String: Original].self, from: $0) } ?? [:]
     }
 
     /// Writes the saved host and port back; with no backup entry the proxy is simply switched off.
@@ -106,16 +104,13 @@ public struct SystemProxy: Sendable {
         return Setting(enabled: value("Enabled").lowercased() == "yes", server: value("Server"), port: Int(value("Port")) ?? 0)
     }
 
-    public static let networksetup: Runner = { arguments in
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/sbin/networksetup")
-        process.arguments = arguments
-        let pipe = Pipe()
-        process.standardOutput = pipe; process.standardError = pipe
-        try process.run()
-        let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else { throw Failure(description: "networksetup \(arguments.joined(separator: " ")): \(output)") }
-        return output
+    public static let networksetup: Runner = networksetup(using: LiveCommandRunner.run)
+
+    static func networksetup(using runner: @escaping CommandRunner) -> Runner {
+        { arguments in
+            let executable = URL(fileURLWithPath: "/usr/sbin/networksetup")
+            return try Command(executable: executable, arguments: arguments, mergesErrorOutput: true)
+                .checkedOutput(using: runner)
+        }
     }
 }

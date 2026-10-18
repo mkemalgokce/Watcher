@@ -67,7 +67,7 @@ extension WatcherEngineTests {
                     headers: [Header("Content-Type", contentType)],
                     body: body
                 ))
-                server.waitUntilExit()
+                try await server.waitUntilExit()
                 #expect(response.status == 200)
                 #expect(
                     String(bytes: response.body, encoding: .utf8) == "title=Holiday photo;photo=red.png:7:image/png"
@@ -88,7 +88,7 @@ extension WatcherEngineTests {
                     headers: [Header("Content-Type", "application/x-www-form-urlencoded")],
                     body: RequestBodyBuilder.urlEncoded([KeyValue("q", "a b&c"), KeyValue("lang", "tr")])
                 ))
-                server.waitUntilExit()
+                try await server.waitUntilExit()
                 #expect(String(bytes: response.body, encoding: .utf8) == "q=a b&c;lang=tr")
             }
         }

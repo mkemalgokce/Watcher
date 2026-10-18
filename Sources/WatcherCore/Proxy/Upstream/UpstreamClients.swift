@@ -4,9 +4,10 @@ import NIO
 import NIOSSL
 
 /// Hands out HTTP clients for upstream requests, honouring the external proxy (static or PAC) and DNS spoofing settings.
-final class UpstreamClients: @unchecked Sendable {
+final class UpstreamClients: UpstreamSending, @unchecked Sendable {
     private let group: EventLoopGroup
     let tls: TLSConfiguration
+    private let files: FileAccess
     private let lock = NSLock()
     private var external = ExternalProxySettings()
     private var bypass = HostList([])
@@ -16,39 +17,40 @@ final class UpstreamClients: @unchecked Sendable {
     private var keyLog: NIOSSLKeyLogCallback?
     private var cache: [String: HTTPClient] = [:]
 
-    init(group: EventLoopGroup, tls: TLSConfiguration) {
-        self.group = group; self.tls = tls
+    init(group: EventLoopGroup, tls: TLSConfiguration, files: FileAccess = .live) {
+        self.group = group; self.tls = tls; self.files = files
     }
 
     func update(external: ExternalProxySettings, pac: PACEvaluator?, dnsRules: [DNSSpoofRule], clientCertificates: [CustomCertificateRule]) {
-        let stale: [HTTPClient] = lock.withLock {
+        Self.shutDown(lock.withLock {
+            let changed = external != self.external || pac !== self.pac
+                || dnsRules != spoofs || clientCertificates != self.clientCertificates
             self.external = external; self.pac = pac
             bypass = HostList(["localhost", "127.0.0.1", "::1"] + external.bypass)
             spoofs = dnsRules; self.clientCertificates = clientCertificates
-            defer { cache.removeAll() }
-            return Array(cache.values)
-        }
-        for client in stale {
-            Task { try? await client.shutdown() }
-        }
+            // Shutting a client down cancels its requests in flight, so only a real change replaces them.
+            return changed ? takeCachedLocked() : []
+        })
     }
 
     func setKeyLog(_ callback: NIOSSLKeyLogCallback?) {
-        let stale: [HTTPClient] = lock.withLock { keyLog = callback; defer { cache.removeAll() }; return Array(cache.values) }
-        for client in stale {
-            Task { try? await client.shutdown() }
-        }
+        Self.shutDown(lock.withLock { keyLog = callback; return takeCachedLocked() })
     }
 
     /// The address to connect to for `host`: a spoofed one if a DNS Spoofing rule matches, else the host itself.
     func address(for host: String) -> String {
-        lock.withLock { spoofs.first { $0.host.caseInsensitiveCompare(host) == .orderedSame }?.address ?? host }
+        lock.withLock { spoofedAddressLocked(for: host) ?? host }
+    }
+
+    /// How a request reaches its origin: directly, or through the external proxy the settings or the PAC script name.
+    func route(for request: RequestRecord) -> PACEvaluator.Route {
+        lock.withLock { routeLocked(for: request) }
     }
 
     func client(for request: RequestRecord) -> HTTPClient {
         lock.withLock {
             let host = request.host
-            let address = spoofs.first { $0.host.caseInsensitiveCompare(host) == .orderedSame }?.address
+            let address = spoofedAddressLocked(for: host)
             let route = routeLocked(for: request)
             let identity = clientCertificates.first { Wildcard($0.host).matches(host) }
             let key = "\(host)|\(address ?? "-")|\(route)|\(identity?.p12Path ?? "-")"
@@ -60,7 +62,7 @@ final class UpstreamClients: @unchecked Sendable {
             tlsConfiguration.keyLogCallback = keyLog
             // shortcut: an unreadable P12 silently falls back to no client identity; surface it through a log hook if that bites.
             if let identity {
-                try? CustomCertificates.applyClientIdentity(identity, to: &tlsConfiguration)
+                try? CustomCertificates.applyClientIdentity(identity, to: &tlsConfiguration, files: files)
             }
             var configuration = HTTPClient.Configuration(tlsConfiguration: tlsConfiguration, redirectConfiguration: .disallow)
             configuration.timeout = .init(connect: .seconds(15), read: .seconds(60))
@@ -82,11 +84,35 @@ final class UpstreamClients: @unchecked Sendable {
         }
     }
 
+    func execute(
+        _ request: HTTPClientRequest,
+        for record: RequestRecord,
+        timeout: TimeAmount
+    ) async throws -> HTTPClientResponse {
+        try await client(for: record).execute(request, timeout: timeout)
+    }
+
     func shutdown() async {
-        let clients = lock.withLock { defer { cache.removeAll() }; return Array(cache.values) }
-        for client in clients {
+        for client in lock.withLock({ takeCachedLocked() }) {
             try? await client.shutdown()
         }
+    }
+
+    /// Empties the cache and returns what it held; call with the lock held.
+    private func takeCachedLocked() -> [HTTPClient] {
+        defer { cache.removeAll() }
+        return Array(cache.values)
+    }
+
+    /// Shuts replaced clients down without waiting for them.
+    private static func shutDown(_ clients: [HTTPClient]) {
+        for client in clients {
+            Task { try? await client.shutdown() }
+        }
+    }
+
+    private func spoofedAddressLocked(for host: String) -> String? {
+        spoofs.first { $0.host.caseInsensitiveCompare(host) == .orderedSame }?.address
     }
 
     private func routeLocked(for request: RequestRecord) -> PACEvaluator.Route {

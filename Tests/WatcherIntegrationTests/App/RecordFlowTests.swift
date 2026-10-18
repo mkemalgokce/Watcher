@@ -6,7 +6,7 @@ import WatcherTestSupport
 
 /// Record starts the proxy and Pause stops it; the system proxy follows without freezing the window.
 @MainActor
-@Suite(.serialized, .tags(.integration, .network))
+@Suite(.timeLimit(.minutes(1)), .serialized, .tags(.integration, .network))
 struct RecordFlowTests {
     private let backup: TemporaryDirectory
 

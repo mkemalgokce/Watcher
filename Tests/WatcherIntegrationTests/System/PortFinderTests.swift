@@ -4,7 +4,7 @@ import Testing
 import WatcherTestSupport
 
 /// Probes real ports from 10000 upwards, so it must not race other tests that bind there.
-@Suite(.tags(.integration, .network), .serialized)
+@Suite(.timeLimit(.minutes(1)), .tags(.integration, .network), .serialized)
 struct PortFinderTests {
     @Test
     func startsAt10000AndSkipsTakenAndBusyPorts() throws {

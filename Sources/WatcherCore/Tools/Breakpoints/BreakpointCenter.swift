@@ -5,15 +5,21 @@ public final class BreakpointCenter: @unchecked Sendable {
     public enum Phase: String, Sendable { case request, response }
 
     public struct Hit: Identifiable, Sendable {
-        public let id = UUID()
+        public let id: UUID
         public let phase: Phase
         public var request: RequestRecord
         public var response: ResponseRecord?
         /// When it was paused; clients give up after their own timeout (often 30–60 s), so the UI shows how long it has waited.
-        public let pausedAt = Date()
+        public let pausedAt: Date
 
-        public init(phase: Phase, request: RequestRecord, response: ResponseRecord? = nil) {
-            self.phase = phase; self.request = request; self.response = response
+        public init(
+            id: UUID = UUID(),
+            phase: Phase,
+            request: RequestRecord,
+            response: ResponseRecord? = nil,
+            pausedAt: Date = Date()
+        ) {
+            self.id = id; self.phase = phase; self.request = request; self.response = response; self.pausedAt = pausedAt
         }
     }
 
@@ -28,7 +34,12 @@ public final class BreakpointCenter: @unchecked Sendable {
     private var waiting: [UUID: CheckedContinuation<Resolution, Never>] = [:]
     private var observers: [UUID: AsyncStream<Void>.Continuation] = [:]
 
-    public init() {}
+    private let now: @Sendable () -> Date
+    private let makeID: @Sendable () -> UUID
+
+    public init(now: @escaping @Sendable () -> Date = { Date() }, makeID: @escaping @Sendable () -> UUID = { UUID() }) {
+        self.now = now; self.makeID = makeID
+    }
 
     public var pending: [Hit] {
         lock.withLock { hits }
@@ -43,7 +54,7 @@ public final class BreakpointCenter: @unchecked Sendable {
     }
 
     func hold(phase: Phase, request: RequestRecord, response: ResponseRecord? = nil) async -> Resolution {
-        let hit = Hit(phase: phase, request: request, response: response)
+        let hit = Hit(id: makeID(), phase: phase, request: request, response: response, pausedAt: now())
         return await withCheckedContinuation { (continuation: CheckedContinuation<Resolution, Never>) in
             lock.withLock { hits.append(hit); waiting[hit.id] = continuation }
             notify()

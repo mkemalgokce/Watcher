@@ -15,9 +15,14 @@ public final class MCPServer: @unchecked Sendable {
 
     private let engine: WatcherEngine
     private var tools: [ToolDefinition] = []
+    private let localAddresses: @Sendable () -> [String]
 
-    public init(engine: WatcherEngine) {
-        self.engine = engine
+    /// `localAddresses` are the Mac's LAN addresses that the status reports for pointing devices at the proxy.
+    public init(
+        engine: WatcherEngine,
+        localAddresses: @escaping @Sendable () -> [String] = { LocalNetwork.ipv4Addresses().map(\.ip) }
+    ) {
+        self.engine = engine; self.localAddresses = localAddresses
         tools = definitions()
     }
 
@@ -57,8 +62,14 @@ public final class MCPServer: @unchecked Sendable {
 
     // MARK: Tools
 
+    private static func status(of engine: WatcherEngine, lan: [String]) -> String {
+        let port = engine.boundPort.map(String.init) ?? "-"
+        return "running: \(engine.isRunning), port: \(port), requests captured: \(engine.store.all.count), "
+            + "lan: \(lan.joined(separator: ", "))"
+    }
+
     private func definitions() -> [ToolDefinition] {
-        let engine = engine
+        let engine = engine, localAddresses = localAddresses
         func flow(_ args: [String: Any]) throws -> Flow {
             guard let sequence = Int(args["sequence"] as? String ?? ""), let found = engine.store.all.first(where: { $0.sequence == sequence }) else {
                 throw Failure(description: "No request with that sequence number")
@@ -75,7 +86,7 @@ public final class MCPServer: @unchecked Sendable {
 
         return [
             ToolDefinition(name: "get_proxy_status", description: "Whether Watcher is running and on which port.", properties: [:], required: []) { _ in
-                "running: \(engine.isRunning), port: \(engine.boundPort.map(String.init) ?? "-"), requests captured: \(engine.store.all.count), lan: \(LocalNetwork.ipv4Addresses().map(\.ip).joined(separator: ", "))"
+                Self.status(of: engine, lan: localAddresses())
             },
             ToolDefinition(name: "get_flows", description: "List captured requests (newest last).", properties: ["filter": "Only URLs containing this text", "limit": "Maximum rows, default 50"], required: []) { args in
                 let filter = args["filter"] as? String ?? ""

@@ -7,6 +7,11 @@ public enum LocalNetwork {
         public let ip: String
     }
 
+    /// The IPs of `ipv4Addresses()`, for matching a request's host against.
+    public static func addressSet() -> Set<String> {
+        Set(ipv4Addresses().map(\.ip))
+    }
+
     /// IPv4 addresses of active, non-loopback interfaces (link-local 169.254.x.x is skipped).
     public static func ipv4Addresses() -> [Address] {
         var list: UnsafeMutablePointer<ifaddrs>?

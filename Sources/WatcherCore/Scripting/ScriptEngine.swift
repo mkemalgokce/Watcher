@@ -8,11 +8,12 @@ final class ScriptEngine: @unchecked Sendable {
     private(set) var definesOnRequest = false
     private(set) var definesOnResponse = false
 
-    // shortcut: no CPU timeout, so a script stuck in a synchronous infinite loop blocks its queue; upgrade by running scripts in a killable process.
-    static let promiseTimeout: DispatchTimeInterval = .seconds(10)
+    private let timeout: Duration
 
-    init(source: String, log: @escaping @Sendable (String) -> Void) {
+    init(source: String, log: @escaping @Sendable (String) -> Void, timeout: Duration = .seconds(10)) {
+        self.timeout = timeout
         context = JSContext()!
+        ExecutionLimit.apply(timeout, to: context)
         context.exceptionHandler = { _, exception in log("script error: \(exception?.toString() ?? "unknown")") }
         let console: @convention(block) (JSValue) -> Void = { log($0.toString() ?? "") }
         context.setObject(["log": console, "error": console, "warn": console, "info": console], forKeyedSubscript: "console" as NSString)
@@ -49,8 +50,10 @@ final class ScriptEngine: @unchecked Sendable {
                 """)
                 invoke?.call(withArguments: [function, argumentsJSON, unsafeBitCast(done, to: AnyObject.self)])
             }
-            queue.asyncAfter(deadline: .now() + Self.promiseTimeout) {
-                once.resume(throwing: ScriptError(description: "\(function) did not finish within 10 seconds"))
+            // Not on `queue`: a script that is still running must not hold its own timeout back.
+            let deadline = DispatchTime.now() + .nanoseconds(Int(timeout / .nanoseconds(1)))
+            DispatchQueue.global().asyncAfter(deadline: deadline) { [timeout] in
+                once.resume(throwing: ScriptError(description: "\(function) did not finish within \(timeout)"))
             }
         }
     }

@@ -7,8 +7,10 @@ import WatcherTestSupport
 struct CertificatePageTests {
     @Test
     func servesTheCertificateInEveryFormatAndRejectsOtherPaths() throws {
-        let directory = try TemporaryDirectory()
-        let authority = try CertificateAuthority(directory: directory.url)
+        let authority = try CertificateAuthority(
+            directory: URL(fileURLWithPath: "/fake-home/.watcher"),
+            files: FileAccessFake().access
+        )
         let page = CertificatePage(authority: authority)
         #expect(page.response(forPath: "/").headers.value(for: "Content-Type") == "text/html; charset=utf-8")
         #expect(page.response(forPath: "/ca.cer").body == authority.certificateDER)
@@ -39,5 +41,16 @@ struct CertificatePageTests {
             CertificatePage.isAddressed(host: host, port: port, proxyPort: 9090, localAddresses: Set(localAddresses))
                 == isAddressed
         )
+    }
+
+    @Test(arguments: [("example.com", 80), ("watcher.cert", 9090), ("localhost", 9090)])
+    func theLocalAddressesAreLookedUpOnlyWhenTheAnswerDependsOnThem(host: String, port: Int) {
+        var lookups = 0
+        func localAddresses() -> Set<String> {
+            lookups += 1
+            return []
+        }
+        _ = CertificatePage.isAddressed(host: host, port: port, proxyPort: 9090, localAddresses: localAddresses())
+        #expect(lookups == 0, "every plain request asks this, and the lookup walks the network interfaces")
     }
 }

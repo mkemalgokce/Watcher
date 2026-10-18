@@ -11,18 +11,8 @@ public extension WatcherEngine {
         guard let scheme = url.scheme, ["ws", "wss"].contains(scheme), let host = url.host else {
             throw WebSocketComposeError(description: "URL must start with ws:// or wss://")
         }
-        let port = url.port ?? RequestRecord.defaultPort(for: scheme)
-        let path = (url.path.isEmpty ? "/" : url.path) + (url.query.map { "?\($0)" } ?? "")
-        let flow = store.begin(RequestRecord(
-            method: "GET",
-            scheme: scheme == "wss" ? "https" : "http",
-            host: host,
-            port: port,
-            path: path,
-            headers: headers + [Header("Upgrade", "websocket"), Header("Connection", "Upgrade")]
-        ))
-        let started = Date()
-
+        let flow = store.begin(Self.handshake(url: url, scheme: scheme, host: host, headers: headers))
+        let started = now()
         var request = URLRequest(url: url)
         for header in headers {
             request.setValue(header.value, forHTTPHeaderField: header.name)
@@ -31,15 +21,7 @@ public extension WatcherEngine {
         let task = session.webSocketTask(with: request)
         defer { session.invalidateAndCancel() }
         task.resume()
-
-        let store = store
-        func record(_ direction: WebSocketMessage.Direction, _ message: URLSessionWebSocketTask.Message) {
-            switch message {
-            case let .string(text): store.appendWebSocketMessage(WebSocketMessage(direction: direction, kind: .text, payload: Data(text.utf8)), to: flow.id)
-            case let .data(data): store.appendWebSocketMessage(WebSocketMessage(direction: direction, kind: .binary, payload: data), to: flow.id)
-            @unknown default: break
-            }
-        }
+        let record = Self.recorder(into: store, flow: flow.id)
 
         do {
             for text in messages {
@@ -51,18 +33,46 @@ public extension WatcherEngine {
                     record(.serverToClient, message)
                 }
             }
-            try await Task.sleep(for: .seconds(seconds))
+            try await waitWhileListening(.seconds(seconds))
             task.cancel(with: .normalClosure, reason: nil)
             receiver.cancel()
             let status = (task.response as? HTTPURLResponse)?.statusCode ?? 101
             store.update(flow.id) {
                 $0.response = ResponseRecord(status: status, headers: [Header("Upgrade", "websocket")]); $0.state = .completed
-                $0.duration = Date().timeIntervalSince(started)
+                $0.duration = now().timeIntervalSince(started)
             }
         } catch {
             task.cancel(with: .goingAway, reason: nil)
-            store.update(flow.id) { $0.state = .failed; $0.error = "\(error)"; $0.duration = Date().timeIntervalSince(started) }
+            store.update(flow.id) {
+                $0.state = .failed; $0.error = "\(error)"; $0.duration = now().timeIntervalSince(started)
+            }
             throw error
+        }
+    }
+
+    private static func handshake(url: URL, scheme: String, host: String, headers: [Header]) -> RequestRecord {
+        RequestRecord(
+            method: "GET",
+            scheme: scheme == "wss" ? "https" : "http",
+            host: host,
+            port: url.port ?? RequestRecord.defaultPort(for: scheme),
+            path: (url.path.isEmpty ? "/" : url.path) + (url.query.map { "?\($0)" } ?? ""),
+            headers: headers + [Header("Upgrade", "websocket"), Header("Connection", "Upgrade")]
+        )
+    }
+
+    private static func recorder(
+        into store: FlowStore,
+        flow: Flow.ID
+    ) -> @Sendable (WebSocketMessage.Direction, URLSessionWebSocketTask.Message) -> Void {
+        { direction, message in
+            let kind: WebSocketMessage.Kind, payload: Data
+            switch message {
+            case let .string(text): (kind, payload) = (.text, Data(text.utf8))
+            case let .data(data): (kind, payload) = (.binary, data)
+            @unknown default: return
+            }
+            store.appendWebSocketMessage(WebSocketMessage(direction: direction, kind: kind, payload: payload), to: flow)
         }
     }
 }

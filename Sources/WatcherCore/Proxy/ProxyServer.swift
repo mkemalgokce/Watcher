@@ -10,11 +10,18 @@ public final class ProxyServer: @unchecked Sendable {
 
     let authority: CertificateAuthority?
     /// Served for requests addressed to Watcher itself, so a device can download the root certificate.
-    var certificatePage: CertificatePage? {
-        authority.map(CertificatePage.init)
-    }
+    let certificatePage: CertificatePage?
+    /// The program behind a loopback client port, for attributing requests to apps.
+    let clientApp: @Sendable (Int) -> String?
+    /// The Mac's LAN addresses, so the certificate page also answers on them.
+    let localAddresses: @Sendable () -> Set<String>
+    let now: @Sendable () -> Date
+    /// Where the TLS key log and custom certificates are read and written.
+    let files: FileAccess
 
     let upstream: UpstreamClients
+    /// Where forwarded requests go; the upstream clients unless a test answers in their place.
+    let sender: any UpstreamSending
     private let lock = NSLock()
     private var filter: HostFilter
     private let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
@@ -25,6 +32,11 @@ public final class ProxyServer: @unchecked Sendable {
     private var preferHTTP2 = true
     private var accessControl = AccessControlSettings().compile()
     private var markModified = false
+    /// Whether answers name the tools that changed them in `X-Watcher-Applied`.
+    var marksModifiedTraffic: Bool {
+        lock.withLock { markModified }
+    }
+
     private var keyLog: KeyLogFile?
     private var keyLogPath = ""
     private var autoIgnorePinning = false
@@ -48,10 +60,18 @@ public final class ProxyServer: @unchecked Sendable {
         tools: ToolChain = ToolChain(),
         authority: CertificateAuthority?,
         sslProxying: HostFilter = HostFilter(),
-        upstreamTLS: TLSConfiguration = .makeClientConfiguration()
+        upstreamTLS: TLSConfiguration = .makeClientConfiguration(),
+        upstream sender: (any UpstreamSending)? = nil,
+        clientApp: @escaping @Sendable (Int) -> String? = ClientProcess.name(forLocalPort:),
+        localAddresses: @escaping @Sendable () -> Set<String> = { LocalNetwork.addressSet() },
+        now: @escaping @Sendable () -> Date = { Date() },
+        files: FileAccess = .live
     ) {
         self.store = store; self.tools = tools; self.authority = authority; filter = sslProxying
-        upstream = UpstreamClients(group: group, tls: upstreamTLS)
+        certificatePage = authority.map(CertificatePage.init)
+        self.clientApp = clientApp; self.localAddresses = localAddresses; self.now = now; self.files = files
+        upstream = UpstreamClients(group: group, tls: upstreamTLS, files: files)
+        self.sender = sender ?? upstream
     }
 
     public var sslProxying: HostFilter {
@@ -69,16 +89,18 @@ public final class ProxyServer: @unchecked Sendable {
         authority?.setLeafValidity(days: settings.leafCertificateValidityDays)
         let path = settings.tlsKeyLogFile.trimmingCharacters(in: .whitespaces)
         let sink: KeyLogFile? = lock.withLock { keyLogPath == path ? keyLog : nil }
-        let activeSink = sink ?? (path.isEmpty ? nil : KeyLogFile(path: path))
-        lock.withLock {
+        let activeSink = sink ?? (path.isEmpty ? nil : KeyLogFile(path: path, files: files))
+        let keyLogChanged = lock.withLock {
             preferHTTP2 = settings.preferHTTP2; accessControl = settings.accessControl.compile()
             autoIgnorePinning = settings.autoIgnoreSSLPinning; markModified = settings.markModifiedTraffic
-            if keyLogPath != path {
-                keyLog = activeSink; keyLogPath = path
-            }
+            defer { keyLog = activeSink; keyLogPath = path }
+            return keyLog !== activeSink
         }
+        // The authority outlives this server, so it always takes the current sink.
         authority?.setKeyLog(activeSink?.callback)
-        upstream.setKeyLog(activeSink?.callback)
+        if keyLogChanged {
+            upstream.setKeyLog(activeSink?.callback)
+        }
     }
 
     func allowsClient(_ channel: Channel) -> Bool {
@@ -105,7 +127,9 @@ public final class ProxyServer: @unchecked Sendable {
     func serverContext(for host: String) throws -> NIOSSLContext {
         let (offerHTTP2, sink) = lock.withLock { (preferHTTP2, keyLog) }
         if let rule = customServerCertificate(for: host) {
-            return try CustomCertificates.serverContext(rule, offerHTTP2: offerHTTP2, keyLog: sink?.callback)
+            return try CustomCertificates.serverContext(
+                rule, offerHTTP2: offerHTTP2, keyLog: sink?.callback, files: files
+            )
         }
         guard let authority else { throw CertificateAuthority.Unavailable() }
         return try authority.serverContext(for: host, offerHTTP2: offerHTTP2)
@@ -154,13 +178,9 @@ public final class ProxyServer: @unchecked Sendable {
         }
         guard settings.isEnabled else { return nil }
         do {
-            let channel = try await ServerBootstrap(group: group)
-                .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-                .childChannelInitializer { [self] channel in
-                    guard allowsClient(channel) else { channel.close(promise: nil); return channel.eventLoop.makeFailedFuture(ChannelError.ioOnClosedChannel) }
-                    return channel.pipeline.addHandler(SocksHandler(server: self))
-                }
-                .bind(host: host, port: settings.port).get()
+            let channel = try await bind(host: host, port: settings.port) { [self] channel in
+                channel.pipeline.addHandler(SocksHandler(server: self))
+            }
             lock.withLock { socksListener = channel }
             return nil
         } catch { return "SOCKS proxy on port \(settings.port): \(error)" }
@@ -176,126 +196,31 @@ public final class ProxyServer: @unchecked Sendable {
     }
 
     private func listen(host: String, port: Int, origin: ReverseOrigin?) async throws -> Channel {
+        try await bind(host: host, port: port) { [self] channel in
+            channel.pipeline.addHandlers(http1Pipeline(origin: origin))
+        }
+    }
+
+    /// Accepts connections on `host:port` from the clients Access Control allows, each set up by `install`.
+    private func bind(
+        host: String,
+        port: Int,
+        install: @escaping @Sendable (Channel) -> EventLoopFuture<Void>
+    ) async throws -> Channel {
         try await ServerBootstrap(group: group)
             .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .childChannelInitializer { [self] channel in
-                guard allowsClient(channel) else { channel.close(promise: nil); return channel.eventLoop.makeFailedFuture(ChannelError.ioOnClosedChannel) }
-                let encoder = HTTPResponseEncoder()
-                let decoder = ByteToMessageHandler(HTTPRequestDecoder(leftOverBytesStrategy: .forwardBytes))
-                let handler = ProxyConnectionHandler(server: self, codecs: [encoder, decoder], origin: origin)
-                return channel.pipeline.addHandlers([encoder, decoder, handler])
+                guard allowsClient(channel) else {
+                    channel.close(promise: nil)
+                    return channel.eventLoop.makeFailedFuture(ChannelError.ioOnClosedChannel)
+                }
+                return install(channel)
             }
             .bind(host: host, port: port).get()
     }
 
     func shouldIntercept(host: String) -> Bool {
         (authority != nil || hasCustomServerCertificate(for: host)) && sslProxying.allows(host)
-    }
-
-    /// What the connection handler should write back.
-    enum ClientResponse {
-        case buffered(ResponseRecord)
-        /// Body is relayed chunk by chunk; `complete` receives the captured prefix and any error when it ends.
-        case streamed(head: ResponseRecord, body: HTTPClientResponse.Body, complete: @Sendable (Data, Error?) -> Void)
-    }
-
-    /// shortcut: only this many bytes of a streamed body are kept in the session list.
-    static let maxCapturedStreamBytes = 1024 * 1024
-
-    /// Records the request, runs the tools, forwards upstream and returns the whole response (used by Compose).
-    public func process(_ original: RequestRecord, timeout: Int = 60) async -> ResponseRecord {
-        guard case let .buffered(response) = await serve(original, allowStreaming: false, upload: nil, timeout: timeout) else { fatalError("streaming was not allowed") }
-        return response
-    }
-
-    func serve(_ original: RequestRecord, allowStreaming: Bool, upload: Upload? = nil, connection: String? = nil, timeout: Int = 60) async -> ClientResponse {
-        var request = original
-        let flow = store.begin(request)
-        if let connection {
-            store.update(flow.id) { $0.clientTLS = connection }
-        }
-        let started = Date()
-
-        let markTools = lock.withLock { markModified }
-        func marked(_ response: ResponseRecord, _ tools: [String]) -> ResponseRecord {
-            guard markTools, !tools.isEmpty else { return response }
-            var copy = response
-            copy.headers.set("X-Watcher-Applied", tools.joined(separator: ", "))
-            return copy
-        }
-
-        func finish(_ response: ResponseRecord, state: Flow.State, tools: [String], error: String? = nil) -> ClientResponse {
-            let response = marked(response, tools)
-            store.update(flow.id) {
-                $0.request = request; $0.response = response; $0.state = state
-                $0.error = error; $0.appliedTools = tools
-                $0.duration = Date().timeIntervalSince(started)
-            }
-            return .buffered(response)
-        }
-
-        let (decision, requestTools) = await tools.applyRequest(&request)
-        switch decision {
-        case let .block(hidden):
-            if hidden {
-                store.discard(flow.id)
-            }
-            return finish(Self.message(403, "Blocked by Watcher"), state: .blocked, tools: requestTools)
-        case let .respond(response):
-            return finish(response, state: .completed, tools: requestTools)
-        case .forward:
-            do {
-                let sentAt = Date()
-                let upstreamResponse = try await send(request, upload: upload, timeout: timeout)
-                let firstByte = Date().timeIntervalSince(sentAt)
-                let version = upstreamResponse.version.major == 2 ? "HTTP/2" : "HTTP/\(upstreamResponse.version.major).\(upstreamResponse.version.minor)"
-                store.update(flow.id) { $0.timeToFirstByte = firstByte; $0.upstreamHTTPVersion = version }
-                var head = ResponseRecord(
-                    status: Int(upstreamResponse.status.code),
-                    headers: upstreamResponse.headers.compactMap { Self.hopByHop.contains($0.name.lowercased()) ? nil : Header($0.name, $0.value) }
-                )
-
-                if allowStreaming, !tools.inspectsResponses, Self.shouldStream(upstreamResponse) {
-                    head = marked(head, requestTools)
-                    store.update(flow.id) { $0.request = request; $0.response = head; $0.appliedTools = requestTools }
-                    return .streamed(head: head, body: upstreamResponse.body) { [store] captured, error in
-                        store.update(flow.id) {
-                            $0.response?.body = captured
-                            $0.state = error == nil ? .completed : .failed
-                            $0.error = error.map { "\($0)" }
-                            $0.duration = Date().timeIntervalSince(started)
-                        }
-                    }
-                }
-
-                var body = try await upstreamResponse.body.collect(upTo: Self.maxBodyBytes)
-                var response = head
-                response.body = Data(body.readBytes(length: body.readableBytes) ?? [])
-                let responseTools = await tools.applyResponse(&response, for: request)
-                return finish(response, state: .completed, tools: requestTools + responseTools)
-            } catch {
-                return finish(
-                    Self.message(502, "Watcher could not reach \(request.host): \(error)"),
-                    state: .failed,
-                    tools: requestTools,
-                    error: "\(error)"
-                )
-            }
-        }
-    }
-
-    private func send(_ request: RequestRecord, upload: Upload?, timeout: Int) async throws -> HTTPClientResponse {
-        var upstreamRequest = HTTPClientRequest(url: request.url)
-        upstreamRequest.method = .init(rawValue: request.method)
-        for header in request.headers where !Self.hopByHop.contains(header.name.lowercased()) {
-            upstreamRequest.headers.add(name: header.name, value: header.value)
-        }
-        if let upload {
-            upstreamRequest.body = .stream(upload.body, length: .known(Int64(upload.length)))
-        } else if !request.body.isEmpty {
-            upstreamRequest.body = .bytes(request.body)
-        }
-        return try await upstream.client(for: request).execute(upstreamRequest, timeout: .seconds(Int64(max(1, timeout))))
     }
 }
 

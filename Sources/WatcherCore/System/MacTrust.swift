@@ -20,23 +20,25 @@ public struct MacTrust: Sendable {
     /// Asks macOS to trust the certificate as a root for SSL; macOS shows its own password prompt.
     public func install(certificate: URL) throws {
         let result = try run("/usr/bin/security", ["add-trusted-cert", "-r", "trustRoot", "-k", keychain, certificate.path])
-        guard result.status == 0 else { throw SimulatorCertificate.Failure(description: "security add-trusted-cert: \(result.output)") }
+        guard result.status == 0 else {
+            throw CommandFailure(description: "security add-trusted-cert: \(result.output)")
+        }
     }
 
     public func remove() throws {
         let result = try run("/usr/bin/security", ["delete-certificate", "-c", Self.certificateName, keychain])
-        guard result.status == 0 else { throw SimulatorCertificate.Failure(description: "security delete-certificate: \(result.output)") }
+        guard result.status == 0 else {
+            throw CommandFailure(description: "security delete-certificate: \(result.output)")
+        }
     }
 
-    public static let process: Runner = { launchPath, arguments in
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: launchPath)
-        process.arguments = arguments
-        let pipe = Pipe()
-        process.standardOutput = pipe; process.standardError = pipe
-        try process.run()
-        let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        process.waitUntilExit()
-        return (process.terminationStatus, output)
+    public static let process: Runner = process(using: LiveCommandRunner.run)
+
+    static func process(using runner: @escaping CommandRunner) -> Runner {
+        { launchPath, arguments in
+            let executable = URL(fileURLWithPath: launchPath)
+            let result = try runner(Command(executable: executable, arguments: arguments, mergesErrorOutput: true))
+            return (result.status, result.text)
+        }
     }
 }

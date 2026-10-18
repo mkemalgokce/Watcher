@@ -12,21 +12,14 @@ extension ProxyServer {
     /// Records the handshake and lets Block/Allow/Map tools decide whether it may proceed.
     func prepareUpgrade(_ original: RequestRecord) async -> UpgradeOutcome {
         var request = original
-        let flow = store.begin(request)
+        let flowID = store.begin(request).id
+        let exchange = FlowExchange(store: store, flowID: flowID, marksTools: marksModifiedTraffic, now: now)
         let (decision, applied) = await tools.applyRequest(&request)
-        switch decision {
-        case .forward:
-            store.update(flow.id) { $0.request = request; $0.appliedTools = applied }
-            return .tunnel(request, flow.id)
-        case let .block(hidden):
-            if hidden {
-                store.discard(flow.id)
-            }
-            return .answer(finishUpgrade(flow.id, status: 403, message: "Blocked by Watcher", state: .blocked))
-        case let .respond(response):
-            store.update(flow.id) { $0.response = response; $0.state = .completed; $0.appliedTools = applied }
-            return .answer(response)
+        if let answer = exchange.answer(decision, to: request, tools: applied) {
+            return .answer(answer)
         }
+        store.update(exchange.flowID) { $0.request = request; $0.appliedTools = applied }
+        return .tunnel(request, exchange.flowID)
     }
 
     /// Opens the upstream connection (TLS for `https`/`wss`) and relays its bytes to `client`; the handshake is sent separately.
