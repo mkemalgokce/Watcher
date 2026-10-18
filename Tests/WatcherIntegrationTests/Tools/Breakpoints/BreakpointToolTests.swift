@@ -4,7 +4,7 @@ import Testing
 import WatcherTestSupport
 
 @Suite(.timeLimit(.minutes(1)), .tags(.integration, .network))
-struct BreakpointTests {
+struct BreakpointToolTests {
     @Test
     func aResponseBreakpointHoldsAnEmptyBody() async throws {
         try await withHarness(configure: {

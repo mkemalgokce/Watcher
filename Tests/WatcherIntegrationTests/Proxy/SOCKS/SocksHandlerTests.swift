@@ -4,7 +4,7 @@ import Testing
 import WatcherTestSupport
 
 @Suite(.timeLimit(.minutes(1)), .tags(.integration, .network))
-struct SocksTests {
+struct SocksHandlerTests {
     @Test
     func plainHTTPThroughSocks5IsRecorded() async throws {
         try await withHarness(configure: { $0.socks = SocksSettings(isEnabled: true, port: 0) }) { harness in

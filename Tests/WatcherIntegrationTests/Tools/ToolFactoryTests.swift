@@ -5,7 +5,7 @@ import WatcherTestSupport
 
 /// Each tool applied to real traffic through the proxy.
 @Suite(.timeLimit(.minutes(1)), .tags(.integration, .network), .serialized)
-struct ProxyToolsTests {
+struct ToolFactoryTests {
     private let directory: TemporaryDirectory
 
     init() throws {

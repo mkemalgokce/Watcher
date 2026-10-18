@@ -4,7 +4,7 @@ import Testing
 import WatcherTestSupport
 
 @Suite(.timeLimit(.minutes(1)), .tags(.integration, .network))
-struct WebSocketTests {
+struct WebSocketTunnelTests {
     @Test
     func upgradeIsRecordedAndBytesAreRelayedBothWays() async throws {
         let origin = UpgradeOrigin()

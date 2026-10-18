@@ -4,7 +4,7 @@ import Testing
 import WatcherTestSupport
 
 @Suite(.tags(.unit))
-struct RuleFolderTests {
+struct RuleSetTests {
     @Test
     func foldersGroupRulesAndSwitchThemTogether() {
         var set = RuleSet<BlockRule>(isEnabled: true, rules: [
