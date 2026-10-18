@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import WatcherCore
 
@@ -45,7 +46,7 @@ final class BreakpointsViewModel {
         let doomed = rules(matching: hit.request)
         guard !doomed.isEmpty else { return proceed(hit) }
         settings.breakpoints.rules.removeAll { rule in
-            doomed.contains { $0.matching == rule.matching && $0.name == rule.name }
+            rule.isEnabled && doomed.contains { $0.matching == rule.matching && $0.name == rule.name }
         }
         // Whatever no remaining rule would stop is let through, so removing a breakpoint never leaves requests hanging.
         for paused in hits where rules(matching: paused.request).isEmpty {
@@ -55,6 +56,20 @@ final class BreakpointsViewModel {
             ? "Breakpoint “\(doomed[0].displayName)” removed"
             : "\(doomed.count) breakpoints removed"
         notices.notify(removed, .success)
+    }
+
+    /// The row to show: the current one while it is still paused, else the first.
+    static func selection(keeping current: UUID?, among ids: [UUID]) -> UUID? {
+        current.flatMap { ids.contains($0) ? $0 : nil } ?? ids.first
+    }
+
+    /// How long a request has been held; after this many seconds the client is likely to give up.
+    static let lateAfterSeconds = 20
+
+    static func wait(of hit: BreakpointCenter.Hit, at date: Date) -> (text: String, isLate: Bool) {
+        let seconds = max(0, Int(date.timeIntervalSince(hit.pausedAt)))
+        guard seconds >= lateAfterSeconds else { return ("Paused for \(seconds) s", false) }
+        return ("Paused for \(seconds) s. The client may give up soon; continue or abort.", true)
     }
 
     /// Bounds-checked: a row drawn just before a delete must not write to an index that is gone.
