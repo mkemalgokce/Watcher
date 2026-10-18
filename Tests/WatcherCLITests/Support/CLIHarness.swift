@@ -71,4 +71,28 @@ final class CLIHarness {
     func supportFile(_ name: String) -> String {
         "\(Self.supportDirectory)/\(name)"
     }
+
+    /// A harness whose programs are `networksetup` on a Mac with only Wi-Fi, its proxies off.
+    static func answeringNetworkSetup() -> CLIHarness {
+        let networkSetup = NetworkSetupSpy()
+        return CLIHarness(commands: CommandRunnerSpy(respond: { command in
+            CommandResult(status: 0, output: Data(networkSetup.run(command.arguments).utf8))
+        }))
+    }
+
+    /// What a session that crashed with `--system-proxy` leaves behind: the backup of the user's own proxy,
+    /// 10.0.0.1:3128 on Wi-Fi.
+    func leaveSystemProxyBackup() {
+        let original = #"{"enabled":true,"server":"10.0.0.1","port":3128}"#
+        let backup = #"{"Wi-Fi":{"web":\#(original),"secure":\#(original)}}"#
+        files.write(Data(backup.utf8), to: supportFile("system-proxy-backup.json"))
+    }
+
+    /// The `networksetup` calls that put back the proxy `leaveSystemProxyBackup` saved.
+    static let restoredBackupCalls = [
+        "networksetup -setwebproxy Wi-Fi 10.0.0.1 3128",
+        "networksetup -setwebproxystate Wi-Fi on",
+        "networksetup -setsecurewebproxy Wi-Fi 10.0.0.1 3128",
+        "networksetup -setsecurewebproxystate Wi-Fi on",
+    ]
 }

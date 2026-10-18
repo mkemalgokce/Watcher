@@ -16,7 +16,7 @@ struct SystemProxyCommandTests {
 
     @Test
     func onWithoutAPortPointsAtTheStoredOne() throws {
-        let cli = Self.harness()
+        let cli = CLIHarness.answeringNetworkSetup()
         try cli.environment.settings.update { $0.port = 7777 }
         try SystemProxyCommand.parse(["on"]).run(in: cli.environment)
         #expect(cli.commands.calls.suffix(2) == [
@@ -32,7 +32,7 @@ struct SystemProxyCommandTests {
 
     @Test
     func onSavesTheUsersProxyThenPointsEveryServiceAtWatcher() throws {
-        let cli = Self.harness()
+        let cli = CLIHarness.answeringNetworkSetup()
         try SystemProxyCommand.parse(["on", "--port", "8888"]).run(in: cli.environment)
         #expect(cli.commands.calls == [
             "networksetup -listallnetworkservices",
@@ -47,7 +47,7 @@ struct SystemProxyCommandTests {
 
     @Test
     func offPutsTheSavedProxyBackAndForgetsIt() throws {
-        let cli = Self.harness()
+        let cli = CLIHarness.answeringNetworkSetup()
         try SystemProxyCommand.parse(["on"]).run(in: cli.environment)
         try SystemProxyCommand.parse(["off"]).run(in: cli.environment)
         #expect(cli.commands.calls.suffix(3) == [
@@ -68,13 +68,5 @@ struct SystemProxyCommandTests {
             try command.run(in: cli.environment)
         }
         #expect(cli.printed.isEmpty)
-    }
-
-    private static func harness() -> CLIHarness {
-        let networkSetup = NetworkSetupSpy()
-        let commands = CommandRunnerSpy(respond: { command in
-            CommandResult(status: 0, output: Data(networkSetup.run(command.arguments).utf8))
-        })
-        return CLIHarness(commands: commands)
     }
 }

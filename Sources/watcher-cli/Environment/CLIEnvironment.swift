@@ -61,6 +61,13 @@ struct CLIEnvironment {
         return try await (engine, engine.start(port: port))
     }
 
+    /// Puts back the system proxy a crashed `--system-proxy` session left pointing at Watcher, telling `report`.
+    func restoreLeftoverSystemProxy(report: (String) -> Void) {
+        let proxy = systemProxy
+        guard proxy.hasPendingRestore, (try? proxy.disable()) != nil else { return }
+        report("Put back the system proxy a previous session left pointing at Watcher")
+    }
+
     /// A path the user typed; `~` is their home folder.
     func url(forPath path: String) -> URL {
         if path == "~" {

@@ -39,6 +39,21 @@ struct McpCommandTests {
     }
 
     @Test
+    func aSystemProxyBackupLeftByACrashedRunIsRestoredAndReportedOnStandardError() async throws {
+        let cli = CLIHarness.answeringNetworkSetup()
+        cli.leaveSystemProxyBackup()
+
+        try await Mcp.parse([]).run(in: cli.environment)
+
+        #expect(cli.commands.calls.suffix(4) == CLIHarness.restoredBackupCalls)
+        #expect(!cli.files.paths.contains(cli.supportFile("system-proxy-backup.json")))
+        #expect(cli.printed.isEmpty)
+        #expect(cli.printedToErrorOutput.contains(
+            "[watcher] Put back the system proxy a previous session left pointing at Watcher"
+        ))
+    }
+
+    @Test
     func failingToStartAnswersNothing() async throws {
         let cli = CLIHarness(input: ["one"], engine: { EngineFake(settings: $0, failsToStart: true) })
         let command = try Mcp.parse([])

@@ -30,25 +30,38 @@ extension StartCommandTests {
         /// it, not the one that crashed run pointed at Watcher.
         @Test
         func aBackupLeftByACrashedRunIsWhatTheSessionRestores() async throws {
-            let networkSetup = NetworkSetupSpy()
-            let commands = CommandRunnerSpy(respond: { command in
-                CommandResult(status: 0, output: Data(networkSetup.run(command.arguments).utf8))
-            })
-            let cli = CLIHarness(commands: commands)
-            let original = #"{"enabled":true,"server":"10.0.0.1","port":3128}"#
-            let backup = #"{"Wi-Fi":{"web":\#(original),"secure":\#(original)}}"#
-            cli.files.write(Data(backup.utf8), to: cli.supportFile("system-proxy-backup.json"))
+            let cli = CLIHarness.answeringNetworkSetup()
+            cli.leaveSystemProxyBackup()
 
             try await StartCommandTests.run(["--system-proxy"], in: cli)
 
             #expect(!cli.commands.calls.contains { $0.contains("-getwebproxy") })
-            #expect(cli.commands.calls.suffix(4) == [
-                "networksetup -setwebproxy Wi-Fi 10.0.0.1 3128",
-                "networksetup -setwebproxystate Wi-Fi on",
-                "networksetup -setsecurewebproxy Wi-Fi 10.0.0.1 3128",
-                "networksetup -setsecurewebproxystate Wi-Fi on",
-            ])
+            #expect(cli.commands.calls.suffix(4) == CLIHarness.restoredBackupCalls)
             #expect(!cli.files.paths.contains(cli.supportFile("system-proxy-backup.json")))
+        }
+
+        @Test
+        func withoutTheFlagABackupLeftByACrashedRunIsRestoredAtTheStart() async throws {
+            let cli = CLIHarness.answeringNetworkSetup()
+            cli.leaveSystemProxyBackup()
+
+            try await StartCommandTests.run([], in: cli)
+
+            #expect(cli.commands.calls.suffix(4) == CLIHarness.restoredBackupCalls)
+            #expect(!cli.files.paths.contains(cli.supportFile("system-proxy-backup.json")))
+            #expect(cli.printed.contains("Put back the system proxy a previous session left pointing at Watcher"))
+        }
+
+        @Test
+        func aLeftoverSystemProxyThatCannotBePutBackIsNotReportedAsRestored() async throws {
+            let failing = CommandRunnerSpy(result: CommandResult(status: 14, output: Data("not allowed".utf8)))
+            let cli = CLIHarness(commands: failing)
+            cli.leaveSystemProxyBackup()
+
+            try await StartCommandTests.run([], in: cli)
+
+            #expect(!cli.printed.contains { $0.hasPrefix("Put back") })
+            #expect(cli.engine.calls == ["start any", "stop"])
         }
 
         @Test

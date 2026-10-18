@@ -23,6 +23,9 @@ struct Start: AsyncParsableCommand {
             output("[log] \($0)")
         }
         output("Watcher listening on 127.0.0.1:\(bound)")
+        if !systemProxy {
+            environment.restoreLeftoverSystemProxy(report: output)
+        }
         if engine.settings.value.listenOnAllInterfaces {
             for address in environment.lanAddresses() {
                 output("  reachable from devices at \(address.ip):\(bound)  (\(address.interface))")

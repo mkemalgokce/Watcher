@@ -18,6 +18,7 @@ struct Mcp: AsyncParsableCommand {
         let log = environment.errorOutput
         let (engine, bound) = try await environment.startEngine(port: port) { log("[watcher] \($0)") }
         log("[watcher] MCP server ready; proxy on 127.0.0.1:\(bound)")
+        environment.restoreLeftoverSystemProxy { log("[watcher] \($0)") }
 
         let answer = engine.mcpHandler()
         while let line = environment.readLine() {
