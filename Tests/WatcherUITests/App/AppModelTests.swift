@@ -30,6 +30,30 @@ struct AppModelTests {
     }
 
     @Test
+    func aStartupProblemStaysOnTheModelAfterLaterNotices() throws {
+        let problem = StartupProblem(message: "Cannot open the data in /x.", folder: URL(fileURLWithPath: "/x"))
+        var dependencies = try AppDependencies.test()
+        dependencies.startupProblem = problem
+        let model = AppModel(dependencies: dependencies)
+        model.notices.notify("Recording on 127.0.0.1:9090", .success)
+        #expect(model.startupProblem == problem)
+    }
+
+    @Test
+    func showingTheStartupFolderRevealsTheFolderThatFailed() throws {
+        let workspace = WorkspaceOpenerSpy()
+        var dependencies = try AppDependencies.test(workspace: workspace)
+        dependencies.startupProblem = StartupProblem(message: "nope", folder: URL(fileURLWithPath: "/x"))
+        AppModel(dependencies: dependencies).showStartupFolder()
+        #expect(workspace.revealed == [[URL(fileURLWithPath: "/x")]])
+    }
+
+    @Test
+    func noNoticeIsShownAtLaunchWhenNothingWentWrong() throws {
+        #expect(try AppModel.test().notices.notice == nil)
+    }
+
+    @Test
     func theProxyDoesNotStartUntilRecordIsPressed() throws {
         let runner = ProxyRunnerStub()
         let model = try AppModel(dependencies: .test(runner: runner))

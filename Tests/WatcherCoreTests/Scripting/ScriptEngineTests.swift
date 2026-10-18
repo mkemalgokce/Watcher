@@ -55,6 +55,10 @@ struct ScriptEngineTests {
         await #expect(throws: ScriptError(description: "spin did not finish within 2.0 seconds")) {
             try await engine.call("spin", argumentsJSON: "[]")
         }
+        let stopped = await eventually(timeout: 30) {
+            logged.value.contains("script error: JavaScript execution terminated.")
+        }
+        #expect(stopped)
         #expect(try await engine.call("f", argumentsJSON: "[]") == "1")
     }
 

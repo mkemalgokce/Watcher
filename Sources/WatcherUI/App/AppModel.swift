@@ -33,6 +33,8 @@ public final class AppModel {
     private let sleep: Sleep
     let appInfo: AppInfo
     let supportDirectory: URL
+    /// Set when the engine could not open the user's data folder; the window shows it until the app is relaunched.
+    let startupProblem: StartupProblem?
     private let files: FileAccess
     private let homeDirectory: URL
     /// Set once the first-run setup has been completed or skipped.
@@ -54,7 +56,7 @@ public final class AppModel {
         now = dependencies.now
         sleep = dependencies.sleep; files = dependencies.files; homeDirectory = dependencies.homeDirectory
         appInfo = dependencies.appInfo; supportDirectory = dependencies.paths.directory
-        preferences = dependencies.preferences
+        preferences = dependencies.preferences; startupProblem = dependencies.startupProblem
         onboardingDone = dependencies.preferences.onboardingDone
         viewer = ViewerOptions(preferences: dependencies.preferences)
         filePicker = FilePicker(panels: dependencies.panels, files: dependencies.files)
@@ -95,6 +97,11 @@ public final class AppModel {
         settings.onChange = { [list] _, new in list.hidesAppleTraffic = new.hideAppleTraffic }
         proxy.restoreLeftoverSystemProxy()
         dependencies.onTerminate { [proxy] in proxy.applicationWillTerminate() }
+    }
+
+    func showStartupFolder() {
+        guard let startupProblem else { return }
+        externalApps.reveal(startupProblem.folder)
     }
 
     /// Follows the store and paused breakpoints; separate from init so tests can watch a model that has no system side effects.

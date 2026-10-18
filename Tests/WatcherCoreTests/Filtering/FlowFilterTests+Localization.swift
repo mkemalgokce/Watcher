@@ -53,22 +53,15 @@ extension FlowFilterTests {
         }
 
         @Test(.tags(.timing))
-        func largeBodySearchStaysCloseToLocalizedSearch() {
+        func largeBodySearchFinishesInBoundedCPUTime() {
             let body = String(repeating: "{\"name\":\"value\",\"count\":12345}\n", count: 30000)
             let flows = (0 ..< 5).map { _ in flow(body: Data(body.utf8)) }
             let missing = filter("needle-not-there", .body, locale: "tr_TR")
-            func time(_ work: () -> Void) -> TimeInterval {
-                let start = Date()
-                work()
-                return Date().timeIntervalSince(start)
-            }
-            let localized = time {
-                for _ in flows {
-                    _ = body.localizedCaseInsensitiveContains("needle-not-there")
-                }
-            }
-            let filtered = time { #expect(missing.apply(to: flows).isEmpty) }
-            #expect(filtered / localized < 40)
+            // Thread CPU time is fair here only because FlowFilter.apply runs on the calling thread.
+            var matches: [Flow] = []
+            let elapsed = cpuTime { matches = missing.apply(to: flows) }
+            #expect(matches.isEmpty)
+            #expect(elapsed < .seconds(20))
         }
     }
 }

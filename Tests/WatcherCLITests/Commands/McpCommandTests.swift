@@ -62,9 +62,11 @@ struct McpCommandTests {
     func failingToStartAnswersNothing() async throws {
         let cli = CLIHarness(input: ["one"], engine: { EngineFake(settings: $0, failsToStart: true) })
         let command = try Mcp.parse([])
-        await #expect(throws: EngineFake.Failure()) { try await command.run(in: cli.environment) }
+        await #expect(throws: ExitCode.failure) { try await command.run(in: cli.environment) }
         #expect(cli.printed.isEmpty)
-        #expect(cli.printedToErrorOutput.isEmpty)
+        #expect(cli.printedToErrorOutput == [
+            "Cannot start the proxy: Failure(). Another program may be using the port; try --port.",
+        ])
         #expect(cli.commands.commands.isEmpty)
     }
 }
