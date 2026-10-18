@@ -12,16 +12,26 @@ struct HTMLPreview: NSViewRepresentable {
         configuration.websiteDataStore = .nonPersistent()
         let view = WKWebView(frame: .zero, configuration: configuration)
         view.setAccessibilityLabel("Rendered HTML")
+        OfflineHTML.load(
+            html,
+            blockNetwork: { done in Self.blockNetwork(in: view, done) },
+            show: { view.loadHTMLString($0, baseURL: nil) }
+        )
+        return view
+    }
+
+    private static func blockNetwork(in view: WKWebView, _ done: @escaping @MainActor (Bool) -> Void) {
         WKContentRuleListStore.default().compileContentRuleList(
             forIdentifier: "watcher.block-all",
             encodedContentRuleList: #"[{"trigger":{"url-filter":".*"},"action":{"type":"block"}}]"#
         ) { list, _ in
-            if let list {
-                view.configuration.userContentController.add(list)
+            MainActor.assumeIsolated {
+                if let list {
+                    view.configuration.userContentController.add(list)
+                }
+                done(list != nil)
             }
-            view.loadHTMLString(html, baseURL: nil)
         }
-        return view
     }
 
     func updateNSView(_: WKWebView, context _: Context) {}

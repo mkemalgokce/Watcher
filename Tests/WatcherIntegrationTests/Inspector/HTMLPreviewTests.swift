@@ -26,7 +26,7 @@ struct HTMLPreviewTests {
     s.serve_forever()
     """
 
-    /// The page renders, its own script does not run, and its image is never fetched (a local server sees no request).
+    /// The page renders, its own script does not run, and its image and stylesheet are never fetched (a local server sees no request).
     @Test
     func htmlIsRenderedOfflineWithoutScripts() async throws {
         let directory = try TemporaryDirectory(prefix: "watcher-pixel")
@@ -34,6 +34,7 @@ struct HTMLPreviewTests {
 
         let html = """
         <html><head><title>Account</title></head><body><h1>Welcome back</h1>
+        <link rel="stylesheet" href="http://127.0.0.1:\(server.port)/style.css">
         <img src="http://127.0.0.1:\(server.port)/pixel.png"><script>document.body.innerHTML = 'SCRIPT RAN'</script>
         </body></html>
         """
