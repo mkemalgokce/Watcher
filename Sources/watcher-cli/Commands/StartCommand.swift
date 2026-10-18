@@ -28,14 +28,15 @@ struct Start: AsyncParsableCommand {
                 output("  reachable from devices at \(address.ip):\(bound)  (\(address.interface))")
             }
         }
-        if systemProxy {
-            try environment.systemProxy.enable(port: bound)
-        }
-
         let tasks = [
             Self.continueBreakpoints(of: engine, output: output), Self.printFinishedFlows(of: engine, output: output),
         ]
-        for await _ in environment.shutdownSignal() {
+        // Caught before the system proxy is pointed at Watcher, so a stop from then on still puts it back.
+        let stopRequests = environment.shutdownSignal()
+        if systemProxy {
+            try environment.systemProxy.enable(port: bound)
+        }
+        for await _ in stopRequests {
             break
         }
         tasks.forEach { $0.cancel() }

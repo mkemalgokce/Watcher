@@ -11,7 +11,7 @@ final class CLIHarness {
     let files: FileAccessFake
     let commands: CommandRunnerSpy
     let engine: EngineFake
-    let shutdown = ShutdownTrigger()
+    let shutdown: ShutdownTrigger
     private let lines = LockedBox<[String]>([])
     private let errorLines = LockedBox<[String]>([])
     private let input: LockedBox<[String]>
@@ -22,9 +22,10 @@ final class CLIHarness {
         commands: CommandRunnerSpy = CommandRunnerSpy(),
         lanAddresses: [LocalNetwork.Address] = [],
         input: [String] = [],
+        shutdown: ShutdownTrigger = ShutdownTrigger(),
         engine: ((SettingsStore) -> EngineFake)? = nil
     ) {
-        self.files = files; self.commands = commands; self.lanAddresses = lanAddresses
+        self.files = files; self.commands = commands; self.lanAddresses = lanAddresses; self.shutdown = shutdown
         self.input = LockedBox(input)
         let settings = SettingsStore(
             url: WatcherPaths.settingsFile(in: URL(fileURLWithPath: Self.supportDirectory)),

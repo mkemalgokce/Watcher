@@ -52,6 +52,25 @@ extension StartCommandTests {
         }
 
         @Test
+        func aStopRequestedWhileTheSystemProxyIsBeingSetStillPutsItBack() async throws {
+            let shutdown = ShutdownTrigger()
+            let networkSetup = NetworkSetupSpy()
+            let commands = CommandRunnerSpy(respond: { command in
+                if command.arguments[0] == "-setwebproxy" {
+                    shutdown.fire()
+                }
+                return CommandResult(status: 0, output: Data(networkSetup.run(command.arguments).utf8))
+            })
+            let cli = CLIHarness(commands: commands, shutdown: shutdown)
+
+            try await Start.parse(["--system-proxy"]).run(in: cli.environment)
+
+            #expect(cli.commands.calls.last == "networksetup -setsecurewebproxystate Wi-Fi off")
+            #expect(!cli.files.paths.contains(cli.supportFile("system-proxy-backup.json")))
+            #expect(cli.engine.calls == ["start any", "stop"])
+        }
+
+        @Test
         func withoutTheFlagTheSystemProxyIsLeftAlone() async throws {
             let cli = CLIHarness()
             try await StartCommandTests.run([], in: cli)
