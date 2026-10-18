@@ -62,10 +62,12 @@ struct InspectorMetaTests {
         let items = InspectorMeta(flow).items
         #expect(items.contains(.init(symbol: "network", text: "h2", help: "Protocol used with the server")))
         #expect(items.contains(.init(symbol: "lock.fill", text: "TLS 1.3", help: "TLS between the app and Watcher")))
-        #expect(items.last == .init(symbol: "text.bubble", text: "check this", help: "Your comment"))
+        let comment = InspectorMeta(flow).comment
+        #expect(comment == .init(symbol: "text.bubble", text: "check this", help: "Your comment"))
+        #expect(!items.contains { $0.symbol == "text.bubble" }, "the comment follows the app")
         #expect(!symbols(.fixture()).contains("network"))
         #expect(!symbols(.fixture()).contains("lock.fill"))
-        #expect(!symbols(.fixture()).contains("text.bubble"))
+        #expect(InspectorMeta(.fixture()).comment == nil)
     }
 
     @Test

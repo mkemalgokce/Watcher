@@ -139,13 +139,17 @@ private struct InspectorHeader: View {
 
     /// Sizes, time and where it came from. Wraps onto a second line in a narrow inspector instead of cutting facts off.
     private var meta: some View {
-        WrappingHStack(spacing: 12, lineSpacing: 6) {
-            ForEach(InspectorMeta(flow).items, id: \.symbol) { item in
+        let meta = InspectorMeta(flow)
+        return WrappingHStack(spacing: 12, lineSpacing: 6) {
+            ForEach(meta.items, id: \.symbol) { item in
                 MetaItem(symbol: item.symbol, text: item.text, help: item.help)
             }
             if let app = flow.request.clientApp {
                 HStack(spacing: 4) { AppIconView(process: app, size: 13); Text(IconStore.appName(forProcess: app)).lineLimit(1) }
                     .font(.caption).foregroundStyle(.secondary).help("Sent by \(app)")
+            }
+            if let comment = meta.comment {
+                MetaItem(symbol: comment.symbol, text: comment.text, help: comment.help)
             }
         }
     }

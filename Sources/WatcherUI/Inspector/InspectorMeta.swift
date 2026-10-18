@@ -1,7 +1,8 @@
 import Foundation
 import WatcherCore
 
-/// The facts under the inspector header, in the order they are shown: timing, sizes, protocol, TLS, start and comment.
+/// The facts under the inspector header, in the order they are shown: timing, sizes, protocol, TLS, start. The comment comes after them
+/// (and after the client app, which the view adds).
 struct InspectorMeta {
     struct Item: Equatable {
         let symbol: String
@@ -10,6 +11,7 @@ struct InspectorMeta {
     }
 
     let items: [Item]
+    let comment: Item?
 
     init(_ flow: Flow) {
         var items = Self.timing(of: flow)
@@ -32,9 +34,7 @@ struct InspectorMeta {
             text: flow.startedAt.formatted(date: .omitted, time: .standard),
             help: "Started \(flow.startedAt.formatted(date: .abbreviated, time: .standard))"
         ))
-        if let comment = flow.comment {
-            items.append(Item(symbol: "text.bubble", text: comment, help: "Your comment"))
-        }
+        comment = flow.comment.map { Item(symbol: "text.bubble", text: $0, help: "Your comment") }
         self.items = items
     }
 
