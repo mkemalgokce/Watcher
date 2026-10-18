@@ -24,7 +24,7 @@ code owner (@mkemalgokce, see `.github/CODEOWNERS`) before it can be merged.
 | `make lint-baseline` | Rewrites the baseline; only to drop violations that were fixed, never to accept new ones |
 | `make lint-analyze` / `make lint-analyze-baseline` | SwiftLint's unused-code analyzer (a full build, a few minutes; CI runs it nightly) against `.swiftlint-analyze-baseline.json` / rewrites that baseline |
 | `make test` | Every test target but `WatcherInteractionTests`, which drive the process's windows and so run alone |
-| `make test-unit` / `make test-integration` / `make test-smoke` | `WatcherCoreTests` + `WatcherUITests` / `WatcherIntegrationTests` / its `SmokeTests` |
+| `make test-unit` / `make test-integration` / `make test-smoke` | `WatcherCoreTests` + `WatcherUITests` + `WatcherCLITests` / `WatcherIntegrationTests` / its `SmokeTests` |
 | `make test-e2e` / `make test-snapshot` / `make test-interaction` | `WatcherE2ETests` / `WatcherSnapshotTests` / `WatcherInteractionTests` (skipped without the Accessibility permission) |
 | `make snapshots-record` | Rewrites the snapshot references for this macOS |
 | `make coverage` | Unit and integration tests with coverage, gated by `scripts/coverage-thresholds.txt`; CI runs it with `test-snapshot` and `test-e2e` |
@@ -79,7 +79,7 @@ large for one file keeps one top-level suite and splits it into `<Subject>Tests+
 
 | Target | Holds |
 |---|---|
-| `WatcherCoreTests`, `WatcherUITests` | Unit tests: logic and view models, no network or external tools |
+| `WatcherCoreTests`, `WatcherUITests`, `WatcherCLITests` | Unit tests: logic, view models and CLI commands, no network or external tools |
 | `WatcherIntegrationTests` | A real proxy on loopback, local origins, external tools, WebKit; `SmokeTests` is the fast subset |
 | `WatcherE2ETests` | The built `watcher-cli` run as a process with its own `WATCHER_HOME` |
 | `WatcherSnapshotTests` | Text and image snapshots (swift-snapshot-testing) |

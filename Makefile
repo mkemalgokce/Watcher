@@ -3,7 +3,7 @@ SWIFTLINT := .tools/swiftlint
 BASELINE := .swiftlint-baseline.json
 ANALYZE_BASELINE := .swiftlint-analyze-baseline.json
 ANALYZE_PATH := .build/analyze
-UNIT_TESTS := WatcherCoreTests|WatcherUITests
+UNIT_TESTS := WatcherCoreTests|WatcherUITests|WatcherCLITests
 # Interaction tests need the Accessibility permission CI lacks, snapshots are gated per macOS and E2E runs a child
 # process coverage cannot see; the gate measures unit and integration tests only.
 OUTSIDE_COVERAGE := WatcherInteractionTests|WatcherSnapshotTests|WatcherE2ETests
