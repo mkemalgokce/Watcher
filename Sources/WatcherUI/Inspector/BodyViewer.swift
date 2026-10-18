@@ -13,8 +13,7 @@ enum BodyMode: String, CaseIterable {
 struct BodyViewer: View {
     @Environment(AppModel.self) private var model
     @Environment(RequestActions.self) private var actions
-    @Environment(NoticeCenter.self) private var notices
-    @Environment(\.filePanels) private var filePanels
+    @Environment(SessionFilesViewModel.self) private var sessionFiles
     let flow: Flow
     let side: MessageSide
     @AppStorage("body.mode") private var mode = BodyMode.preview.rawValue
@@ -288,10 +287,6 @@ struct BodyViewer: View {
     }
 
     private func save() {
-        guard let url = filePanels.chooseSaveLocation(suggestedName: fileName, contentTypes: []) else { return }
-        do {
-            try decoded.write(to: url)
-            notices.notify("Saved \(url.lastPathComponent)", .success)
-        } catch { notices.notify("Cannot save \(url.lastPathComponent): \(error)", .error) }
+        sessionFiles.saveData(decoded, suggestedName: fileName)
     }
 }
