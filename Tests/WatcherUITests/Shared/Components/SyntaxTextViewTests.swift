@@ -30,12 +30,13 @@ struct SyntaxTextViewTests {
         #expect(colour(view, at: 0) == nil) // {
     }
 
-    /// 30+ MB of JSON: the window stays usable, the first screen gets coloured once parsing ends, and so does a screen
+    /// JSON far past the whole-document limit: the window stays usable, the first screen gets coloured once parsing ends, and so does a screen
     /// scrolled to the middle of the document.
     @Test
     func largeJSONIsColouredOnScreenAndAfterScrolling() async throws {
         let item = #"{"id":12345,"name":"Ada Lovelace","tags":["a","b",null,true],"score":-1.5e3},"#
-        let text = "[" + String(repeating: item, count: 400_000) + #"{"end":1}]"# // ~31 MB
+        // ~400 KB is enough to take the visible-range path; 30 MB held the main actor long enough to fail other suites
+        let text = "[" + String(repeating: item, count: 5000) + #"{"end":1}]"#
         let pretty = JSONFormatter.pretty(text)
         let (window, view) = try host(pretty, language: .json)
         defer { window.close() }
