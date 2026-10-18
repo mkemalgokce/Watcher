@@ -5,7 +5,7 @@ import WatcherTestSupport
 
 extension InteractionTests {
     @MainActor
-    struct ToolsTests {
+    struct ToolsViewTests {
         @Test
         func toolsAddsARuleAndSwitchesTheToolOn() async throws {
             let model = try AppModel.test()

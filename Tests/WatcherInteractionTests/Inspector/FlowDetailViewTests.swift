@@ -7,7 +7,7 @@ import WatcherTestSupport
 
 extension InteractionTests {
     @MainActor
-    struct InspectorTests {
+    struct FlowDetailViewTests {
         @Test
         func headerButtonsStarCopyAndRepeatTheRequest() async throws {
             let model = try AppModel.demo()

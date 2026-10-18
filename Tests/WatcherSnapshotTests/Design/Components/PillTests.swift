@@ -6,7 +6,7 @@ import WatcherTestSupport
 @MainActor
 @Suite(
     .tags(.snapshot, .ui),
-    .enabled(if: ImageSnapshot.canRunOnThisOS, "no references for this macOS and recording is off")
+    .enabled(if: ImageSnapshot.canRun(), "no references for this macOS and recording is off")
 )
 struct PillTests {
     @Test
