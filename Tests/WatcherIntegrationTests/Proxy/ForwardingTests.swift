@@ -36,6 +36,24 @@ struct ForwardingTests {
     }
 
     @Test
+    func pipelinedRequestsAreAnsweredInTheOrderTheyWereSent() async throws {
+        try await withHarness { harness in
+            let port = harness.upstream.port
+            func request(_ path: String) -> String {
+                "GET http://127.0.0.1:\(port)\(path) HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\n\r\n"
+            }
+            let client = RawClient()
+            try await client.connect(port: harness.proxyPort)
+            try await client.send(request("/slow") + request("/fast"))
+            let reply = await client.received(containing: "GET /fast")
+            await client.close()
+            let slow = try #require(reply.range(of: "GET /slow"), "\(reply)")
+            let fast = try #require(reply.range(of: "GET /fast"), "\(reply)")
+            #expect(slow.lowerBound < fast.lowerBound)
+        }
+    }
+
+    @Test
     func aLargeUploadIsStreamedNotBuffered() async throws {
         try await withHarness { harness in
             let size = 9 * 1024 * 1024

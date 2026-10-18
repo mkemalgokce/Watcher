@@ -26,6 +26,8 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
     private let clientApp: ClientAppResolver
     private let details: ConnectionDetails
     private let writer: ResponseWriter
+    /// The request being answered; HTTP/1.1 answers go out in request order, so the next one waits for it.
+    private var inFlight: Task<Void, Never>?
 
     init(
         server: ProxyServer,
@@ -182,7 +184,9 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
         head: HTTPRequestHead
     ) {
         let server = server
-        Task {
+        let previous = inFlight
+        inFlight = Task {
+            await previous?.value
             var record = record
             record.clientApp = await self.clientApp.app(for: channel)
             switch await server.serve(record, allowStreaming: true, upload: upload, connection: self.details.summary) {
