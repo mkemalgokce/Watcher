@@ -71,10 +71,13 @@ struct TLSBehaviourTests {
     @Test
     func aRejectedHandshakeIsIgnoredWhenAutoIgnoreIsOff() async throws {
         try await withHarness { harness in
+            let logged = LockedBox<[String]>([])
+            harness.engine.onLog = { line in logged.mutate { $0.append(line) } }
             _ = try runPython(
                 pythonTLSViaProxy(port: harness.proxyPort, host: "pinned.test", verify: true) + "\nprint(1)"
             )
-            try await Task.sleep(for: .milliseconds(500))
+            let abandoned = await eventually { logged.value.contains("pinned.test abandoned the TLS handshake") }
+            #expect(abandoned, "\(logged.value)")
             #expect(harness.engine.settings.value.sslProxying.exclude.isEmpty)
         }
     }

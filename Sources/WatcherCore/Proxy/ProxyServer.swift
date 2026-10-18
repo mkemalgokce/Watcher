@@ -41,8 +41,20 @@ public final class ProxyServer: @unchecked Sendable {
     private var keyLogPath = ""
     private var autoIgnorePinning = false
     private var reportedPinnedHosts: Set<String> = []
+    private var pinningSuspected: (@Sendable (String) -> Void)?
+    private var handshakeAbandoned: (@Sendable (String) -> Void)?
+
     /// Called (once per host) when a client abandons the TLS handshake with Watcher's certificate, which usually means pinning.
-    var onPinningSuspected: (@Sendable (String) -> Void)?
+    var onPinningSuspected: (@Sendable (String) -> Void)? {
+        get { lock.withLock { pinningSuspected } }
+        set { lock.withLock { pinningSuspected = newValue } }
+    }
+
+    /// Called on every abandoned handshake, whether or not pinning is being auto-ignored.
+    var onHandshakeAbandoned: (@Sendable (String) -> Void)? {
+        get { lock.withLock { handshakeAbandoned } }
+        set { lock.withLock { handshakeAbandoned = newValue } }
+    }
 
     /// Largest body buffered whole, for the tools that must read it; bigger ones are streamed.
     static let maxBodyBytes = 64 * 1024 * 1024
@@ -109,9 +121,12 @@ public final class ProxyServer: @unchecked Sendable {
 
     /// A client closed or failed the handshake on a decrypted connection; with auto-ignore on, the host stops being decrypted.
     func handshakeFailed(host: String) {
-        let report: Bool = lock.withLock { autoIgnorePinning && reportedPinnedHosts.insert(host).inserted }
+        let (report, suspected, abandoned) = lock.withLock {
+            (autoIgnorePinning && reportedPinnedHosts.insert(host).inserted, pinningSuspected, handshakeAbandoned)
+        }
+        abandoned?(host)
         if report {
-            onPinningSuspected?(host)
+            suspected?(host)
         }
     }
 

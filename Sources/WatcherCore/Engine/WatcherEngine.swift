@@ -72,6 +72,19 @@ public final class WatcherEngine: @unchecked Sendable {
         let current = settings.value
         let host = Self.listenHost(for: current)
         let wanted = port ?? current.port
+        server.onPinningSuspected = { [weak self] host in
+            Task {
+                try? await self?.updateSettings {
+                    if !$0.sslProxying.exclude.contains(host) {
+                        $0.sslProxying.exclude.append(host)
+                    }
+                }
+                self?.onLog("\(host) rejected Watcher's certificate (pinning?); it is no longer decrypted")
+            }
+        }
+        server.onHandshakeAbandoned = { [weak self] host in
+            self?.onLog("\(host) abandoned the TLS handshake")
+        }
         let bound: Int
         do {
             do {
@@ -84,16 +97,6 @@ public final class WatcherEngine: @unchecked Sendable {
             throw error
         }
         lock.withLock { self.server = server; self.bound = bound }
-        server.onPinningSuspected = { [weak self] host in
-            Task {
-                try? await self?.updateSettings {
-                    if !$0.sslProxying.exclude.contains(host) {
-                        $0.sslProxying.exclude.append(host)
-                    }
-                }
-                self?.onLog("\(host) rejected Watcher's certificate (pinning?); it is no longer decrypted")
-            }
-        }
         appliedReverseProxies = nil; appliedSocks = nil
         await applyNow(settings.value, pac: pac)
         watcher = Task { [weak self, sleep] in
