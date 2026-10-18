@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Testing
 
 /// A screen shown in a real window, driven through accessibility the way a user or UI automation drives it.
 @MainActor
@@ -71,7 +72,8 @@ public final class TestWindow {
     }
 }
 
-/// Shows `view` in a `TestWindow` for the length of `body` and closes it afterwards, also when `body` throws.
+/// Shows `view` in a `TestWindow` for the length of `body` and closes it afterwards, also when `body` throws. `body`
+/// starts once accessibility exposes the window; a window it never exposes fails the test instead.
 @MainActor
 public func withWindow(
     showing view: some View,
@@ -81,6 +83,12 @@ public func withWindow(
 ) async rethrows {
     let window = TestWindow(showing: view, width: width, height: height)
     defer { window.close() }
+    guard await eventually({ AccessibilityAPI.firstWindowRole() == "AXWindow" }) else {
+        let role = AccessibilityAPI.firstWindowRole() ?? "none"
+        Issue.record("The window never showed up in the accessibility tree (first window role: \(role))")
+        return
+    }
+    // Work started on appear (focusing a field, say) shows no state to wait for, and typing before it lands is lost.
     await settle()
     try await body(window)
 }
