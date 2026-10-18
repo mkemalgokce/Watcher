@@ -56,6 +56,20 @@ final class BreakpointsViewModel {
         notices.notify(removed, .success)
     }
 
+    /// Bounds-checked: a row drawn just before a delete must not write to an index that is gone.
+    func updateRule(at index: Int, to rule: BreakpointRule) {
+        guard settings.breakpoints.rules.indices.contains(index) else { return }
+        settings.breakpoints.rules[index] = rule
+    }
+
+    /// Deletes `rule` only while it is still at `index`, so a stale row cannot delete its neighbour.
+    func removeRule(_ rule: BreakpointRule, at index: Int) {
+        let rules = settings.breakpoints.rules
+        guard rules.indices.contains(index), rules[index] == rule else { return }
+        settings.breakpoints.rules.remove(at: index)
+        notices.notify("Breakpoint “\(rule.displayName)” removed", .success)
+    }
+
     func resolve(_ hit: BreakpointCenter.Hit, with resolution: BreakpointCenter.Resolution) {
         center.resolve(hit.id, with: resolution)
     }

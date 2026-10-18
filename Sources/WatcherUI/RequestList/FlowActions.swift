@@ -3,7 +3,6 @@ import WatcherCore
 
 /// Context menu of the request list; the same actions are in the Request menu of the menu bar.
 struct FlowActions: View {
-    @Environment(AppModel.self) private var model
     @Environment(WindowRouter.self) private var router
     @Environment(FlowListViewModel.self) private var list
     @Environment(RequestActions.self) private var actions
@@ -58,14 +57,8 @@ struct FlowActions: View {
             Button("Mock This Response", systemImage: "theatermasks") { actions.mockResponse(flow) }
                 .disabled(flow.response == nil)
             Divider()
-            Button("Add Breakpoint for this URL", systemImage: "pause.circle") {
-                model.settings.breakpoints.isEnabled = true
-                model.settings.breakpoints.rules.append(BreakpointRule(name: request.host, matching: MatchingRule(pattern: "\(request.host)\(request.path.split(separator: "?").first.map(String.init) ?? "/")")))
-            }
-            Button("Block this Host", systemImage: "nosign") {
-                model.settings.blockList.isEnabled = true
-                model.settings.blockList.rules.append(BlockRule(name: request.host, matching: MatchingRule(pattern: "\(request.host)/*")))
-            }
+            Button("Add Breakpoint for this URL", systemImage: "pause.circle") { actions.addBreakpoint(for: request) }
+            Button("Block this Host", systemImage: "nosign") { actions.blockHost(request.host) }
             Divider()
             Button("Delete", systemImage: "trash", role: .destructive) { actions.delete(ids) }
         }

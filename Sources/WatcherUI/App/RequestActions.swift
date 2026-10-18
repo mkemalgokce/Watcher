@@ -162,6 +162,34 @@ final class RequestActions {
         } catch { notices.notify("Cannot create the mock: \(error)", .error) }
     }
 
+    /// Pauses this URL from now on: the host and path, any query.
+    func addBreakpoint(for request: RequestRecord) {
+        settings.breakpoints.isEnabled = true
+        let matching = MatchingRule(pattern: Self.breakpointPattern(for: request))
+        settings.breakpoints.rules.append(BreakpointRule(name: request.host, matching: matching))
+    }
+
+    static func breakpointPattern(for request: RequestRecord) -> String {
+        let path = request.path.prefix { $0 != "?" }
+        return request.host + (path.isEmpty ? "/" : path)
+    }
+
+    /// Blocks this host only.
+    func blockHost(_ host: String) {
+        addBlockRule(name: host, pattern: "\(host)/*")
+    }
+
+    /// Blocks a sidebar domain and its subdomains.
+    func blockDomain(_ domain: String) {
+        addBlockRule(name: domain, pattern: "*\(domain)/*")
+        notices.notify("Requests to \(domain) are now blocked (Tools ▸ Block List)", .success)
+    }
+
+    private func addBlockRule(name: String, pattern: String) {
+        settings.blockList.isEnabled = true
+        settings.blockList.rules.append(BlockRule(name: name, matching: MatchingRule(pattern: pattern)))
+    }
+
     func revealCertificate() {
         workspace.reveal([paths.certificateURL])
     }

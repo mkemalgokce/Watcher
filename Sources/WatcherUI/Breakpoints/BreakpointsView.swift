@@ -7,7 +7,6 @@ struct BreakpointsView: View {
     @Environment(AppModel.self) private var model
     @Environment(WindowRouter.self) private var router
     @Environment(BreakpointsViewModel.self) private var breakpoints
-    @Environment(NoticeCenter.self) private var notices
     @Environment(\.dismiss) private var dismiss
     @State private var selection: UUID?
 
@@ -85,15 +84,8 @@ struct BreakpointsView: View {
                     Text("No rules. Right-click a request and choose Add Breakpoint.").font(.caption).foregroundStyle(.secondary)
                 }
                 ForEach(Array(model.settings.breakpoints.rules.enumerated()), id: \.offset) { index, rule in
-                    // Bounds-checked: a row drawn just before a delete must not write to an index that is gone.
-                    RuleRow(rule: Binding(get: { rule }, set: { new in
-                        if model.settings.breakpoints.rules.indices.contains(index) {
-                            model.settings.breakpoints.rules[index] = new
-                        }
-                    })) {
-                        guard model.settings.breakpoints.rules.indices.contains(index) else { return }
-                        model.settings.breakpoints.rules.remove(at: index)
-                        notices.notify("Breakpoint “\(rule.displayName)” removed", .success)
+                    RuleRow(rule: Binding(get: { rule }, set: { breakpoints.updateRule(at: index, to: $0) })) {
+                        breakpoints.removeRule(rule, at: index)
                     }
                     .selectionDisabled()
                 }

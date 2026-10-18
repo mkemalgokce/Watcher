@@ -3,13 +3,10 @@ import WatcherCore
 
 /// Source-list sidebar like Mail's mailboxes: smart groups first, then the apps and domains seen so far.
 struct SidebarView: View {
-    @Environment(AppModel.self) private var model
     @Environment(FlowListViewModel.self) private var list
     @Environment(RequestActions.self) private var actions
-    @Environment(NoticeCenter.self) private var notices
 
     var body: some View {
-        @Bindable var model = model
         let counts = list.counts
         List(selection: Bindable(list).sidebar) {
             Section("Requests") {
@@ -34,12 +31,7 @@ struct SidebarView: View {
                         Label { Text(group.name).lineLimit(1).truncationMode(.middle) } icon: { SiteIconView(domain: group.name) }
                             .badge(group.count).tag(SidebarItem.domain(group.name))
                             .contextMenu {
-                                Button("Block \(group.name)", systemImage: "nosign") {
-                                    model.settings.blockList.isEnabled = true
-                                    model.settings.blockList.rules.append(BlockRule(name: group.name, matching: MatchingRule(pattern: "*\(group.name)/*")))
-                                    let message = "Requests to \(group.name) are now blocked (Tools ▸ Block List)"
-                                    notices.notify(message, .success)
-                                }
+                                Button("Block \(group.name)", systemImage: "nosign") { actions.blockDomain(group.name) }
                                 Button("Copy Domain", systemImage: "doc.on.doc") {
                                     actions.copy(group.name, "Domain copied")
                                 }
