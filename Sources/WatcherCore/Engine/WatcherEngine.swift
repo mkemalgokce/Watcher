@@ -114,7 +114,8 @@ public final class WatcherEngine: @unchecked Sendable {
         watcher = Task { [weak self, sleep] in
             while !Task.isCancelled {
                 try? await sleep(.seconds(1))
-                if let self, settings.reloadIfChanged() {
+                guard let self else { return }
+                if settings.reloadIfChanged() {
                     await apply(settings.value)
                 }
             }
@@ -252,39 +253,6 @@ public final class WatcherEngine: @unchecked Sendable {
         return response
     }
 
-    /// Reads all `.desc` files into one schema; unreadable files are reported and skipped.
-    private func loadProtobufSchemas(_ paths: [String], log: @Sendable (String) -> Void) {
-        guard paths != lock.withLock({ protobufSchema.files }) else { return }
-        var combined = Data()
-        for file in paths {
-            do { try combined.append(files.read(URL(fileURLWithPath: (file as NSString).expandingTildeInPath)))
-                // A FileDescriptorSet is a repeated field, so concatenated sets are themselves a valid set.
-            } catch { log("Protobuf schema \(file): \(error)") }
-        }
-        let schema = combined.isEmpty ? nil : try? ProtobufSchema(descriptorSet: combined)
-        if !paths.isEmpty, schema == nil {
-            log("Protobuf schemas could not be parsed")
-        }
-        lock.withLock { protobufSchema = (paths, schema) }
-    }
-
-    /// Body text for display: a schema-decoded protobuf when a rule names the message type, else the generic preview.
-    public func bodyText(of flow: Flow, response: Bool) -> String {
-        let data = response ? flow.response?.body ?? Data() : flow.request.body
-        let headers = response ? flow.response?.headers ?? [] : flow.request.headers
-        let contentType = headers.value(for: "content-type")
-        if let schema = lock.withLock({ protobufSchema.schema }),
-           let rule = settings.value.protobuf.active.first(where: { $0.matching.compile().matches(flow.request) })
-        {
-            let type = response ? rule.responseType : rule.requestType
-            let isGRPC = contentType?.lowercased().contains("grpc") == true && data.count > 5
-            if !type.isEmpty, let text = schema.describe(isGRPC ? data.dropFirst(5) : data, as: type) {
-                return text
-            }
-        }
-        return BodyPreview.text(data, contentType: contentType)
-    }
-
     private func pacEvaluator(for external: ExternalProxySettings) async -> PACEvaluator? {
         guard external.isEnabled, external.kind == .pac, !external.pacURL.isEmpty else { return nil }
         if let loaded = lock.withLock({ loadedPAC }), loaded.location == external.pacURL {
@@ -317,5 +285,42 @@ public extension WatcherEngine {
     /// The ports of the running reverse-proxy listeners, in rule order.
     var reversePorts: [Int] {
         lock.withLock { server }?.reversePorts ?? []
+    }
+}
+
+extension WatcherEngine {
+    /// Reads all `.desc` files into one schema; unreadable files are reported and skipped.
+    private func loadProtobufSchemas(_ paths: [String], log: @Sendable (String) -> Void) {
+        let loaded = lock.withLock { protobufSchema }
+        // A schema that failed to load is tried again, so a file that is fixed later is picked up.
+        guard paths != loaded.files || (loaded.schema == nil && !paths.isEmpty) else { return }
+        var combined = Data()
+        for file in paths {
+            do { try combined.append(files.read(URL(fileURLWithPath: (file as NSString).expandingTildeInPath)))
+                // A FileDescriptorSet is a repeated field, so concatenated sets are themselves a valid set.
+            } catch { log("Protobuf schema \(file): \(error)") }
+        }
+        let schema = combined.isEmpty ? nil : try? ProtobufSchema(descriptorSet: combined)
+        if !paths.isEmpty, schema == nil {
+            log("Protobuf schemas could not be parsed")
+        }
+        lock.withLock { protobufSchema = (paths, schema) }
+    }
+
+    /// Body text for display: a schema-decoded protobuf when a rule names the message type, else the generic preview.
+    public func bodyText(of flow: Flow, response: Bool) -> String {
+        let data = response ? flow.response?.body ?? Data() : flow.request.body
+        let headers = response ? flow.response?.headers ?? [] : flow.request.headers
+        let contentType = headers.value(for: "content-type")
+        if let schema = lock.withLock({ protobufSchema.schema }),
+           let rule = settings.value.protobuf.active.first(where: { $0.matching.compile().matches(flow.request) })
+        {
+            let type = response ? rule.responseType : rule.requestType
+            let isGRPC = contentType?.lowercased().contains("grpc") == true && data.count > 5
+            if !type.isEmpty, let text = schema.describe(isGRPC ? data.dropFirst(5) : data, as: type) {
+                return text
+            }
+        }
+        return BodyPreview.text(data, contentType: contentType)
     }
 }

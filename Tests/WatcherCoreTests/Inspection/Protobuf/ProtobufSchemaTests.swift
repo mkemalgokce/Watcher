@@ -46,19 +46,15 @@ struct ProtobufSchemaTests {
     }
 
     private func varint(_ value: Int) -> [UInt8] {
-        var remaining = value, out: [UInt8] = []
-        repeat {
-            out.append(UInt8(remaining & 0x7F) | (remaining > 0x7F ? 0x80 : 0)); remaining >>= 7
-        } while remaining > 0
-        return out
+        ProtobufBytes.varint(value)
     }
 
     private func field(_ number: Int, _ bytes: [UInt8]) -> [UInt8] {
-        varint(number << 3 | 2) + varint(bytes.count) + bytes
+        ProtobufBytes.field(number, bytes)
     }
 
     private func number(_ number: Int, _ value: Int) -> [UInt8] {
-        varint(number << 3) + varint(value)
+        ProtobufBytes.number(number, value)
     }
 
     private func fieldDescriptor(
@@ -68,7 +64,6 @@ struct ProtobufSchemaTests {
         type: Int,
         typeName: String = ""
     ) -> [UInt8] {
-        field(1, Array(name.utf8)) + number(3, index) + number(4, label) + number(5, type)
-            + (typeName.isEmpty ? [] : field(6, Array(typeName.utf8)))
+        ProtobufBytes.fieldDescriptor(name, index, label: label, type: type, typeName: typeName)
     }
 }

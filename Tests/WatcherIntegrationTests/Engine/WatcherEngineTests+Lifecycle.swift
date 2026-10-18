@@ -128,6 +128,41 @@ extension WatcherEngineTests {
         }
 
         @Test
+        func theSettingsWatcherEndsWhenTheEngineGoesAway() async throws {
+            let ticks = LockedBox(0)
+            let servers = LockedBox<[ProxyServer]>([])
+            weak var gone: WatcherEngine?
+            do {
+                let engine = try WatcherEngine(
+                    directory: URL(fileURLWithPath: "/fake-home/.watcher"),
+                    files: files.access,
+                    sleep: { _ in
+                        ticks.mutate { $0 += 1 }
+                        try await Task.sleep(for: .milliseconds(5))
+                    },
+                    makeServer: {
+                        let server = ProxyServer(store: $0, authority: $1, clientApp: { _ in nil })
+                        servers.mutate { $0.append(server) }
+                        return server
+                    }
+                )
+                gone = engine
+                try await engine.start(port: 0)
+            }
+            #expect(await eventually { gone == nil }, "something still holds the engine")
+            var stopped = false
+            for _ in 0 ..< 100 where !stopped {
+                let before = ticks.value
+                try await Task.sleep(for: .milliseconds(60))
+                stopped = ticks.value == before
+            }
+            #expect(stopped, "the watcher keeps waking up after the engine is gone")
+            for server in servers.value {
+                try await server.stop()
+            }
+        }
+
+        @Test
         func stoppingDoesNotWaitForAPACScriptStillLoading() async throws {
             let (released, release) = AsyncStream.makeStream(of: Void.self)
             let asked = LockedBox(false)
