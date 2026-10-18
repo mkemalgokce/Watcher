@@ -36,6 +36,8 @@ final class DiffViewModel {
         case ready(Result)
     }
 
+    typealias Comparison = @Sendable (String, String) async -> Result
+
     var subject = Subject.responseBody
     var layout = Layout.inline
     private(set) var state = State.noBase
@@ -43,27 +45,32 @@ final class DiffViewModel {
     /// What the shown state was computed from; a newer request makes an older result arrive stale and be dropped.
     @ObservationIgnored private var lastKey: Key?
 
+    @ObservationIgnored private let comparison: Comparison
+
     private struct Key: Equatable {
         let base: Flow.ID, current: Flow.ID, subject: Subject
-        let baseSize: Int, currentSize: Int
+        let oldText: Int, newText: Int
+    }
+
+    /// `comparison` runs off the main thread; tests pass one they can hold back.
+    init(comparison: Comparison? = nil) {
+        self.comparison = comparison ?? { old, new in
+            await Task.detached(priority: .userInitiated) { Self.compare(old, new) }.value
+        }
     }
 
     /// Recomputes only when the pair, the subject or a body changed.
     func update(base: Flow?, current: Flow) async {
         guard let base else { lastKey = nil; state = .noBase; return }
         guard base.id != current.id else { lastKey = nil; state = .sameFlow; return }
+        let old = Self.text(base, subject), new = Self.text(current, subject)
         let key = Key(
-            base: base.id,
-            current: current.id,
-            subject: subject,
-            baseSize: Self.text(base, subject).utf8.count,
-            currentSize: Self.text(current, subject).utf8.count
+            base: base.id, current: current.id, subject: subject, oldText: old.hashValue, newText: new.hashValue
         )
         guard key != lastKey else { return }
         lastKey = key
         state = .computing
-        let old = Self.text(base, subject), new = Self.text(current, subject)
-        let result = await Task.detached(priority: .userInitiated) { Self.compare(old, new) }.value
+        let result = await comparison(old, new)
         guard lastKey == key else { return }
         state = .ready(result)
     }
@@ -83,9 +90,15 @@ final class DiffViewModel {
         case .responseBody: flow.response.map { BodyPreview.text($0.body, contentType: $0.headers.value(for: "content-type")) } ?? ""
         case .requestBody: BodyPreview.text(flow.request.body, contentType: flow.request.headers.value(for: "content-type"))
         case .headers:
-            (["\(flow.request.method) \(flow.request.url)"] + flow.request.headers.map { "\($0.name): \($0.value)" }
-                + ["", "HTTP \(flow.response?.status ?? 0)"] + (flow.response?.headers ?? []).map { "\($0.name): \($0.value)" }).joined(separator: "\n")
+            headerLines(flow).joined(separator: "\n")
         }
+    }
+
+    private static func headerLines(_ flow: Flow) -> [String] {
+        let start = "\(flow.request.method) \(flow.request.url)"
+        let request = [start] + flow.request.headers.map { "\($0.name): \($0.value)" }
+        guard let response = flow.response else { return request }
+        return request + ["", "HTTP \(response.status)"] + response.headers.map { "\($0.name): \($0.value)" }
     }
 
     /// The earlier call to the same endpoint: the base people almost always want.
