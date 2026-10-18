@@ -48,6 +48,8 @@ struct FlowDetailView: View {
 /// Method, status and URL with the actions people repeat most, then the facts about the exchange.
 private struct InspectorHeader: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.locale) private var locale
+    @Environment(\.timeZone) private var timeZone
     let flow: Flow
 
     var body: some View {
@@ -139,7 +141,7 @@ private struct InspectorHeader: View {
 
     /// Sizes, time and where it came from. Wraps onto a second line in a narrow inspector instead of cutting facts off.
     private var meta: some View {
-        let meta = InspectorMeta(flow)
+        let meta = InspectorMeta(flow, timestamp: Timestamp(locale: locale, timeZone: timeZone))
         return WrappingHStack(spacing: 12, lineSpacing: 6) {
             ForEach(meta.items, id: \.symbol) { item in
                 MetaItem(symbol: item.symbol, text: item.text, help: item.help)

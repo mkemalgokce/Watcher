@@ -5,6 +5,8 @@ struct FlowListView: View {
     @Environment(AppModel.self) private var model
     @Environment(FlowListViewModel.self) private var list
     @Environment(RequestActions.self) private var actions
+    @Environment(\.locale) private var locale
+    @Environment(\.timeZone) private var timeZone
     @State private var commenting: Flow?
     @State private var commentText = ""
     /// Which columns are shown and in what order; right-click a column header to change it.
@@ -19,8 +21,9 @@ struct FlowListView: View {
             TableColumn("#", value: \.sequence) { Text("\($0.sequence)").monospacedDigit().foregroundStyle(.secondary) }
                 .width(min: 22, ideal: 30).customizationID("sequence")
             TableColumn("Date", value: \.startedAt) { flow in
-                Text(flow.startedAt.formatted(.dateTime.hour().minute().second())).monospacedDigit().foregroundStyle(.secondary)
-                    .help(flow.startedAt.formatted(date: .complete, time: .standard))
+                let timestamp = Timestamp(locale: locale, timeZone: timeZone)
+                Text(timestamp.clockWithoutFraction(flow.startedAt)).monospacedDigit().foregroundStyle(.secondary)
+                    .help(timestamp.complete(flow.startedAt))
             }
             .width(min: 54, ideal: 60).customizationID("date")
             TableColumn("Method", value: \.request.method) { MethodBadge(method: $0.request.method) }

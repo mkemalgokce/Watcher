@@ -88,7 +88,7 @@ private struct GeneralSettings: View {
     }
 }
 
-private struct AppearanceSettings: View {
+struct AppearanceSettings: View {
     @Bindable var options: ViewerOptions
 
     private let sample = #"{"user":{"id":42,"name":"Ada","admin":true,"tags":["a","b"],"manager":null}}"#
@@ -115,7 +115,7 @@ private struct AppearanceSettings: View {
     }
 }
 
-private struct ProxySettings: View {
+struct ProxySettings: View {
     @Environment(AppModel.self) private var model
     @Environment(WindowRouter.self) private var router
     @Environment(RequestActions.self) private var actions
@@ -137,7 +137,7 @@ private struct ProxySettings: View {
     }
 }
 
-private struct AdvancedSettings: View {
+struct AdvancedSettings: View {
     @Environment(AppModel.self) private var model
     var body: some View {
         @Bindable var model = model
