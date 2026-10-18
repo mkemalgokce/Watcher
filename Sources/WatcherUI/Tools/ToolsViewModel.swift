@@ -8,9 +8,14 @@ final class ToolsViewModel {
     private let settings: SettingsEditor
     private let router: WindowRouter
     private let proxy: ProxyController
+    private let files: FileAccess
+    private let homeDirectory: URL
 
-    init(settings: SettingsEditor, router: WindowRouter, proxy: ProxyController) {
+    init(
+        settings: SettingsEditor, router: WindowRouter, proxy: ProxyController, files: FileAccess, homeDirectory: URL
+    ) {
         self.settings = settings; self.router = router; self.proxy = proxy
+        self.files = files; self.homeDirectory = homeDirectory
     }
 
     var selection: ToolsView.Tool {
@@ -60,7 +65,9 @@ final class ToolsViewModel {
         case .previewers: check(\.previewers) { rule, _ in ToolValidation.problems(rule.matching) }
         case .protobuf: check(\.protobuf) { rule, _ in ToolValidation.problems(rule.matching) }
         case .dns: check(\.dnsSpoofing) { rule, _ in ToolValidation.problems(rule) }
-        case .certificates: check(\.customCertificates) { rule, _ in ToolValidation.problems(rule) }
+        case .certificates: check(\.customCertificates) { [files, homeDirectory] rule, _ in
+                ToolValidation.problems(rule, fileExists: files.fileExists, homeDirectory: homeDirectory.path)
+            }
         case .reverse: check(\.reverseProxy) { rule, others in
                 ToolValidation.problems(rule, proxyPort: proxy.port, others: others)
             }

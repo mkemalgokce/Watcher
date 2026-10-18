@@ -118,7 +118,7 @@ struct ToolsView: View {
 
     /// Holds no state of its own (it reads the model), so a fresh one per update is free and always current.
     private var viewModel: ToolsViewModel {
-        ToolsViewModel(settings: model.settings, router: model.router, proxy: model.proxy)
+        model.toolsViewModel()
     }
 
     @ViewBuilder private var detail: some View {

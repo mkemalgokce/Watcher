@@ -48,14 +48,35 @@ struct ToolValidationTests {
         #expect(ToolValidation.problems(blankHost, proxyPort: 9090, others: []).count == 1)
     }
 
+    @Test(arguments: [
+        ("~/x.p12", "/Users/ada/x.p12"), ("~", "/Users/ada"), ("/abs/x.p12", "/abs/x.p12"),
+        ("rel/~/x.p12", "rel/~/x.p12"), ("~other/x.p12", "~other/x.p12"),
+    ])
+    func aTildeStartsAtTheGivenHomeFolder(path: String, expanded: String) {
+        #expect(ToolValidation.expandingTilde(path, homeDirectory: "/Users/ada") == expanded)
+    }
+
     @Test
-    func aCertificateRuleNeedsAHostAndAnExistingFile() {
+    func aCertificateFileIsLookedForUnderTheGivenHome() {
+        let looked = LockedBox<[String]>([])
         let rule = CustomCertificateRule(host: "api.example.com", role: .client, p12Path: "~/certs/client.p12")
-        #expect(
-            ToolValidation.problems(rule) { $0.hasSuffix("/certs/client.p12") && !$0.hasPrefix("~") } == [],
-            "~ is expanded"
+        let problems = ToolValidation.problems(
+            rule, fileExists: { path in looked.mutate { $0.append(path) }; return true }, homeDirectory: "/Users/ada"
         )
-        #expect(ToolValidation.problems(rule, fileExists: { _ in false }) == ["No file at ~/certs/client.p12."])
-        #expect(ToolValidation.problems(CustomCertificateRule(host: "", role: .server, p12Path: "")).count == 2)
+        #expect(problems.isEmpty)
+        #expect(looked.value == ["/Users/ada/certs/client.p12"])
+    }
+
+    @Test
+    func aMissingCertificateFileIsReportedWithThePathAsTyped() {
+        let rule = CustomCertificateRule(host: "api.example.com", role: .client, p12Path: "~/certs/client.p12")
+        let problems = ToolValidation.problems(rule, fileExists: { _ in false }, homeDirectory: "/Users/ada")
+        #expect(problems == ["No file at ~/certs/client.p12."])
+    }
+
+    @Test
+    func aCertificateRuleWithoutHostOrFileHasTwoProblems() {
+        let rule = CustomCertificateRule(host: "", role: .server, p12Path: "")
+        #expect(ToolValidation.problems(rule, fileExists: { _ in true }, homeDirectory: "/h").count == 2)
     }
 }

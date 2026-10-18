@@ -44,18 +44,26 @@ enum ToolValidation {
         return list
     }
 
-    static func problems(_ rule: CustomCertificateRule, fileExists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }) -> [String] {
+    static func problems(
+        _ rule: CustomCertificateRule, fileExists: (String) -> Bool, homeDirectory: String
+    ) -> [String] {
         var list: [String] = []
         if rule.host.trimmingCharacters(in: .whitespaces).isEmpty {
             list.append("Enter the host the certificate is for.")
         }
-        let path = (rule.p12Path as NSString).expandingTildeInPath
+        let path = expandingTilde(rule.p12Path, homeDirectory: homeDirectory)
         if rule.p12Path.isEmpty {
             list.append("Choose the .p12 file.")
         } else if !fileExists(path) {
             list.append("No file at \(rule.p12Path).")
         }
         return list
+    }
+
+    /// `~` and `~/x` start at the given home folder; a path that only has a tilde further in is left alone.
+    static func expandingTilde(_ path: String, homeDirectory: String) -> String {
+        guard path == "~" || path.hasPrefix("~/") else { return path }
+        return homeDirectory + path.dropFirst()
     }
 
     static func isIPAddress(_ text: String) -> Bool {

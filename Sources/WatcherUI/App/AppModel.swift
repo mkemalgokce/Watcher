@@ -31,6 +31,8 @@ public final class AppModel {
     /// The time the inspector and Compose measure against.
     let now: @Sendable () -> Date
     private let sleep: Sleep
+    private let files: FileAccess
+    private let homeDirectory: URL
     /// Set once the first-run setup has been completed or skipped.
     var onboardingDone: Bool {
         didSet { preferences.onboardingDone = onboardingDone }
@@ -49,6 +51,7 @@ public final class AppModel {
         clipboard = dependencies.clipboard
         now = dependencies.now
         sleep = dependencies.sleep
+        files = dependencies.files; homeDirectory = dependencies.homeDirectory
         preferences = dependencies.preferences
         onboardingDone = dependencies.preferences.onboardingDone
         viewer = ViewerOptions(preferences: dependencies.preferences)
@@ -105,6 +108,11 @@ public final class AppModel {
             protobufText: { [engine] flow, side in engine.bodyText(of: flow, response: side == .response) },
             sleep: sleep
         )
+    }
+
+    /// The Tools window's model, checking certificate files on this window's file system and home folder.
+    func toolsViewModel() -> ToolsViewModel {
+        ToolsViewModel(settings: settings, router: router, proxy: proxy, files: files, homeDirectory: homeDirectory)
     }
 
     var statusBar: StatusBarViewModel {
