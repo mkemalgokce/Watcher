@@ -135,4 +135,16 @@ struct ProxyConnectionHandlerTests {
             #expect(reply.hasPrefix("HTTP/1.1 400"))
         }
     }
+
+    @Test(arguments: ["", ":8080"])
+    func aRequestWhoseHostHeaderNamesNoHostIsAnswered400(host: String) async throws {
+        try await withProxy { _, proxyPort, _ in
+            let client = RawClient()
+            try await client.connect(port: proxyPort)
+            try await client.send("GET /x HTTP/1.1\r\nHost: \(host)\r\n\r\n")
+            let reply = await client.received(containing: "\r\n\r\n")
+            await client.close()
+            #expect(reply.hasPrefix("HTTP/1.1 400"), "\(reply)")
+        }
+    }
 }

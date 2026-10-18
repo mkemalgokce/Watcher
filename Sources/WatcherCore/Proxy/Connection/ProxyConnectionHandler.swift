@@ -250,9 +250,8 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
             scheme = url.scheme ?? "http"; host = urlHost
             port = url.port ?? RequestRecord.defaultPort(for: scheme)
             path = (url.percentEncodedPath.isEmpty ? "/" : url.percentEncodedPath) + (url.percentEncodedQuery.map { "?\($0)" } ?? "")
-        } else if let hostHeader = head.headers.first(name: "Host") {
-            let parts = hostHeader.split(separator: ":", maxSplits: 1)
-            (scheme, host, port, path) = ("http", String(parts[0]), parts.count > 1 ? Int(parts[1]) ?? 80 : 80, head.uri)
+        } else if let named = head.headers.first(name: "Host").flatMap(Self.hostAndPort) {
+            (scheme, host, port, path) = ("http", named.host, named.port, head.uri)
         } else {
             return nil
         }
@@ -265,6 +264,13 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
             headers: headers,
             body: body
         )
+    }
+
+    /// The host and port a `Host` header names, port 80 when absent or unreadable; nil when it names no host.
+    private static func hostAndPort(_ header: String) -> (host: String, port: Int)? {
+        let parts = header.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
+        guard !parts[0].isEmpty else { return nil }
+        return (String(parts[0]), parts.count > 1 ? Int(parts[1]) ?? 80 : 80)
     }
 
     func errorCaught(context: ChannelHandlerContext, error _: Error) {
