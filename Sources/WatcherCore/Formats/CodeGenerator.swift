@@ -92,8 +92,8 @@ public enum CodeGenerator {
     }
 
     private static func swift(_ request: RequestRecord, _ headers: [Header], _ body: Body) -> String {
-        /// Shadows the JSON `literal`: Swift has no `\b`, `\f` or `\u0001`, so control characters become `\u{…}`.
-        func literal(_ text: String) -> String {
+        /// Swift has no `\b`, `\f` or `\u0001`, so control characters become `\u{…}`.
+        func swiftLiteral(_ text: String) -> String {
             let escaped = text.unicodeScalars.map { scalar in
                 switch scalar {
                 case "\"": "\\\""
@@ -108,12 +108,18 @@ public enum CodeGenerator {
             }
             return "\"" + escaped.joined() + "\""
         }
-        var lines = ["var request = URLRequest(url: URL(string: \(literal(request.url)))!)", "request.httpMethod = \(literal(request.method))"]
-        lines += headers.map { "request.setValue(\(literal($0.value)), forHTTPHeaderField: \(literal($0.name)))" }
+        var lines = [
+            "var request = URLRequest(url: URL(string: \(swiftLiteral(request.url)))!)",
+            "request.httpMethod = \(swiftLiteral(request.method))",
+        ]
+        lines += headers.map {
+            "request.setValue(\(swiftLiteral($0.value)), forHTTPHeaderField: \(swiftLiteral($0.name)))"
+        }
         switch body {
         case .none: break
-        case let .text(text): lines.append("request.httpBody = Data(\(literal(text)).utf8)")
-        case let .binary(data): lines.append("request.httpBody = Data(base64Encoded: \(literal(data.base64EncodedString())))!")
+        case let .text(text): lines.append("request.httpBody = Data(\(swiftLiteral(text)).utf8)")
+        case let .binary(data):
+            lines.append("request.httpBody = Data(base64Encoded: \(swiftLiteral(data.base64EncodedString())))!")
         }
         lines.append("let (data, response) = try await URLSession.shared.data(for: request)")
         return lines.joined(separator: "\n")
