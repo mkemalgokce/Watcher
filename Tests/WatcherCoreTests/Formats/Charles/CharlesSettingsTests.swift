@@ -160,7 +160,10 @@ struct CharlesSettingsTests {
 
     init() throws {
         let files = FileAccessFake(directories: ["/tmp"])
-        imported = try CharlesSettings.importSettings(from: Data(realExport.utf8), files: files.access)
+        imported = try CharlesSettings.importSettings(
+            from: Data(realExport.utf8),
+            isDirectory: files.access.isDirectory
+        )
     }
 
     @Test
@@ -272,7 +275,7 @@ struct CharlesSettingsTests {
             + "</mapLocalMapping></mappings></mapLocal>"
         let files = FileAccessFake(directories: folders)
         let data = configuration(entry: "Map Local", mapping)
-        let settings = try CharlesSettings.importSettings(from: data, files: files.access)
+        let settings = try CharlesSettings.importSettings(from: data, isDirectory: files.access.isDirectory)
         #expect(settings.mapLocal.rules.map(\.source) == [source])
     }
 

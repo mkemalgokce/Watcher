@@ -1,6 +1,6 @@
 import Foundation
 
-/// The file system operations the core logic needs, as closures so tests can swap in `FileAccessFake`.
+/// The file system operations the settings store and the Charles converter need, one closure each.
 public struct FileAccess: Sendable {
     public var isExecutable: @Sendable (String) -> Bool
     public var fileExists: @Sendable (String) -> Bool

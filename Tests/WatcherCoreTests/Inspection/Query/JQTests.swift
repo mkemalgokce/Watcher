@@ -10,7 +10,7 @@ struct JQTests {
 
     private func run(_ query: String, spy: CommandRunnerSpy, executables: Set<String>? = nil) -> String? {
         let files = FileAccessFake(executables: executables ?? [homebrew])
-        return JQ.run(query, on: json, timeout: 2, runner: spy.runner, files: files.access)
+        return JQ.run(query, on: json, timeout: 2, runner: spy.runner, isExecutable: files.access.isExecutable)
     }
 
     @Test

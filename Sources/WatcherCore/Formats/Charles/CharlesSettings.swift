@@ -53,8 +53,11 @@ public enum CharlesSettings {
         }
     }
 
-    /// `files` tells whether a Map Local destination is a folder on this Mac.
-    public static func importSettings(from data: Data, files: FileAccess = .live) throws -> WatcherSettings {
+    /// `isDirectory` tells whether a Map Local destination is a folder on this Mac.
+    public static func importSettings(
+        from data: Data,
+        isDirectory: (String) -> Bool = FileAccess.live.isDirectory
+    ) throws -> WatcherSettings {
         let root = try parse(data)
         var settings = WatcherSettings()
         let block = tool("Block List", "blacklist", in: root), allow = tool("Allow List", "whitelist", in: root)
@@ -65,7 +68,7 @@ public enum CharlesSettings {
             AllowRule(name: "Charles", isEnabled: $0.enabled, matching: MatchingRule(pattern: $0.pattern))
         } ?? [])
         if let local = tool("Map Local", "mapLocal", in: root) {
-            settings.mapLocal = mapLocal(local, files: files)
+            settings.mapLocal = mapLocal(local, isDirectory: isDirectory)
         }
         if let remote = tool("Map Remote", "map", in: root) {
             settings.mapRemote = mapRemote(remote)
@@ -95,10 +98,10 @@ public enum CharlesSettings {
 
     // MARK: Tools
 
-    private static func mapLocal(_ tool: Node, files: FileAccess) -> RuleSet<MapLocalRule> {
+    private static func mapLocal(_ tool: Node, isDirectory: (String) -> Bool) -> RuleSet<MapLocalRule> {
         RuleSet(isEnabled: toolEnabled(tool), rules: tool.descendants("mapLocalMapping").compactMap { entry in
             guard let source = entry.child("sourceLocation"), let destination = entry.value("dest") else { return nil }
-            let isFolder = files.isDirectory((destination as NSString).expandingTildeInPath)
+            let isFolder = isDirectory((destination as NSString).expandingTildeInPath)
             return MapLocalRule(
                 name: "Charles",
                 isEnabled: itemEnabled(entry),
