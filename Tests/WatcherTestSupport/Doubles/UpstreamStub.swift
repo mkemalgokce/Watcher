@@ -1,6 +1,7 @@
 import AsyncHTTPClient
 import Foundation
 import NIO
+import NIOHTTP1
 import WatcherCore
 
 /// Stands in for the network behind the proxy: records each request and answers with `response`, or throws `failure`.

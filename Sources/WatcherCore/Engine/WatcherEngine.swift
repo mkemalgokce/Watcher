@@ -34,9 +34,7 @@ public final class WatcherEngine: @unchecked Sendable {
     public init(
         directory: URL = WatcherPaths.supportDirectory,
         files: FileAccess = .live,
-        pacLoader: @escaping @Sendable (String) async throws -> PACEvaluator = {
-            try await PACEvaluator.load(from: $0)
-        },
+        pacLoader: @escaping @Sendable (String) async throws -> PACEvaluator = PACEvaluator.load(from:),
         sleep: @escaping Sleep = liveSleep,
         now: @escaping @Sendable () -> Date = { Date() },
         makeServer: @escaping @Sendable (FlowStore, CertificateAuthority) -> ProxyServer = {

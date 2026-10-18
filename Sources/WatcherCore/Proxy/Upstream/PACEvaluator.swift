@@ -43,15 +43,24 @@ public final class PACEvaluator: @unchecked Sendable {
         }
     }
 
+    @Sendable public static func load(from location: String) async throws -> PACEvaluator {
+        try await load(from: location, fetch: download)
+    }
+
+    /// Takes `fetch` with no default: an async closure literal as a default argument aborts the Swift 6.2 runtime.
     public static func load(
         from location: String,
-        fetch: @Sendable (URL) async throws -> Data = { try await URLSession.shared.data(from: $0).0 }
+        fetch: @Sendable (URL) async throws -> Data
     ) async throws -> PACEvaluator {
         guard let url = URL(string: location), ["http", "https", "file"].contains(url.scheme ?? "") else {
             throw LoadError(description: "PAC location must be an http(s) or file URL")
         }
         let data = try await fetch(url)
         return try PACEvaluator(script: String(decoding: data, as: UTF8.self))
+    }
+
+    @Sendable private static func download(_ url: URL) async throws -> Data {
+        try await URLSession.shared.data(from: url).0
     }
 
     /// First usable entry of the script's answer (`PROXY a:1; SOCKS b:2; DIRECT`); `.direct` when it cannot be understood.
