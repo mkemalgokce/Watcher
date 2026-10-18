@@ -11,11 +11,11 @@ struct AndroidCommandTests {
     static let phone = "R58M123                device usb:1-1 model:Pixel_7 transport_id:2"
 
     @Test
-    func defaultsListDevicesForPort9090() throws {
+    func defaultsListDevicesForTheStoredPort() throws {
         let android = try AndroidCommand.parse([])
         #expect(android.action == .list)
         #expect(android.serial == nil)
-        #expect(android.port == 9090)
+        #expect(android.port == nil)
     }
 
     @Test(arguments: [
@@ -112,6 +112,14 @@ struct AndroidCommandTests {
         try AndroidCommand.parse(["proxy", "--port", "8888"]).run(in: cli.environment)
         #expect(cli.commands.calls.last == "adb -s \(serial) shell settings put global http_proxy \(endpoint)")
         #expect(cli.printed == ["Proxy set to \(endpoint)"])
+    }
+
+    @Test
+    func proxyWithoutAPortPointsTheDeviceAtTheStoredOne() throws {
+        let cli = Self.harness(devices: [Self.emulator])
+        try cli.environment.settings.update { $0.port = 7777 }
+        try AndroidCommand.parse(["proxy"]).run(in: cli.environment)
+        #expect(cli.commands.calls.last == "adb -s emulator-5554 shell settings put global http_proxy 10.0.2.2:7777")
     }
 
     @Test

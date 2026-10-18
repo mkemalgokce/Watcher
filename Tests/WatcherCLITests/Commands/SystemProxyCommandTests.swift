@@ -7,11 +7,22 @@ import WatcherTestSupport
 
 @Suite(.tags(.unit))
 struct SystemProxyCommandTests {
-    @Test(arguments: [(["on"], SystemProxyCommand.State.on, 9090), (["off", "--port", "8888"], .off, 8888)])
-    func readsTheStateAndPort(arguments: [String], state: SystemProxyCommand.State, port: Int) throws {
+    @Test(arguments: [(["on"], SystemProxyCommand.State.on, nil), (["off", "--port", "8888"], .off, 8888)])
+    func readsTheStateAndPort(arguments: [String], state: SystemProxyCommand.State, port: Int?) throws {
         let command = try SystemProxyCommand.parse(arguments)
         #expect(command.state == state)
         #expect(command.port == port)
+    }
+
+    @Test
+    func onWithoutAPortPointsAtTheStoredOne() throws {
+        let cli = Self.harness()
+        try cli.environment.settings.update { $0.port = 7777 }
+        try SystemProxyCommand.parse(["on"]).run(in: cli.environment)
+        #expect(cli.commands.calls.suffix(2) == [
+            "networksetup -setwebproxy Wi-Fi 127.0.0.1 7777",
+            "networksetup -setsecurewebproxy Wi-Fi 127.0.0.1 7777",
+        ])
     }
 
     @Test(arguments: [[], ["sideways"]])

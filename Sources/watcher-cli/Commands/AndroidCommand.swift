@@ -12,7 +12,7 @@ struct AndroidCommand: ParsableCommand {
 
     @Argument(help: "list | cert (copy to Downloads) | proxy (set) | unproxy (clear)") var action: Action = .list
     @Option(help: "adb serial; defaults to the only connected device.") var serial: String?
-    @Option(help: "Watcher port the device should use.") var port = 9090
+    @Option(help: "Watcher port the device should use (default: from settings, 9090).") var port: Int?
 
     func run() throws {
         try run(in: .live)
@@ -30,6 +30,7 @@ struct AndroidCommand: ParsableCommand {
             environment.output(Self.certificateCopied)
         case .proxy:
             let lanAddress = environment.lanAddresses().first?.ip
+            let port = port ?? environment.settings.value.port
             guard let endpoint = device.proxyEndpoint(port: port, lanAddress: lanAddress) else {
                 throw ValidationError("No network address found for this Mac.")
             }

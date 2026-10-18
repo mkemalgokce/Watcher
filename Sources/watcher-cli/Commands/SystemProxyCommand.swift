@@ -8,7 +8,7 @@ struct SystemProxyCommand: ParsableCommand {
     enum State: String, ExpressibleByArgument { case on, off }
 
     @Argument var state: State
-    @Option var port = 9090
+    @Option(help: "Watcher port to point at (default: from settings, 9090).") var port: Int?
 
     func run() throws {
         try run(in: .live)
@@ -16,7 +16,7 @@ struct SystemProxyCommand: ParsableCommand {
 
     func run(in environment: CLIEnvironment) throws {
         switch state {
-        case .on: try environment.systemProxy.enable(port: port)
+        case .on: try environment.systemProxy.enable(port: port ?? environment.settings.value.port)
         case .off: try environment.systemProxy.disable()
         }
         environment.output("System proxy \(state.rawValue)")
