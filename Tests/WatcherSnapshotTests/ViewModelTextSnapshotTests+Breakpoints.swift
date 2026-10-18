@@ -18,14 +18,9 @@ extension ViewModelTextSnapshotTests {
                 BreakpointRule(isEnabled: false, matching: MatchingRule(pattern: "*")),
             ])
             let breakpoints = model.breakpoints
-            var lines = model.settings.breakpoints.rules.map { rule in
-                "\(rule.isEnabled ? "on " : "off") \(rule.displayName) · \(rule.phaseSummary)"
-            }
+            var lines = model.settings.breakpoints.rules.map(\.summaryLine)
             let paused = [("api.example.com", "/login"), ("api.example.com", "/v1/users"), ("cdn.a.com", "/a.css")]
-            for (host, path) in paused {
-                let names = breakpoints.rules(matching: .fixture(host: host, path: path)).map(\.displayName)
-                lines.append("\(host)\(path) stops at: \(names.isEmpty ? "nothing" : names.joined(separator: ", "))")
-            }
+            lines += paused.map { breakpoints.stopsAtLine(for: .fixture(host: $0.0, path: $0.1)) }
             assertSnapshot(of: lines.joined(separator: "\n"), as: .lines)
         }
     }
