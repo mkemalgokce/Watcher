@@ -14,7 +14,7 @@ public final class SettingsStore: @unchecked Sendable {
     private var lastModified: Date?
     private var issue: SettingsLoadIssue?
 
-    public init(url: URL, files: FileAccess = .live, now: @escaping @Sendable () -> Date = Date.init) {
+    public init(url: URL, files: FileAccess = .live, now: @escaping @Sendable () -> Date = { Date() }) {
         self.url = url
         self.files = files
         self.now = now

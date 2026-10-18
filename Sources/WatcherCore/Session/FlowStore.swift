@@ -20,7 +20,7 @@ public final class FlowStore: @unchecked Sendable {
     private let now: @Sendable () -> Date
     private let makeID: @Sendable () -> UUID
 
-    public init(now: @escaping @Sendable () -> Date = Date.init, makeID: @escaping @Sendable () -> UUID = UUID.init) {
+    public init(now: @escaping @Sendable () -> Date = { Date() }, makeID: @escaping @Sendable () -> UUID = { UUID() }) {
         self.now = now; self.makeID = makeID
     }
 
