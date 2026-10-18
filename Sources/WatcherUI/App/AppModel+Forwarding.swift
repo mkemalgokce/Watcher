@@ -226,4 +226,12 @@ extension AppModel {
     func revealCertificate() {
         actions.revealCertificate()
     }
+
+    var lanProxyAddress: String? {
+        devices.lanProxyAddress
+    }
+
+    func setAndroidProxy(_ device: AndroidDevice, enabled: Bool) {
+        Task { await devices.setProxy(on: device, enabled: enabled) }
+    }
 }

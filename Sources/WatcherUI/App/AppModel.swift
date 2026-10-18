@@ -62,7 +62,10 @@ public final class AppModel {
         )
         workspaces = WorkspacesViewModel(engine: engine, settings: settings, notices: notices)
         breakpoints = BreakpointsViewModel(center: engine.breakpoints, settings: settings, notices: notices)
-        devices = DevicesViewModel(probe: listening ? .live : .none, certificateURL: dependencies.paths.certificateURL)
+        let proxy = proxy
+        devices = DevicesViewModel(probe: dependencies.devices, certificateURL: dependencies.paths.certificateURL) {
+            proxy.port
+        }
         connect(dependencies)
         if listening {
             observeEngine()
@@ -94,18 +97,5 @@ public final class AppModel {
         if !proxy.isRunning {
             proxy.toggleRunning()
         }
-    }
-
-    // MARK: Devices
-
-    /// Address a phone on the same network should use as its proxy.
-    var lanProxyAddress: String? {
-        LocalNetwork.ipv4Addresses().first.map { "\($0.ip):\(proxy.port)" }
-    }
-
-    /// The proxy endpoint Android devices should use.
-    func setAndroidProxy(_ device: AndroidDevice, enabled: Bool) {
-        let lanAddress = LocalNetwork.ipv4Addresses().first?.ip
-        Task { await devices.setProxy(on: device, enabled: enabled, port: proxy.port, lanAddress: lanAddress) }
     }
 }

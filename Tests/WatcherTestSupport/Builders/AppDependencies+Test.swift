@@ -37,7 +37,8 @@ public extension AppDependencies {
             sender: sender ?? RequestSenderSpy(),
             workspace: workspace ?? WorkspaceOpenerSpy(),
             paths: SupportPaths(directory: URL(fileURLWithPath: "/fake-home/.watcher")),
-            focusFilterField: {}
+            focusFilterField: {},
+            devices: .none
         )
     }
 }

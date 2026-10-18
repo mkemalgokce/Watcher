@@ -20,7 +20,8 @@ extension AppDependencies {
             sender: engine,
             workspace: LiveWorkspaceOpener(),
             paths: SupportPaths(directory: WatcherPaths.supportDirectory),
-            focusFilterField: LiveSearchFocus.focusFilterField
+            focusFilterField: LiveSearchFocus.focusFilterField,
+            devices: .live
         )
     }
 
@@ -45,7 +46,8 @@ extension AppDependencies {
             sender: engine,
             workspace: LiveWorkspaceOpener(),
             paths: SupportPaths(directory: directory),
-            focusFilterField: {}
+            focusFilterField: {},
+            devices: .none
         )
     }
 
