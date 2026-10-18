@@ -73,7 +73,7 @@ public final class AppModel {
             services: dependencies.requestServices,
             store: engine.store, settings: settings, notices: notices, router: router, list: list, proxy: proxy
         )
-        externalApps = ExternalApps(workspace: dependencies.workspace, notices: notices)
+        externalApps = ExternalApps(workspace: dependencies.workspace, notices: notices, files: dependencies.files)
         sessionFiles = SessionFilesViewModel(
             panels: dependencies.panels, files: dependencies.files, commands: dependencies.commands,
             store: engine.store, notices: notices
@@ -122,6 +122,11 @@ public final class AppModel {
     /// The Tools window's model, checking certificate files on this window's file system and home folder.
     func toolsViewModel() -> ToolsViewModel {
         ToolsViewModel(settings: settings, router: router, proxy: proxy, files: files, homeDirectory: homeDirectory)
+    }
+
+    /// The request actions for `flow`, applying to `ids` when given (a multi-selection) and otherwise to `flow` alone.
+    func requestCommands(for flow: Flow?, ids: Set<Flow.ID>? = nil) -> RequestCommands {
+        RequestCommands(flow: flow, ids: ids, actions: actions, router: router, sessionFiles: sessionFiles)
     }
 
     var statusBar: StatusBarViewModel {

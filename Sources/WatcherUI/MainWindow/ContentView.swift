@@ -40,17 +40,7 @@ public struct ContentView: View {
         .toolbar { WatcherToolbar() }
         .safeAreaInset(edge: .top, spacing: 0) { StartupProblemBanner() }
         .safeAreaInset(edge: .bottom, spacing: 0) { StatusBar(viewModel: model.statusBar) }
-        .sheet(item: Bindable(router).sheet) { sheet in
-            switch sheet {
-            case .tools: ToolsView()
-            case .breakpoints: BreakpointsView()
-            case .compose: ComposeView(now: model.now)
-            case .devices: DeviceSetupView()
-            case .welcome: WelcomeView()
-            case .converter: ConverterView()
-            case .help: HelpView()
-            }
-        }
+        .sheet(item: Bindable(router).sheet) { SheetContent(sheet: $0) }
         .alert("Save Workspace", isPresented: Bindable(router).askWorkspaceName) {
             TextField("Name", text: $workspaceName)
             Button("Save") { workspaces.save(named: workspaceName); workspaceName = "" }
@@ -95,7 +85,7 @@ private struct WatcherToolbar: ToolbarContent {
                 .help("Remove every request from the list; Undo brings them back (⌘K)")
         }
         ToolbarItemGroup(placement: .primaryAction) {
-            let activeTools = ToolsView.Tool.activeRuleCount(in: model.settings.value)
+            let activeTools = ToolPage.activeRuleCount(in: model.settings.value)
             Button { router.show(.breakpoints) } label: {
                 Label("Breakpoints", systemImage: breakpoints.hits.isEmpty ? "pause.circle" : "pause.circle.fill")
             }

@@ -40,15 +40,16 @@ public struct WatcherCommands: Commands {
                 Button("Export CSV…") { model.sessionFiles.exportCSV() }
             }
             CommandGroup(replacing: .textEditing) {
-                Button("Find…") { Find.show { model.router.requestSearchFocus() } }.keyboardShortcut("f")
-                Button("Find in Body") { Find.findInBody() }.keyboardShortcut("f", modifiers: [.command, .option])
-                Button("Find Next") { Find.perform(.nextMatch) }.keyboardShortcut("g")
-                Button("Find Previous") { Find.perform(.previousMatch) }.keyboardShortcut("g", modifiers: [.command, .shift])
+                Button("Find…") { Find.live.show { model.router.requestSearchFocus() } }.keyboardShortcut("f")
+                Button("Find in Body") { Find.live.findInBody() }.keyboardShortcut("f", modifiers: [.command, .option])
+                Button("Find Next") { Find.live.perform(.nextMatch) }.keyboardShortcut("g")
+                Button("Find Previous") { Find.live.perform(.previousMatch) }
+                    .keyboardShortcut("g", modifiers: [.command, .shift])
             }
             CommandGroup(after: .pasteboard) {
                 Divider()
-                Button("Delete Request") { model.actions.delete(model.list.selection.map { [$0] } ?? []) }
-                    .keyboardShortcut(.delete, modifiers: .command).disabled(model.list.selection == nil)
+                item("Delete Request", .delete, in: model.requestCommands(for: model.list.selectedFlow))
+                    .keyboardShortcut(.delete, modifiers: .command)
                 Button("Clear Session") { model.actions.clear() }.keyboardShortcut("k")
             }
             CommandGroup(after: .sidebar) {
@@ -83,57 +84,25 @@ public struct WatcherCommands: Commands {
 
         Group {
             CommandMenu("Request") {
-                let selected = model.list.selectedFlow
-                Button("Repeat") {
-                    if let selected {
-                        model.actions.repeatRequest(selected.request)
-                    }
-                }
-                .keyboardShortcut("r").disabled(selected == nil)
-                Button("Edit & Repeat…") {
-                    if let selected {
-                        model.actions.editAndRepeat(selected)
-                    }
-                }
-                .keyboardShortcut("r", modifiers: [.command, .option]).disabled(selected == nil)
+                let commands = model.requestCommands(for: model.list.selectedFlow)
+                item("Repeat", .repeatRequest, in: commands).keyboardShortcut("r")
+                item("Edit & Repeat…", .editAndRepeat, in: commands)
+                    .keyboardShortcut("r", modifiers: [.command, .option])
                 Divider()
-                Button(selected?.isStarred == true ? "Remove Star" : "Star") {
-                    if let selected {
-                        model.actions.toggleStar([selected.id])
-                    }
-                }
-                .keyboardShortcut("d").disabled(selected == nil)
-                Button("Copy as cURL") {
-                    if let selected {
-                        model.actions.copy(model.actions.code(for: selected.request, as: .curl))
-                    }
-                }
-                .keyboardShortcut("c", modifiers: [.command, .shift]).disabled(selected == nil)
-                Button("Copy URL") {
-                    if let selected {
-                        model.actions.copy(selected.request.url)
-                    }
-                }
-                .keyboardShortcut("c", modifiers: [.command, .option]).disabled(selected == nil)
-                Button("Mock This Response") {
-                    if let selected {
-                        model.actions.mockResponse(selected)
-                    }
-                }
-                .keyboardShortcut("m", modifiers: [.command, .option]).disabled(selected?.response == nil)
-                Button("Set as Compare Base") {
-                    if let selected {
-                        model.router.compare(withBase: selected)
-                    }
-                }
-                .keyboardShortcut("b", modifiers: [.command, .shift]).disabled(selected == nil)
+                item(commands.starTitle, .toggleStar, in: commands).keyboardShortcut("d")
+                item("Copy as cURL", .copyCURL, in: commands).keyboardShortcut("c", modifiers: [.command, .shift])
+                item("Copy URL", .copyURL, in: commands).keyboardShortcut("c", modifiers: [.command, .option])
+                item("Mock This Response", .mockResponse, in: commands)
+                    .keyboardShortcut("m", modifiers: [.command, .option])
+                item("Set as Compare Base", .setCompareBase, in: commands)
+                    .keyboardShortcut("b", modifiers: [.command, .shift])
             }
 
             CommandMenu("Proxy") {
                 Button(model.proxy.isRunning ? "Pause Recording" : "Record") { model.proxy.toggleRunning() }
                     .keyboardShortcut("e").disabled(model.proxy.isSwitchingProxy)
-                Toggle("System Proxy", isOn: Binding(get: { model.proxy.systemProxyOn }, set: model.proxy.setSystemProxy))
-                    .keyboardShortcut("y", modifiers: [.command, .shift]).disabled(!model.proxy.isRunning)
+                Toggle("System Proxy", isOn: model.proxy.systemProxyBinding)
+                    .keyboardShortcut("y", modifiers: [.command, .shift]).disabled(!model.proxy.canSwitchSystemProxy)
                 Divider()
                 Button("Breakpoints…") { model.router.show(.breakpoints) }.keyboardShortcut("b")
                 Button("Tools…") { model.router.show(.tools) }.keyboardShortcut("t")
@@ -162,5 +131,11 @@ public struct WatcherCommands: Commands {
                 }
             }
         }
+    }
+
+    private func item(
+        _ title: String, _ command: RequestCommands.Command, in commands: RequestCommands
+    ) -> some View {
+        Button(title) { commands.perform(command) }.disabled(!commands.isEnabled(command))
     }
 }

@@ -18,28 +18,28 @@ final class ToolsViewModel {
         self.files = files; self.homeDirectory = homeDirectory
     }
 
-    var selection: ToolsView.Tool {
+    var selection: ToolPage {
         get { router.toolsSelection }
         set { router.toolsSelection = newValue }
     }
 
-    func activeCount(_ tool: ToolsView.Tool) -> Int {
+    func activeCount(_ tool: ToolPage) -> Int {
         tool.activeCount(in: settings.value)
     }
 
     /// Every problem in the tool's enabled rules (see ToolValidation).
-    func problems(_ tool: ToolsView.Tool) -> [String] {
+    func problems(_ tool: ToolPage) -> [String] {
         checkedRules(tool).filter(\.isEnabled).flatMap(\.problems)
     }
 
     /// What is wrong with one rule, switched on or not; its form shows this above the fields.
-    func problems(_ tool: ToolsView.Tool, ruleAt index: Int) -> [String] {
+    func problems(_ tool: ToolPage, ruleAt index: Int) -> [String] {
         let rules = checkedRules(tool)
         return rules.indices.contains(index) ? rules[index].problems : []
     }
 
     /// For VoiceOver and the sidebar tooltip: "2 rules on", "Off", "1 rule needs attention".
-    func summary(_ tool: ToolsView.Tool) -> String {
+    func summary(_ tool: ToolPage) -> String {
         let issues = problems(tool).count
         if issues > 0 {
             return issues == 1 ? "1 rule needs attention" : "\(issues) problems in rules"
@@ -54,7 +54,7 @@ final class ToolsViewModel {
     }
 
     // swiftlint:disable:next cyclomatic_complexity
-    private func checkedRules(_ tool: ToolsView.Tool) -> [CheckedRule] { // one case per tool
+    private func checkedRules(_ tool: ToolPage) -> [CheckedRule] { // one case per tool
         switch tool {
         case .block: check(\.blockList) { rule, _ in ToolValidation.problems(rule.matching) }
         case .allow: check(\.allowList) { rule, _ in ToolValidation.problems(rule.matching) }

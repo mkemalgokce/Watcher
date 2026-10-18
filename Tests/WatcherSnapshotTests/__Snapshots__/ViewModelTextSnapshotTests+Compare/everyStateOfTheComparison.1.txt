@@ -1,0 +1,22 @@
+noBase
+sameFlow
+ready
++0 -0
+same keep
+same old
+same end
+side by side:
+keep | keep
+old | old
+end | end
+ready
++1 -1
+same keep
+removed old
+added new
+same end
+side by side:
+keep | keep
+old | new
+end | end
+suggested: 1

@@ -5,7 +5,7 @@ import WatcherTestSupport
 
 extension InteractionTests {
     @MainActor
-    struct ToolsTests {
+    struct ToolsViewTests {
         @Test
         func toolsAddsARuleAndSwitchesTheToolOn() async throws {
             let model = try AppModel.test()
@@ -17,7 +17,7 @@ extension InteractionTests {
                 #expect(model.settings.blockList.isEnabled, "a new rule works without a second switch")
 
                 model.settings.blockList.isEnabled = false
-                await settle()
+                #expect(await eventually { !window.elements("Turn On").isEmpty })
                 try await window.press("Turn On")
                 #expect(model.settings.blockList.isEnabled)
 

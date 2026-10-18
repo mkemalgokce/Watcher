@@ -1,0 +1,13 @@
+host: 192.168.1.5
+proxy address: 192.168.1.5:9090
+certificate page: http://192.168.1.5:9090
+mac trusted: true
+simulators: ["iPhone 17 (iOS 26)"]
+android: ["emulator-5554"]
+
+host: —
+proxy address: none
+certificate page: http://watcher.cert
+mac trusted: false
+simulators: []
+android: []

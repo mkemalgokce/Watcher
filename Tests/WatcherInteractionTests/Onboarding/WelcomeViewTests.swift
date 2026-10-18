@@ -6,7 +6,7 @@ import WatcherTestSupport
 extension InteractionTests {
     /// The first-run sheet. The onboarding flag lives in the test runner's own UserDefaults domain, not Watcher's.
     @MainActor
-    struct WelcomeTests {
+    struct WelcomeViewTests {
         @Test
         func skippingClosesTheWelcomeWithoutCapturing() async throws {
             let skipping = try AppModel.test()

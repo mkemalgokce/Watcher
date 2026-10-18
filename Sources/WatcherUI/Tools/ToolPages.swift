@@ -6,7 +6,7 @@ struct SSLProxyingTab: View {
     @Environment(RequestActions.self) private var actions
     @Environment(DevicesViewModel.self) private var devices
     @Binding var settings: SSLProxyingSettings
-    let tool: ToolsView.Tool
+    let tool: ToolPage
 
     var body: some View {
         VStack(spacing: 0) {
@@ -42,7 +42,7 @@ struct SSLProxyingTab: View {
 
 struct ThrottleTab: View {
     @Binding var throttle: ThrottleSettings
-    let tool: ToolsView.Tool
+    let tool: ToolPage
 
     var body: some View {
         VStack(spacing: 0) {
@@ -85,7 +85,7 @@ struct ThrottleTab: View {
 
 struct ExternalProxyTab: View {
     @Binding var proxy: ExternalProxySettings
-    let tool: ToolsView.Tool
+    let tool: ToolPage
 
     var body: some View {
         VStack(spacing: 0) {
@@ -118,7 +118,7 @@ struct ExternalProxyTab: View {
 
 struct ProtobufTab: View {
     @Binding var settings: WatcherSettings
-    let tool: ToolsView.Tool
+    let tool: ToolPage
     let problems: (Int) -> [String]
 
     var body: some View {
@@ -127,7 +127,7 @@ struct ProtobufTab: View {
                 tool: tool,
                 set: $settings.protobuf,
                 title: \.displayName,
-                make: { ProtobufRule(matching: MatchingRule(pattern: "*")) },
+                make: NewRule.protobuf,
                 problems: problems
             ) { rule in
                 RuleFields(name: rule.name, matching: rule.matching)

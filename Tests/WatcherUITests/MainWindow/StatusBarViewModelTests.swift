@@ -87,6 +87,17 @@ struct StatusBarViewModelTests {
     }
 
     @Test
+    func clickingTheSystemProxyWhileTheProxyIsSwitchingDoesNothing() async throws {
+        let model = try model()
+        await record(model)
+        model.proxy.toggleRunning()
+        model.statusBar.toggleSystemProxy()
+        #expect(await eventually { !model.proxy.isSwitchingProxy })
+        #expect(!model.proxy.systemProxyOn)
+        #expect(systemProxy.calls.isEmpty)
+    }
+
+    @Test
     func clickingTheSystemProxyWhileStoppedAsksToStartTheProxy() throws {
         let model = try model()
         model.statusBar.toggleSystemProxy()

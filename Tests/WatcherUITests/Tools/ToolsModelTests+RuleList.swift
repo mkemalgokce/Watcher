@@ -45,11 +45,11 @@ extension ToolsModelTests {
             var settings = WatcherSettings()
             let off = BlockRule(name: "off", isEnabled: false, matching: MatchingRule(pattern: "*"))
             settings.blockList = RuleSet(isEnabled: true, rules: [rule("a"), off])
-            #expect(ToolsView.Tool.block.activeCount(in: settings) == 1)
+            #expect(ToolPage.block.activeCount(in: settings) == 1)
             settings.blockList.isEnabled = false
-            #expect(ToolsView.Tool.block.activeCount(in: settings) == 0)
+            #expect(ToolPage.block.activeCount(in: settings) == 0)
             settings.throttle.isEnabled = true
-            #expect(ToolsView.Tool.throttling.activeCount(in: settings) == 1)
+            #expect(ToolPage.throttling.activeCount(in: settings) == 1)
         }
     }
 }

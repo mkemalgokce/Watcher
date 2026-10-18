@@ -2,34 +2,42 @@ import AppKit
 
 /// ⌘F does what people expect in a two-pane tool: inside a body it opens that text's Find bar, anywhere else it jumps to the request filter.
 @MainActor
-enum Find {
-    static func show(orFocusFilter focusFilter: () -> Void) {
-        if let text = NSApp.keyWindow?.firstResponder as? NSTextView, !text.isFieldEditor, text.usesFindBar {
+struct Find {
+    var keyWindow: () -> NSWindow?
+    var sendAction: (Selector, NSMenuItem) -> Void
+
+    static let live = Find(
+        keyWindow: { NSApp.keyWindow },
+        sendAction: { NSApp.sendAction($0, to: nil, from: $1) }
+    )
+
+    func show(orFocusFilter focusFilter: () -> Void) {
+        if let text = keyWindow()?.firstResponder as? NSTextView, !text.isFieldEditor, text.usesFindBar {
             return perform(.showFindInterface)
         }
         focusFilter()
     }
 
-    static func perform(_ action: NSTextFinder.Action) {
+    func perform(_ action: NSTextFinder.Action) {
         let item = NSMenuItem(); item.tag = action.rawValue
-        NSApp.sendAction(#selector(NSResponder.performTextFinderAction(_:)), to: nil, from: item)
+        sendAction(#selector(NSResponder.performTextFinderAction(_:)), item)
     }
 
     /// The first body viewer in the window, so "Find in Body" works without clicking into it first.
-    static func findInBody() {
-        guard let window = NSApp.keyWindow else { return }
+    func findInBody() {
+        guard let window = keyWindow() else { return }
         if !(window.firstResponder is NSTextView), let text = firstBodyView(in: window.contentView) {
             window.makeFirstResponder(text)
         }
         perform(.showFindInterface)
     }
 
-    static func focusFilter(in window: NSWindow) {
+    func focusFilter(in window: NSWindow) {
         guard let field = searchField(in: window.contentView?.superview ?? window.contentView) else { return }
         window.makeFirstResponder(field)
     }
 
-    private static func searchField(in view: NSView?) -> NSSearchField? {
+    private func searchField(in view: NSView?) -> NSSearchField? {
         guard let view else { return nil }
         if let field = view as? NSSearchField {
             return field
@@ -42,7 +50,7 @@ enum Find {
         return nil
     }
 
-    private static func firstBodyView(in view: NSView?) -> NSTextView? {
+    private func firstBodyView(in view: NSView?) -> NSTextView? {
         guard let view else { return nil }
         if let text = view as? NSTextView, text.usesFindBar, !text.isFieldEditor, text.isSelectable {
             return text

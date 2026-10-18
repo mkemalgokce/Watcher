@@ -6,13 +6,13 @@ import Testing
 import WatcherTestSupport
 @testable import WatcherUI
 
-/// The bottom status bar and the notice banner, built from view models with test doubles.
+/// The bottom status bar, built from its view model with test doubles.
 @MainActor
 @Suite(
     .tags(.snapshot, .ui),
-    .enabled(if: ImageSnapshot.canRunOnThisOS, "no references for this macOS and recording is off")
+    .enabled(if: ImageSnapshot.canRun(), "no references for this macOS and recording is off")
 )
-struct MainWindowSnapshotTests {
+struct StatusBarTests {
     private static let size = CGSize(width: 900, height: 28)
 
     private func model(_ flows: [Flow] = []) throws -> AppModel {
@@ -39,16 +39,5 @@ struct MainWindowSnapshotTests {
         #expect(await eventually { model.proxy.isRunning && !model.proxy.isSwitchingProxy })
         let bar = StatusBar(viewModel: model.statusBar).environment(model)
         ImageSnapshot.verify(bar, size: Self.size, named: "busy")
-    }
-
-    @Test(arguments: [Notice.Kind.success, .info, .error])
-    func noticeBannerForEachKind(kind: Notice.Kind) throws {
-        let model = try model()
-        model.notices.notify("Saved 12 requests to session.watcher", kind)
-        ImageSnapshot.verify(
-            NoticeBanner().environment(model).padding(8),
-            size: CGSize(width: 460, height: 64),
-            named: "\(kind)"
-        )
     }
 }

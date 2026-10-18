@@ -11,4 +11,13 @@ struct BreakpointRulePhasesTests {
         let rule = BreakpointRule(matching: MatchingRule(pattern: "*"), onRequest: onRequest, onResponse: onResponse)
         #expect(rule.phaseSummary == summary)
     }
+
+    @Test(arguments: [
+        (true, "Login", "on  Login · request + response"),
+        (false, "", "off * · request + response"),
+    ])
+    func theSummaryLineSaysIfItIsOnItsTitleAndWhatItStops(isEnabled: Bool, name: String, line: String) {
+        let rule = BreakpointRule(name: name, isEnabled: isEnabled, matching: MatchingRule(pattern: "*"))
+        #expect(rule.summaryLine == line)
+    }
 }

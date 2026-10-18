@@ -6,21 +6,13 @@ import Testing
 import WatcherTestSupport
 @testable import WatcherUI
 
-/// Form screens built from view models with test doubles. List rows do not draw off screen, so the request list, the
-/// rule lists and Breakpoints are covered by text snapshots of their view models instead.
+/// The Tools pages that are forms rather than rule lists.
 @MainActor
 @Suite(
     .tags(.snapshot, .ui),
-    .enabled(if: ImageSnapshot.canRunOnThisOS, "no references for this macOS and recording is off")
+    .enabled(if: ImageSnapshot.canRun(), "no references for this macOS and recording is off")
 )
-struct ScreenSnapshotTests {
-    @Test
-    func theGeneralSettings() throws {
-        let model = try AppModel.test()
-        model.settings.port = 80
-        ImageSnapshot.verify(SettingsView().environment(model), size: CGSize(width: 520, height: 470), named: "general")
-    }
-
+struct ToolPagesTests {
     @Test
     func theThrottlingPage() throws {
         let model = try AppModel.test()

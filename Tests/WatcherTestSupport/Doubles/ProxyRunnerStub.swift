@@ -16,6 +16,7 @@ public final class ProxyRunnerStub: ProxyRunning, @unchecked Sendable {
     private let port: Int
     private var running = false
     private var failure: (any Error)?
+    private var runsDespiteFailure = false
 
     public init(boundPort: Int = 9123, log: LockedBox<[String]>? = nil) {
         port = boundPort
@@ -27,8 +28,9 @@ public final class ProxyRunnerStub: ProxyRunning, @unchecked Sendable {
         log.value.filter { $0.hasPrefix("start") || $0 == "stop" }
     }
 
-    public func failStarting(_ failure: (any Error)? = Failure()) {
-        lock.withLock { self.failure = failure }
+    /// With `stillRunning`, the failed start leaves the proxy listening, as a runner that bound a port and then threw.
+    public func failStarting(_ failure: (any Error)? = Failure(), stillRunning: Bool = false) {
+        lock.withLock { self.failure = failure; runsDespiteFailure = stillRunning }
     }
 
     public var isRunning: Bool {
@@ -42,6 +44,9 @@ public final class ProxyRunnerStub: ProxyRunning, @unchecked Sendable {
     public func start(port requested: Int?) async throws -> Int {
         log.mutate { $0.append("start \(requested.map(String.init) ?? "any")") }
         if let failure = lock.withLock({ failure }) {
+            if runsDespiteFailure {
+                lock.withLock { running = true }
+            }
             throw failure
         }
         lock.withLock { running = true }

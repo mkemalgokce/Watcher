@@ -15,9 +15,11 @@ extension InteractionTests {
                 #expect(window.elements("Clear Filters").isEmpty, "no summary row while nothing is filtered")
 
                 FilterToken.apply([.status(4)], to: &model.list.query)
-                await settle()
-                #expect(model.list.visibleFlows.map(\.response?.status) == [401, 403])
-                #expect(!window.elements("2 of 5 requests").isEmpty, "the summary says how many are left")
+                #expect(await eventually { model.list.visibleFlows.map(\.response?.status) == [401, 403] })
+                #expect(
+                    await eventually { !window.elements("2 of 5 requests").isEmpty },
+                    "the summary says how many are left"
+                )
 
                 try await window.press("Clear Filters")
                 #expect(!model.list.query.isActive)

@@ -56,7 +56,7 @@ struct StatusBarViewModel {
     }
 
     var activeTools: [String] {
-        ToolsView.Tool.activeNames(in: settings.value)
+        ToolPage.activeNames(in: settings.value)
     }
 
     var toolsText: String {
@@ -90,7 +90,8 @@ struct StatusBarViewModel {
 
     func toggleSystemProxy() {
         guard proxy.isRunning else { return notices.notify("Start the proxy first.", .error) }
-        proxy.setSystemProxy(!proxy.systemProxyOn)
+        guard proxy.canSwitchSystemProxy else { return }
+        proxy.toggleSystemProxy()
     }
 
     func showSSLProxying() {

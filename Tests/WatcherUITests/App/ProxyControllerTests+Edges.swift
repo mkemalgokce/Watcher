@@ -72,5 +72,109 @@ extension ProxyControllerTests {
             #expect(await eventually { !proxy.isSwitchingProxy })
             #expect(!proxy.systemProxyOn)
         }
+
+        @Test
+        func twoQuickClicksOnTheSystemProxyEndInTheStateOfTheLastClick() async {
+            let gate = DispatchSemaphore(value: 0)
+            let systemProxy = SystemProxySpy(log: log, enableGate: gate)
+            let (proxy, _) = controller(systemProxy: systemProxy)
+            proxy.toggleSystemProxy()
+            #expect(await eventually { systemProxy.enableCallsStarted == 1 })
+            proxy.toggleSystemProxy()
+            gate.signal()
+            #expect(await eventually { log.value == ["enable 9090", "disable"] })
+            let isOff = { notices.notice?.message.hasPrefix("System proxy off") == true }
+            #expect(await eventually { !proxy.systemProxyOn && isOff() })
+        }
+
+        @Test
+        func aSystemProxyClickQueuedBeforePauseIsUndoneBeforeTheProxyStops() async {
+            let systemProxy = SystemProxySpy(log: log)
+            let (proxy, _) = controller(systemProxy: systemProxy)
+            proxy.toggleRunning()
+            #expect(await eventually { proxy.isRunning && !proxy.isSwitchingProxy })
+            proxy.toggleRunning()
+            proxy.toggleSystemProxy()
+            #expect(await eventually { log.value == ["start 9090", "enable 9123", "disable", "stop"] })
+            #expect(await eventually { !proxy.isSwitchingProxy })
+            #expect(!proxy.systemProxyOn)
+            #expect(!proxy.isRunning)
+        }
+
+        @Test
+        func twoQuickSetsOfTheOppositeOfTheTargetEndInTheStateOfTheLastOne() async {
+            let gate = DispatchSemaphore(value: 0)
+            let systemProxy = SystemProxySpy(log: log, enableGate: gate)
+            let (proxy, _) = controller(systemProxy: systemProxy)
+            proxy.setSystemProxy(!proxy.systemProxyTarget)
+            #expect(await eventually { systemProxy.enableCallsStarted == 1 })
+            proxy.setSystemProxy(!proxy.systemProxyTarget)
+            gate.signal()
+            #expect(await eventually { log.value == ["enable 9090", "disable"] })
+            #expect(await eventually { !proxy.systemProxyOn && !proxy.systemProxyTarget })
+        }
+
+        @Test
+        func theSystemProxyCanBeSwitchedOnlyWhileRecordingAndNotMidSwitch() async {
+            let (proxy, _) = controller(systemProxy: SystemProxySpy(log: log))
+            #expect(!proxy.canSwitchSystemProxy)
+            proxy.toggleRunning()
+            #expect(!proxy.canSwitchSystemProxy)
+            #expect(await eventually { proxy.isRunning && !proxy.isSwitchingProxy })
+            #expect(proxy.canSwitchSystemProxy)
+            proxy.toggleRunning()
+            #expect(!proxy.canSwitchSystemProxy)
+            #expect(await eventually { !proxy.isSwitchingProxy })
+            #expect(!proxy.canSwitchSystemProxy)
+        }
+
+        @Test
+        func aClickAfterAFailedSwitchTriesTheSameSwitchAgain() async {
+            let systemProxy = SystemProxySpy(log: log)
+            systemProxy.failFromNowOn()
+            let (proxy, _) = controller(systemProxy: systemProxy)
+            proxy.toggleSystemProxy()
+            #expect(await eventually { notices.notice?.kind == .error })
+            proxy.toggleSystemProxy()
+            #expect(await eventually { systemProxy.enableCallsStarted == 2 })
+        }
+
+        @Test
+        func systemProxySwitchesRunInTheOrderTheyWereAsked() async {
+            let gate = DispatchSemaphore(value: 0)
+            let systemProxy = SystemProxySpy(log: log, enableGate: gate)
+            let (proxy, _) = controller(systemProxy: systemProxy)
+            proxy.setSystemProxy(true)
+            #expect(await eventually { systemProxy.enableCallsStarted == 1 })
+            proxy.setSystemProxy(false)
+            #expect(await !eventually(timeout: 0.3) { log.value.contains("disable") }, "off waits for the switch on")
+            gate.signal()
+            #expect(await eventually { log.value == ["enable 9090", "disable"] })
+            #expect(await eventually { !proxy.isSwitchingProxy && !proxy.systemProxyOn })
+        }
+
+        @Test
+        func theProxyReportsStoppingWhilePauseWaitsForASystemProxySwitch() async {
+            let gate = DispatchSemaphore(value: 0)
+            let systemProxy = SystemProxySpy(log: log, enableGate: gate)
+            let (proxy, _) = controller(systemProxy: systemProxy, autoSystemProxy: true)
+            proxy.toggleRunning()
+            #expect(await eventually { proxy.isRunning && !proxy.isSwitchingProxy })
+            proxy.toggleRunning()
+            #expect(proxy.status(listing: "0 requests") == "Stopping…")
+            gate.signal()
+            #expect(await eventually { !proxy.isSwitchingProxy })
+            #expect(proxy.status(listing: "0 requests") == "Not recording · 0 requests")
+        }
+
+        @Test
+        func aFailedStartMirrorsTheRunnerThatIsStillListening() async {
+            let (proxy, runner) = controller(systemProxy: SystemProxySpy(log: log))
+            runner.failStarting(stillRunning: true)
+            proxy.toggleRunning()
+            #expect(await eventually { proxy.proxyError != nil && !proxy.isSwitchingProxy })
+            #expect(proxy.isRunning)
+            #expect(proxy.state == .failed)
+        }
     }
 }

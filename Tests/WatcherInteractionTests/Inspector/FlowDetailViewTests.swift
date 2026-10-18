@@ -7,7 +7,7 @@ import WatcherTestSupport
 
 extension InteractionTests {
     @MainActor
-    struct InspectorTests {
+    struct FlowDetailViewTests {
         @Test
         func headerButtonsStarCopyAndRepeatTheRequest() async throws {
             let model = try AppModel.demo()
@@ -15,9 +15,8 @@ extension InteractionTests {
             let selected = model.list.flows[0]
             try await withWindow(showing: FlowDetailView().environment(model), width: 900) { window in
                 try await window.press("Star")
-                await settle(0.3) // the star goes through the store and comes back as an event batch
-                #expect(model.list.flows[0].isStarred)
-                #expect(!window.elements("Remove Star").isEmpty, "the button now offers to undo")
+                #expect(await eventually { model.list.flows[0].isStarred }, "the star comes back as an event batch")
+                #expect(await eventually { !window.elements("Remove Star").isEmpty }, "the button now offers to undo")
 
                 try await window.press("Copy as cURL")
                 #expect(model.notices.notice?.message == "cURL copied")

@@ -57,8 +57,8 @@ struct ToolsViewModelTests {
         #expect(!tools.problems(.dns, ruleAt: 0).isEmpty)
     }
 
-    @Test(arguments: ToolsView.Tool.allCases)
-    func aRuleThatIsGoneHasNoProblems(tool: ToolsView.Tool) throws {
+    @Test(arguments: ToolPage.allCases)
+    func aRuleThatIsGoneHasNoProblems(tool: ToolPage) throws {
         let model = try AppModel.test()
         let tools = model.toolsViewModel()
         #expect(tools.problems(tool, ruleAt: 0).isEmpty)

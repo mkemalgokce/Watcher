@@ -37,6 +37,7 @@ private struct MediaPreview: View {
     let contentType: String?
     @State private var player: AVPlayer?
     @State private var file: URL?
+    @Environment(ExternalApps.self) private var externalApps
 
     var body: some View {
         Group {
@@ -47,15 +48,13 @@ private struct MediaPreview: View {
             }
         }
         .onAppear {
-            let ext = UTType(mimeType: contentType ?? "")?.preferredFilenameExtension ?? "bin"
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent("watcher-media-\(UUID().uuidString).\(ext)")
-            if (try? data.write(to: url)) != nil {
+            if let url = try? externalApps.write(data, name: "media", contentType: contentType) {
                 file = url; player = AVPlayer(url: url)
             }
         }
         .onDisappear {
             player?.pause(); if let file {
-                try? FileManager.default.removeItem(at: file)
+                externalApps.discard(file)
             }
         }
     }

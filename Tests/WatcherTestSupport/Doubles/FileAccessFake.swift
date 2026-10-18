@@ -101,6 +101,11 @@ public final class FileAccessFake: @unchecked Sendable {
             },
             remove: { [self] url in
                 try perform(.remove) {
+                    if directories.remove(url.path) != nil {
+                        files = files.filter { !$0.key.hasPrefix(url.path + "/") }
+                        directories = directories.filter { !$0.hasPrefix(url.path + "/") }
+                        return
+                    }
                     guard files.removeValue(forKey: url.path) != nil else { throw CocoaError(.fileNoSuchFile) }
                 }
             },

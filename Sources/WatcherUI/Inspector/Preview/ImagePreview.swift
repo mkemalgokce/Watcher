@@ -6,6 +6,7 @@ import WatcherCore
 struct ImagePreview: View {
     @Environment(RequestActions.self) private var actions
     @Environment(SessionFilesViewModel.self) private var sessionFiles
+    @Environment(ExternalApps.self) private var externalApps
     let data: Data
     var mime: String?
     @State private var actualSize = false
@@ -38,7 +39,7 @@ struct ImagePreview: View {
                         .accessibilityLabel("Image, \(Int(image.size.width)) by \(Int(image.size.height)) pixels")
                 }
                 .background(Checkerboard()).clipShape(RoundedRectangle(cornerRadius: 6))
-                .draggableFile(data, name: "image", contentType: mime)
+                .draggableFile(data, name: "image", contentType: mime, using: externalApps)
                 .help("Drag the image to Finder or another app")
             }
         } else {

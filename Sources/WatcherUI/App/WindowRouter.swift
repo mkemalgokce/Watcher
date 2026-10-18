@@ -4,7 +4,7 @@ import WatcherCore
 /// Which dialog, page and half of the exchange the windows show, and requests to move focus or bring Compare forward.
 @MainActor @Observable
 final class WindowRouter {
-    enum Sheet: Identifiable {
+    enum Sheet: Identifiable, CaseIterable {
         case tools, breakpoints, compose, devices, welcome, converter, help
         var id: Self {
             self
@@ -14,7 +14,7 @@ final class WindowRouter {
     /// The dialog currently shown over the main window; menus and toolbar both open it through here.
     var sheet: Sheet?
     /// The page Tools opens on; callers set it to land on the tool they mean.
-    var toolsSelection = ToolsView.Tool.sslProxying
+    var toolsSelection = ToolPage.sslProxying
     /// The half of the exchange shown when the inspector is too narrow for both side by side.
     var exchangeSide = MessageSide.response
     var askWorkspaceName = false
