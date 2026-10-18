@@ -106,7 +106,32 @@ public final class MCPServer: @unchecked Sendable {
     }
 
     private func definitions() -> [ToolDefinition] {
+        overviewTools() + flowTools() + ruleTools() + composeTools()
+    }
+
+    private func overviewTools() -> [ToolDefinition] {
         let engine = engine, localAddresses = localAddresses
+
+        return [
+            ToolDefinition(name: "get_proxy_status", description: "Whether Watcher is running and on which port.", properties: [:], required: []) { _ in
+                Self.status(of: engine, lan: localAddresses())
+            },
+            ToolDefinition(name: "list_rules", description: "Every tool and its rules.", properties: [:], required: []) { _ in
+                let settings = engine.settings.value
+                return ToolKind.allCases.map { "\($0.rawValue): \($0.summary(in: settings))" }.joined(separator: "\n")
+            },
+            ToolDefinition(name: "get_ssl_proxying_list", description: "Hosts that are decrypted or excluded.", properties: [:], required: []) { _ in
+                let s = engine.settings.value.sslProxying
+                return "include: \(s.include.joined(separator: ", "))\nexclude: \(s.exclude.joined(separator: ", "))"
+            },
+            ToolDefinition(name: "get_certificate_status", description: "Location of the root certificate to trust.", properties: [:], required: []) { _ in
+                engine.authority.certificateURL.path
+            },
+        ]
+    }
+
+    private func flowTools() -> [ToolDefinition] {
+        let engine = engine
         func flow(_ args: [String: Any]) throws -> Flow {
             guard let sequence = Int(args["sequence"] as? String ?? ""),
                   let found = engine.store.all.first(where: { $0.sequence == sequence })
@@ -115,18 +140,8 @@ public final class MCPServer: @unchecked Sendable {
             }
             return found
         }
-        func edit(_ change: @escaping (inout WatcherSettings) -> Void) async throws -> String {
-            try await engine.updateSettings(change)
-            return "OK"
-        }
-        func matching(_ args: [String: Any]) -> MatchingRule {
-            MatchingRule(pattern: args["pattern"] as? String ?? "*")
-        }
 
         return [
-            ToolDefinition(name: "get_proxy_status", description: "Whether Watcher is running and on which port.", properties: [:], required: []) { _ in
-                Self.status(of: engine, lan: localAddresses())
-            },
             ToolDefinition(name: "get_flows", description: "List captured requests (newest last).", properties: ["filter": "Only URLs containing this text", "limit": "Maximum rows, default 50"], required: []) { args in
                 let filter = args["filter"] as? String ?? ""
                 let limit = max(0, Int(args["limit"] as? String ?? "") ?? 50)
@@ -154,31 +169,20 @@ public final class MCPServer: @unchecked Sendable {
             ToolDefinition(name: "clear_session", description: "Remove every captured request.", properties: [:], required: []) { _ in
                 engine.store.clear(); return "OK"
             },
-            ToolDefinition(name: "list_rules", description: "Every tool and its rules.", properties: [:], required: []) { _ in
-                let s = engine.settings.value
-                func line(_ name: String, _ set: RuleSet<some ToolRule>) -> String {
-                    "\(name): \(set.isEnabled ? "on" : "off"), \(set.rules.count) rule(s)"
-                }
-                return [
-                    line("block-list", s.blockList),
-                    line("allow-list", s.allowList),
-                    line("map-local", s.mapLocal),
-                    line("map-remote", s.mapRemote),
-                    line("breakpoint", s.breakpoints),
-                    line("scripting", s.scripting),
-                    line("dns-spoofing", s.dnsSpoofing),
-                    line("reverse-proxy", s.reverseProxy),
-                    "network-condition: \(s.throttle.isEnabled ? "on (\(s.throttle.profile.name))" : "off")",
-                    "no-caching: \(s.noCaching ? "on" : "off")",
-                ].joined(separator: "\n")
-            },
-            ToolDefinition(name: "get_ssl_proxying_list", description: "Hosts that are decrypted or excluded.", properties: [:], required: []) { _ in
-                let s = engine.settings.value.sslProxying
-                return "include: \(s.include.joined(separator: ", "))\nexclude: \(s.exclude.joined(separator: ", "))"
-            },
-            ToolDefinition(name: "get_certificate_status", description: "Location of the root certificate to trust.", properties: [:], required: []) { _ in
-                engine.authority.certificateURL.path
-            },
+        ]
+    }
+
+    private func ruleTools() -> [ToolDefinition] {
+        let engine = engine
+        func edit(_ change: @escaping (inout WatcherSettings) -> Void) async throws -> String {
+            try await engine.updateSettings(change)
+            return "OK"
+        }
+        func matching(_ args: [String: Any]) -> MatchingRule {
+            MatchingRule(pattern: args["pattern"] as? String ?? "*")
+        }
+
+        return [
             ToolDefinition(name: "create_blacklist", description: "Block requests whose URL matches a pattern (* and ?).", properties: ["pattern": "URL pattern"], required: ["pattern"]) { args in
                 try await edit { $0.blockList.isEnabled = true; $0.blockList.rules.append(BlockRule(matching: matching(args))) }
             },
@@ -209,6 +213,13 @@ public final class MCPServer: @unchecked Sendable {
             ToolDefinition(name: "create_scripting_rule", description: "Run JavaScript (onRequest/onResponse) on matching traffic.", properties: ["pattern": "URL pattern", "source": "JavaScript source"], required: ["pattern", "source"]) { args in
                 try await edit { $0.scripting.isEnabled = true; $0.scripting.rules.append(ScriptRule(matching: matching(args), source: args["source"] as? String ?? "")) }
             },
+        ]
+    }
+
+    private func composeTools() -> [ToolDefinition] {
+        let engine = engine
+
+        return [
             ToolDefinition(name: "create_compose_http", description: "Send an HTTP request through Watcher and return the response.", properties: ["method": "HTTP method", "url": "Absolute URL", "headers": "Lines of `Name: value`", "body": "Request body"], required: ["url"]) { args in
                 guard let url = URLComponents(string: args["url"] as? String ?? ""), let host = url.host else { throw Failure(description: "url must be absolute") }
                 let scheme = url.scheme ?? "https"
