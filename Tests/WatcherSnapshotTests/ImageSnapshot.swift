@@ -16,18 +16,66 @@ enum ImageSnapshot {
             || ProcessInfo.processInfo.environment["SNAPSHOT_TESTING_RECORD"] != "never"
     }
 
+    private static let settleLimit: TimeInterval = 5
+
+    /// Lets what a screen starts when it appears (formatting a body, comparing two responses) finish: runs the main
+    /// loop until two renders in a row are identical, and gives up after `settleLimit`.
+    @MainActor
+    private static func settle(_ view: NSView) async {
+        var previous: Data?
+        let deadline = Date(timeIntervalSinceNow: settleLimit)
+        while Date() < deadline {
+            try? await Task.sleep(for: .milliseconds(100))
+            let current = view.bitmapImageRepForCachingDisplay(in: view.bounds).flatMap { rep -> Data? in
+                view.cacheDisplay(in: view.bounds, to: rep)
+                return rep.representation(using: .tiff, properties: [:])
+            }
+            if current != nil, current == previous {
+                return
+            }
+            previous = current
+        }
+    }
+
+    /// The size, language, time zone and animations every reference is rendered with.
+    @MainActor
+    private static func fixed(_ view: some View, size: CGSize) -> some View {
+        view.frame(width: size.width, height: size.height)
+            .background(.background)
+            .environment(\.locale, locale)
+            .environment(\.timeZone, timeZone)
+            .transaction { $0.animation = nil }
+    }
+
+    static let timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+    static let locale = Locale(identifier: "en_GB")
+
     @MainActor
     static func verify(
         _ view: some View,
         size: CGSize,
         named name: String,
+        appearance: NSAppearance.Name = .aqua,
         filePath: StaticString = #filePath,
         testName: String = #function,
         sourceLocation: SourceLocation = #_sourceLocation
-    ) {
-        let host = NSHostingView(rootView: view.frame(width: size.width, height: size.height))
-        host.appearance = NSAppearance(named: .aqua)
-        host.frame = CGRect(origin: .zero, size: size)
+    ) async {
+        let host = NSHostingView(rootView: Self.fixed(view, size: size))
+        // A scene toolbar makes table cells lose their environment when no scene hosts the view.
+        host.sceneBridgingOptions = []
+        let window = NSWindow(
+            contentRect: CGRect(origin: .zero, size: size), styleMask: [.titled], backing: .buffered, defer: false
+        )
+        window.isReleasedWhenClosed = false // ARC owns it; AppKit releasing it again on close() would crash
+        window.appearance = NSAppearance(named: appearance)
+        window.contentView = host
+        // Lists and tables draw nothing until their window is on screen; far outside every display, nobody sees it.
+        window.setFrameOrigin(CGPoint(x: -30000, y: -30000))
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        host.layoutSubtreeIfNeeded()
+        host.useOpaqueSelections()
+        await Self.settle(host)
         let file = URL(fileURLWithPath: "\(filePath)")
         let directory = file.deletingLastPathComponent().appendingPathComponent("__Snapshots__")
             .appendingPathComponent(osFolder).appendingPathComponent(file.deletingPathExtension().lastPathComponent)
@@ -42,5 +90,15 @@ enum ImageSnapshot {
         if let failure {
             Issue.record(Comment(rawValue: failure), sourceLocation: sourceLocation)
         }
+    }
+}
+
+private extension NSView {
+    /// A source list paints its selection with a translucent material that an off-screen capture renders black.
+    func useOpaqueSelections() {
+        if let table = self as? NSTableView {
+            table.selectionHighlightStyle = .regular
+        }
+        subviews.forEach { $0.useOpaqueSelections() }
     }
 }

@@ -10,13 +10,13 @@ import WatcherTestSupport
 )
 struct PillTests {
     @Test
-    func statusPillLooksTheSame() {
+    func statusPillLooksTheSame() async {
         let pill = Pill(text: "404", tint: .orange, monospaced: true)
-        ImageSnapshot.verify(pill, size: CGSize(width: 60, height: 24), named: "status")
+        await ImageSnapshot.verify(pill, size: CGSize(width: 60, height: 24), named: "status")
     }
 
     @Test
-    func tagPillLooksTheSame() {
-        ImageSnapshot.verify(Pill(text: "Map Local"), size: CGSize(width: 90, height: 24), named: "tag")
+    func tagPillLooksTheSame() async {
+        await ImageSnapshot.verify(Pill(text: "Map Local"), size: CGSize(width: 90, height: 24), named: "tag")
     }
 }

@@ -14,9 +14,11 @@ import WatcherTestSupport
 )
 struct SettingsViewTests {
     @Test
-    func theGeneralSettings() throws {
+    func theGeneralSettings() async throws {
         let model = try AppModel.test()
         model.settings.port = 80
-        ImageSnapshot.verify(SettingsView().environment(model), size: CGSize(width: 520, height: 470), named: "general")
+        await ImageSnapshot.verify(
+            SettingsView().environment(model), size: CGSize(width: 520, height: 470), named: "general"
+        )
     }
 }

@@ -14,10 +14,10 @@ import WatcherTestSupport
 )
 struct ToolPagesTests {
     @Test
-    func theThrottlingPage() throws {
+    func theThrottlingPage() async throws {
         let model = try AppModel.test()
         let throttle = ThrottleSettings(isEnabled: true, profile: NetworkProfile.presets[1], host: "api.example.com")
         let page = ThrottleTab(throttle: .constant(throttle), tool: .throttling).environment(model)
-        ImageSnapshot.verify(page, size: CGSize(width: 640, height: 420), named: "throttling")
+        await ImageSnapshot.verify(page, size: CGSize(width: 640, height: 420), named: "throttling")
     }
 }

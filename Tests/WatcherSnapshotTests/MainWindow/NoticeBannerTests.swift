@@ -14,10 +14,10 @@ import WatcherTestSupport
 )
 struct NoticeBannerTests {
     @Test(arguments: [Notice.Kind.success, .info, .error])
-    func noticeBannerForEachKind(kind: Notice.Kind) throws {
+    func noticeBannerForEachKind(kind: Notice.Kind) async throws {
         let model = try AppModel.test()
         model.notices.notify("Saved 12 requests to session.watcher", kind)
-        ImageSnapshot.verify(
+        await ImageSnapshot.verify(
             NoticeBanner().environment(model).padding(8),
             size: CGSize(width: 460, height: 64),
             named: "\(kind)"

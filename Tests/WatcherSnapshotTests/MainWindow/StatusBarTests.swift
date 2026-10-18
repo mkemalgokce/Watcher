@@ -23,10 +23,10 @@ struct StatusBarTests {
     }
 
     @Test
-    func statusBarWhileStopped() throws {
+    func statusBarWhileStopped() async throws {
         let model = try model([.fixture(sequence: 1, status: 200, body: Data(count: 2048))])
         let bar = StatusBar(viewModel: model.statusBar).environment(model)
-        ImageSnapshot.verify(bar, size: Self.size, named: "stopped")
+        await ImageSnapshot.verify(bar, size: Self.size, named: "stopped")
     }
 
     @Test
@@ -38,6 +38,6 @@ struct StatusBarTests {
         model.proxy.toggleRunning()
         #expect(await eventually { model.proxy.isRunning && !model.proxy.isSwitchingProxy })
         let bar = StatusBar(viewModel: model.statusBar).environment(model)
-        ImageSnapshot.verify(bar, size: Self.size, named: "busy")
+        await ImageSnapshot.verify(bar, size: Self.size, named: "busy")
     }
 }
