@@ -35,7 +35,7 @@ struct WatcherCLITests {
 
     /// A closed terminal makes every write fail; the command must still finish its work instead of crashing.
     @Test
-    func anOutputThatCannotBeWrittenDoesNotStopTheCommand() throws {
+    func anOutputThatCannotBeWrittenDoesNotStopTheCommand() async throws {
         let home = try TemporaryDirectory(prefix: "watcher-e2e")
         let process = Process()
         process.executableURL = try WatcherCLIBinary.locate()
@@ -46,7 +46,11 @@ struct WatcherCLITests {
         process.standardError = unwritable
 
         try process.run()
-        process.waitUntilExit()
+        let exited = await eventually(timeout: 30) { !process.isRunning }
+        if !exited {
+            process.terminate()
+        }
+        try #require(exited, "watcher-cli cert did not exit within 30 s with an unwritable output")
 
         #expect(process.terminationReason == .exit)
         #expect(process.terminationStatus == 0)

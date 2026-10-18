@@ -94,6 +94,7 @@ jobs:
           SNAPSHOT_TESTING_RECORD: never
         run: make test-snapshot
       - name: End-to-end tests
+        timeout-minutes: 5
         run: make test-e2e
       - name: Save build cache
         if: ${{ !cancelled() }}
