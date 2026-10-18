@@ -107,6 +107,13 @@ public final class AppModel {
         )
     }
 
+    var statusBar: StatusBarViewModel {
+        StatusBarViewModel(
+            proxy: proxy, settings: settings, devices: devices, breakpoints: breakpoints, list: list,
+            sessionFiles: sessionFiles, notices: notices, actions: actions, router: router
+        ) { [self] in statusLine }
+    }
+
     /// The line under the window title: starting, listening (with the address), stopped, or that starting failed.
     var statusLine: String {
         proxy.status(listing: list.countText)
