@@ -77,33 +77,26 @@ struct CustomCertificatesTests {
 
     /// Handshakes through the proxy for two hosts and prints each host with the certificate that came back.
     private func certificatesPresented(port: Int) -> String {
+        ["pinned.test", "other.test"].map {
+            pythonTLSViaProxy(port: port, host: $0, verify: false) + printedCertificate(label: $0)
+        }.joined(separator: "\n")
+    }
+
+    /// Python that prints `label` and the peer certificate of the handshake `t` made, on one line.
+    private func printedCertificate(label: String) -> String {
         """
-        import socket, ssl, sys
-        for host in ("pinned.test", "other.test"):
-            s = socket.create_connection(("127.0.0.1", \(port)), timeout=10)
-            s.sendall(f"CONNECT {host}:443 HTTP/1.1\\r\\nHost: {host}:443\\r\\n\\r\\n".encode()); s.recv(4096)
-            ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
-            der = ctx.wrap_socket(s, server_hostname=host).getpeercert(binary_form=True)
-            print(host, ssl.DER_cert_to_PEM_cert(der).replace("\\n", "|"))
+
+        import ssl
+        print("\(label)", ssl.DER_cert_to_PEM_cert(t.getpeercert(binary_form=True)).replace("\\n", "|"))
         """
     }
 
     /// Handshakes for `pinned.test` once after an HTTP CONNECT and once after a SOCKS5 connect, printing each certificate.
     private func handshakes(proxyPort: Int, socksPort: Int) -> String {
-        """
-        import socket, ssl
-        def show(route, s):
-            ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
-            der = ctx.wrap_socket(s, server_hostname="pinned.test").getpeercert(binary_form=True)
-            print(route, ssl.DER_cert_to_PEM_cert(der).replace("\\n", "|"))
-        s = socket.create_connection(("127.0.0.1", \(proxyPort)), timeout=10)
-        s.sendall(b"CONNECT pinned.test:443 HTTP/1.1\\r\\nHost: pinned.test:443\\r\\n\\r\\n"); s.recv(4096)
-        show("connect", s)
-        s = socket.create_connection(("127.0.0.1", \(socksPort)), timeout=10)
-        s.sendall(bytes([5, 1, 0])); s.recv(2)
-        s.sendall(bytes([5, 1, 0, 3, 11]) + b"pinned.test" + bytes([1, 187])); s.recv(10)
-        show("socks", s)
-        """
+        let connect = pythonTLSViaProxy(port: proxyPort, host: "pinned.test", verify: false)
+        let socks = pythonTLSViaProxy(port: socksPort, host: "pinned.test", verify: false, handshake: .socks5)
+        return [connect + printedCertificate(label: "connect"), socks + printedCertificate(label: "socks")]
+            .joined(separator: "\n")
     }
 
     private func subjectAndIssuer(_ line: String) throws -> String {
