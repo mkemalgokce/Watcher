@@ -10,6 +10,10 @@ struct SystemProxyCommand: ParsableCommand {
     @Argument var state: State
     @Option(help: "Watcher port to point at (default: from settings, 9090).") var port: Int?
 
+    func validate() throws {
+        try PortOption.validate(port)
+    }
+
     func run() throws {
         try run(in: .live)
     }

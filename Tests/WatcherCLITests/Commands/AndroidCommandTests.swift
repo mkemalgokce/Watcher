@@ -28,6 +28,11 @@ struct AndroidCommandTests {
         #expect(android.port == 8888)
     }
 
+    @Test(arguments: ["0", "65536", "-1"])
+    func rejectsAPortTheDeviceCannotPointAt(port: String) {
+        #expect(throws: (any Error).self) { try AndroidCommand.parse(["proxy", "--port=\(port)"]) }
+    }
+
     @Test(arguments: [["flash"], ["--port", "x"]])
     func rejectsAnUnknownActionOrMalformedPort(arguments: [String]) {
         #expect(throws: (any Error).self) { try AndroidCommand.parse(arguments) }

@@ -14,6 +14,10 @@ struct AndroidCommand: ParsableCommand {
     @Option(help: "adb serial; defaults to the only connected device.") var serial: String?
     @Option(help: "Watcher port the device should use (default: from settings, 9090).") var port: Int?
 
+    func validate() throws {
+        try PortOption.validate(port)
+    }
+
     func run() throws {
         try run(in: .live)
     }

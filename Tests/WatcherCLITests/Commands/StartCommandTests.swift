@@ -31,6 +31,16 @@ struct StartCommandTests {
         #expect(throws: (any Error).self) { try Start.parse(arguments) }
     }
 
+    @Test(arguments: ["0", "1", "65535"])
+    func acceptsAnyPortASocketCanUseAndZeroForAnyFreeOne(port: String) throws {
+        #expect(try Start.parse(["--port", port]).port == Int(port))
+    }
+
+    @Test(arguments: ["65536", "70000", "-1"])
+    func rejectsAPortOutsideTheRange(port: String) {
+        #expect(throws: (any Error).self) { try Start.parse(["--port=\(port)"]) }
+    }
+
     /// Runs `start` until it waits for Ctrl-C, then runs `whileRunning`, waits for `until`, and presses Ctrl-C.
     static func run(
         _ arguments: [String],

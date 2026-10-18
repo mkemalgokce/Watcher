@@ -59,6 +59,16 @@ struct SystemProxyCommandTests {
         #expect(cli.printed == ["System proxy on", "System proxy off"])
     }
 
+    @Test(arguments: ["0", "65536", "-1"])
+    func rejectsAPortTheProxyCannotPointAt(port: String) {
+        #expect(throws: (any Error).self) { try SystemProxyCommand.parse(["on", "--port=\(port)"]) }
+    }
+
+    @Test(arguments: [1, 65535])
+    func acceptsEveryPortInTheRange(port: Int) throws {
+        #expect(try SystemProxyCommand.parse(["on", "--port", "\(port)"]).port == port)
+    }
+
     @Test(arguments: ["on", "off"])
     func aFailingNetworksetupIsReportedAndNothingIsPrinted(state: String) throws {
         let failing = CommandRunnerSpy(result: CommandResult(status: 14, output: Data("not allowed".utf8)))

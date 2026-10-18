@@ -10,6 +10,11 @@ struct McpCommandTests {
         #expect(try Mcp.parse(arguments).port == port)
     }
 
+    @Test(arguments: ["65536", "-1"])
+    func rejectsAPortOutsideTheRange(port: String) {
+        #expect(throws: (any Error).self) { try Mcp.parse(["--port=\(port)"]) }
+    }
+
     @Test
     func answersEachRequestLineOnStandardOutputAndStopsAtTheEndOfInput() async throws {
         let cli = CLIHarness(input: ["one", "two"])

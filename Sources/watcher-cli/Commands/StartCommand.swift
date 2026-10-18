@@ -13,6 +13,10 @@ struct Start: AsyncParsableCommand {
     @Option(help: "Write the session to this CSV file when you press Ctrl-C.") var csv: String?
     @Flag(help: "Point the macOS system proxy at Watcher while running.") var systemProxy = false
 
+    func validate() throws {
+        try PortOption.validate(port, allowsAny: true)
+    }
+
     func run() async throws {
         try await run(in: .live)
     }

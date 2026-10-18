@@ -9,6 +9,10 @@ struct Mcp: AsyncParsableCommand {
 
     @Option(help: "Port to listen on (default: from settings).") var port: Int?
 
+    func validate() throws {
+        try PortOption.validate(port, allowsAny: true)
+    }
+
     func run() async throws {
         try await run(in: .live)
     }
