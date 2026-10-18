@@ -48,7 +48,7 @@ struct MessagePanel: View {
     }
 
     private var headers: [Header] {
-        side == .request ? flow.request.headers : flow.response?.headers ?? []
+        flow.headers(side)
     }
 
     private var fields: [FormField] {
@@ -144,7 +144,7 @@ struct MessagePanel: View {
     }
 
     private var detail: String {
-        let body = side == .request ? flow.request.body : flow.response?.body ?? Data()
+        let body = flow.body(side)
         let type = headers.value(for: "content-type")?.split(separator: ";").first.map(String.init)
         // A response always states its size, so an empty one reads "0 B" instead of looking unloaded.
         let size = side == .response || !body.isEmpty ? Format.bytes(body.count) : nil

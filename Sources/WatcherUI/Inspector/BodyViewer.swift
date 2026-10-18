@@ -51,8 +51,7 @@ struct BodyViewer: View {
 
     init(flow: Flow, side: MessageSide) {
         self.flow = flow; self.side = side
-        let headers = side == .response ? flow.response?.headers ?? [] : flow.request.headers
-        let payload = side == .response ? flow.response?.body ?? Data() : flow.request.body
+        let headers = flow.headers(side), payload = flow.body(side)
         if payload.count < Self.instantLimit {
             let defaults = UserDefaults.standard
             var mode = BodyMode(rawValue: defaults.string(forKey: "body.mode") ?? "") ?? .preview
@@ -77,11 +76,11 @@ struct BodyViewer: View {
     }
 
     private var headers: [Header] {
-        side == .response ? flow.response?.headers ?? [] : flow.request.headers
+        flow.headers(side)
     }
 
     private var payload: Data {
-        side == .response ? flow.response?.body ?? Data() : flow.request.body
+        flow.body(side)
     }
 
     private var contentType: String? {
@@ -282,7 +281,7 @@ struct BodyViewer: View {
     /// The last path component when it looks like a file name, otherwise "body"; the extension comes from the content type.
     private var fileName: String {
         let last = URL(string: flow.request.url)?.lastPathComponent ?? ""
-        return last.isEmpty || last == "/" ? (side == .request ? "request" : "response") : last
+        return last.isEmpty || last == "/" ? side.rawValue : last
     }
 
     private func save() {

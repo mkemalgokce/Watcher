@@ -51,25 +51,5 @@ extension AppModelTests {
             #expect(model.notice?.kind == .info)
             #expect(model.notice?.message.contains("no requests") == true)
         }
-
-        @Test
-        func suggestedFileNames() {
-            let model = AppModel(listening: false)
-            let json = [Header("Content-Type", "application/json; charset=utf-8")]
-            var flow = Flow.fixture(
-                request: .fixture(host: "h", path: "/v1/users?page=2"),
-                response: .fixture(headers: json, body: Data("{}".utf8))
-            )
-            #expect(model.suggestedFileName(for: flow, side: .response) == "users.json")
-            flow.request.path = "/files/report.pdf"
-            #expect(
-                model.suggestedFileName(for: flow, side: .response) == "report.pdf",
-                "an extension in the URL is kept"
-            )
-            flow.request.path = "/"
-            #expect(model.suggestedFileName(for: flow, side: .response) == "response.json")
-            flow.response?.headers = []
-            #expect(model.suggestedFileName(for: flow, side: .response) == "response")
-        }
     }
 }

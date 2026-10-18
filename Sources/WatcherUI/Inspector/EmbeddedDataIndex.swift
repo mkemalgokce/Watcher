@@ -18,8 +18,7 @@ final class EmbeddedDataIndex {
     private var order: [Key] = []
 
     func segments(in flow: Flow, side: MessageSide) -> [Base64Segment] {
-        let headers = side == .request ? flow.request.headers : flow.response?.headers ?? []
-        let body = side == .request ? flow.request.body : flow.response?.body ?? Data()
+        let headers = flow.headers(side), body = flow.body(side)
         let key = Key(flow: flow.id, side: side, size: body.count)
         if let known = cache[key] {
             return known

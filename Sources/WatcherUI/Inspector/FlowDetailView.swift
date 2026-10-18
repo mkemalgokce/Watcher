@@ -117,7 +117,8 @@ private struct InspectorHeader: View {
                 Menu {
                     Button("Copy URL", systemImage: "link") { model.copy(flow.request.url, "URL copied") }
                     Button("Save Response Body…", systemImage: "square.and.arrow.down") {
-                        model.saveData(model.body(of: flow, side: .response), suggestedName: model.suggestedFileName(for: flow, side: .response))
+                        let name = ExchangeText.suggestedFileName(for: flow, side: .response)
+                        model.saveData(ExchangeText.body(of: flow, side: .response), suggestedName: name)
                     }
                     .disabled(flow.response?.body.isEmpty ?? true)
                     Divider()

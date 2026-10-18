@@ -22,20 +22,27 @@ struct FlowActions: View {
                 }
             }
             Menu("Response Body", systemImage: "doc") {
-                let body = model.body(of: flow, side: .response)
-                Button("Save…", systemImage: "square.and.arrow.down") { model.saveData(body, suggestedName: model.suggestedFileName(for: flow, side: .response)) }
-                OpenWithMenu(data: body, name: model.suggestedFileName(for: flow, side: .response), contentType: flow.response?.headers.value(for: "content-type"))
+                let body = ExchangeText.body(of: flow, side: .response)
+                let name = ExchangeText.suggestedFileName(for: flow, side: .response)
+                Button("Save…", systemImage: "square.and.arrow.down") { model.saveData(body, suggestedName: name) }
+                OpenWithMenu(data: body, name: name, contentType: flow.response?.headers.value(for: "content-type"))
                 Button("Copy as Text", systemImage: "doc.on.doc") { model.copy(String(decoding: body, as: UTF8.self), "Response body copied") }
                 Button("Copy as Base64") { model.copy(body.base64EncodedString(), "Response body copied as Base64") }
             }
             .disabled(flow.response?.body.isEmpty ?? true)
             Menu("Copy Headers", systemImage: "list.bullet.rectangle") {
-                Button("Request Headers") { model.copy(model.headerText(of: flow, side: .request), "Request headers copied") }
-                Button("Response Headers") { model.copy(model.headerText(of: flow, side: .response), "Response headers copied") }.disabled(flow.response == nil)
+                Button("Request Headers") {
+                    model.copy(ExchangeText.headerText(of: flow, side: .request), "Request headers copied")
+                }
+                Button("Response Headers") {
+                    model.copy(ExchangeText.headerText(of: flow, side: .response), "Response headers copied")
+                }
+                .disabled(flow.response == nil)
             }
             if !flow.request.body.isEmpty {
                 Button("Save Request Body…", systemImage: "square.and.arrow.up") {
-                    model.saveData(model.body(of: flow, side: .request), suggestedName: model.suggestedFileName(for: flow, side: .request))
+                    let name = ExchangeText.suggestedFileName(for: flow, side: .request)
+                    model.saveData(ExchangeText.body(of: flow, side: .request), suggestedName: name)
                 }
             }
             Button("Set as Compare Base", systemImage: "arrow.left.arrow.right") { model.compare(withBase: flow) }

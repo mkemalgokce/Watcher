@@ -593,29 +593,6 @@ public final class AppModel {
         }
     }
 
-    /// "users.json" for GET /v1/users answered with JSON: the last path component, with the content type's extension.
-    func suggestedFileName(for flow: Flow, side: MessageSide) -> String {
-        let headers = side == .request ? flow.request.headers : flow.response?.headers ?? []
-        let last = URL(string: flow.request.url)?.lastPathComponent ?? ""
-        let base = last.isEmpty || last == "/" ? side.rawValue : last
-        guard (base as NSString).pathExtension.isEmpty,
-              let type = headers.value(for: "content-type")?.split(separator: ";").first.map({ $0.trimmingCharacters(in: .whitespaces) }),
-              let ext = UTType(mimeType: type)?.preferredFilenameExtension else { return base }
-        return "\(base).\(ext)"
-    }
-
-    /// Headers as they appear on the wire, one per line.
-    func headerText(of flow: Flow, side: MessageSide) -> String {
-        (side == .request ? flow.request.headers : flow.response?.headers ?? []).map { "\($0.name): \($0.value)" }.joined(separator: "\n")
-    }
-
-    /// The decoded (Content-Encoding undone) body of one side, for save, copy and Open With.
-    func body(of flow: Flow, side: MessageSide) -> Data {
-        let headers = side == .request ? flow.request.headers : flow.response?.headers ?? []
-        let body = side == .request ? flow.request.body : flow.response?.body ?? Data()
-        return BodyDecoder.decode(body, contentEncoding: headers.value(for: "content-encoding")).data
-    }
-
     /// Encodes and writes off the main thread, so a big session does not freeze the window while it is saved.
     func write(_ flows: [Flow], to url: URL, _ data: @escaping @Sendable ([Flow]) throws -> Data) async {
         busyMessage = "Saving \(url.lastPathComponent)…"
