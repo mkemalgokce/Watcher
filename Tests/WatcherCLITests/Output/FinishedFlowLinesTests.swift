@@ -46,10 +46,39 @@ struct FinishedFlowLinesTests {
         #expect(lines.line(for: .updated(flow)) != nil)
     }
 
-    @Test
-    func aFlowThatGotNoResponseIsNotPrinted() {
+    @Test(arguments: [(Flow.State.failed, "ERR"), (.blocked, "BLOCKED")])
+    func aFlowThatGotNoResponseIsPrintedWithWhyItEnded(state: Flow.State, label: String) {
+        var flow = Flow.fixture(sequence: 3, status: nil)
+        flow.state = state
+        flow.duration = 0.25
         var lines = FinishedFlowLines()
-        #expect(lines.line(for: .updated(.fixture(sequence: 1, status: nil))) == nil)
+        #expect(lines.line(for: .updated(flow)) == "3  \(label)  GET  https://api.example.com/3  250ms")
+    }
+
+    @Test
+    func aFailedFlowWithAPartialResponseIsPrintedWithItsStatus() {
+        var flow = Flow.fixture(sequence: 4, status: 200)
+        flow.state = .failed
+        var lines = FinishedFlowLines()
+        #expect(lines.line(for: .updated(flow)) == "4  200  GET  https://api.example.com/4  0ms")
+    }
+
+    @Test
+    func aRemovedFlowNoLongerCountsAsPrinted() {
+        let flow = Flow.fixture(sequence: 1, status: 200)
+        var lines = FinishedFlowLines()
+        _ = lines.line(for: .updated(flow))
+        _ = lines.line(for: .removed(flow.id))
+        #expect(lines.line(for: .updated(flow)) != nil)
+    }
+
+    @Test
+    func clearingTheSessionForgetsEveryPrintedFlow() {
+        let flow = Flow.fixture(sequence: 1, status: 200)
+        var lines = FinishedFlowLines()
+        _ = lines.line(for: .updated(flow))
+        _ = lines.line(for: .cleared)
+        #expect(lines.line(for: .updated(flow)) != nil)
     }
 
     @Test
