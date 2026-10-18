@@ -49,4 +49,17 @@ struct LiveCommandRunnerTests {
     func aMissingProgramThrows() {
         #expect(throws: (any Error).self) { try run("/nonexistent/program") }
     }
+
+    @Test
+    func largeInputAndOutputDoNotDeadlock() throws {
+        let input = Data(repeating: UInt8(ascii: "x"), count: 1024 * 1024)
+        let result = try run("/bin/cat") { $0.input = input; $0.timeout = 30 }
+        #expect(result == CommandResult(status: 0, output: input))
+    }
+
+    @Test
+    func aProgramExitingBeforeReadingItsInputIsNotAFatalSignal() throws {
+        let result = try run("/bin/sh", ["-c", "exit 3"]) { $0.input = Data(count: 1024 * 1024) }
+        #expect(result.status == 3)
+    }
 }

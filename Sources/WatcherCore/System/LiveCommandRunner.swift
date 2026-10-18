@@ -25,8 +25,12 @@ public enum LiveCommandRunner {
             DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: killer)
         }
         if let data = command.input {
-            input.fileHandleForWriting.write(data)
-            input.fileHandleForWriting.closeFile()
+            let writer = input.fileHandleForWriting
+            _ = fcntl(writer.fileDescriptor, F_SETNOSIGPIPE, 1) // a program exiting unread must not kill this process
+            DispatchQueue.global().async { // alongside the read below, so neither side waits on a full pipe
+                try? writer.write(contentsOf: data)
+                try? writer.close()
+            }
         }
         let data = output.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
