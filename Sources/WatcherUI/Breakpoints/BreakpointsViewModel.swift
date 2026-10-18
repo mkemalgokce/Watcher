@@ -27,9 +27,10 @@ final class BreakpointsViewModel {
     /// New pauses are announced, never pushed into a window: opening Breakpoints on every hit took over the screen
     /// again right after an abort. The toolbar badge and status bar stay as the way in.
     func changed(_ pending: [BreakpointCenter.Hit]) {
-        let added = pending.count - hits.count
+        let known = Set(hits.map(\.id))
+        let hasNewPause = pending.contains { !known.contains($0.id) }
         hits = pending
-        if added > 0 {
+        if hasNewPause {
             notices.notify("\(pending.count) paused at a breakpoint. Review with ⌘B, or remove the breakpoint there.")
         }
     }
