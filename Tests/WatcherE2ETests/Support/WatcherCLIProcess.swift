@@ -7,6 +7,7 @@ final class WatcherCLIProcess {
     private let output = LockedBox(Data())
     private let errors = LockedBox(Data())
     private let outputEnded = LockedBox(false)
+    private let errorsEnded = LockedBox(false)
 
     var printed: String {
         // swiftlint:disable:next optional_data_string_conversion
@@ -34,7 +35,7 @@ final class WatcherCLIProcess {
         process.standardOutput = pipe
         process.standardError = errorPipe
         collect(pipe, into: output, ended: outputEnded)
-        collect(errorPipe, into: errors, ended: LockedBox(false))
+        collect(errorPipe, into: errors, ended: errorsEnded)
         try process.run()
     }
 
@@ -73,12 +74,17 @@ final class WatcherCLIProcess {
     /// Sends `signal` and waits for the process to finish; one still running after `timeout` is killed.
     func stop(with signal: Int32, timeout: TimeInterval = 15) async throws {
         kill(process.processIdentifier, signal)
+        try await waitForExit(timeout: timeout)
+    }
+
+    /// Waits for a process that ends by itself, and for the last of its output; one still running after `timeout` is killed.
+    func waitForExit(timeout: TimeInterval = 15) async throws {
         guard await eventually(timeout: timeout, { !process.isRunning }) else {
             kill(process.processIdentifier, SIGKILL)
-            throw TestSupportError("watcher-cli did not exit within \(timeout) s of signal \(signal)")
+            throw TestSupportError("watcher-cli did not exit within \(timeout) s")
         }
         // The last lines can still be in the pipe when the process is gone.
-        guard await eventually(timeout: timeout, { outputEnded.value }) else {
+        guard await eventually(timeout: timeout, { outputEnded.value && errorsEnded.value }) else {
             throw TestSupportError("watcher-cli's output did not end within \(timeout) s of its exit")
         }
     }

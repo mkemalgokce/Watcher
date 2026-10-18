@@ -38,6 +38,48 @@ struct StartCommandTests {
         }
     }
 
+    /// The engine moves on to a free port when the asked one is busy, so a taken port is no start failure.
+    @Test
+    func aPortAnotherListenerHoldsMovesTheProxyToAFreeOne() async throws {
+        let listener = try LoopbackListener()
+        try await withTemporaryDirectory(prefix: "watcher-e2e") { home in
+            let cli = try WatcherCLIProcess(
+                binary: WatcherCLIBinary.locate(),
+                arguments: ["start", "--port", String(listener.port)],
+                home: home.url
+            )
+            try cli.run()
+            let port = try await cli.listeningPort()
+
+            try await cli.interrupt()
+
+            #expect(port != listener.port)
+            #expect(cli.terminationStatus == 0)
+        }
+        withExtendedLifetime(listener) {}
+    }
+
+    @Test
+    func aSessionThatCannotBeSavedMakesTheCommandFailAfterCtrlC() async throws {
+        try await withTemporaryDirectory(prefix: "watcher-e2e") { home in
+            let notAFolder = home.appending("file")
+            try Data().write(to: notAFolder)
+            let csv = notAFolder.appendingPathComponent("session.csv")
+            let cli = try WatcherCLIProcess(
+                binary: WatcherCLIBinary.locate(),
+                arguments: ["start", "--port", "0", "--csv", csv.path],
+                home: home.url
+            )
+            try cli.run()
+            _ = try await cli.listeningPort()
+
+            try await cli.interrupt()
+
+            #expect(cli.terminationStatus == 1)
+            #expect(cli.printedToStandardError.contains("Could not save \(csv.path)"))
+        }
+    }
+
     private func proxyACurlRequest(to origin: TestUpstream) async throws {
         try await withTemporaryDirectory(prefix: "watcher-e2e") { home in
             let har = home.appending("session.har")
