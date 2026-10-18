@@ -1,4 +1,4 @@
 Sources/WatcherCore 85
 Sources/WatcherUI 16
-Sources/watcher-cli 80
+Sources/watcher-cli 86
 TOTAL 40
