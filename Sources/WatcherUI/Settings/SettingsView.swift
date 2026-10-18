@@ -1,4 +1,3 @@
-import ServiceManagement
 import SwiftUI
 import WatcherCore
 
@@ -8,7 +7,7 @@ public struct SettingsView: View {
     public init() {}
     public var body: some View {
         TabView {
-            GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }
+            GeneralSettings(pane: model.settingsPane).tabItem { Label("General", systemImage: "gearshape") }
             AppearanceSettings(options: model.viewer).tabItem { Label("Viewer", systemImage: "textformat") }
             ProxySettings().tabItem { Label("Proxy", systemImage: "network") }
             AdvancedSettings().tabItem { Label("Advanced", systemImage: "slider.horizontal.3") }
@@ -20,6 +19,7 @@ public struct SettingsView: View {
 private struct GeneralSettings: View {
     @Environment(AppModel.self) private var model
     @Environment(ProxyController.self) private var proxy
+    @Bindable var pane: SettingsViewModel
     var body: some View {
         @Bindable var model = model
         Form {
@@ -29,25 +29,17 @@ private struct GeneralSettings: View {
                         if proxy.isSwitchingProxy {
                             ProgressView().controlSize(.small)
                         }
-                        Label(
-                            proxy.isRunning
-                                ? "Listening on 127.0.0.1:\(String(proxy.port))"
-                                : proxy.proxyError == nil ? "Stopped" : "Failed to start",
-                            systemImage: "circle.fill"
-                        )
-                        .labelStyle(.titleAndIcon).imageScale(.small)
-                        .foregroundStyle(proxy.isRunning ? Palette.done : proxy.proxyError == nil ? Color.secondary : Palette.error)
+                        Label(pane.statusText, systemImage: "circle.fill")
+                            .labelStyle(.titleAndIcon).imageScale(.small)
+                            .foregroundStyle(statusTint)
                         Button(proxy.isRunning ? "Stop" : "Start") { proxy.toggleRunning() }
                             .disabled(proxy.isSwitchingProxy)
                     }
                 }
                 TextField("Port", value: $model.settings.port, format: .number.grouping(.never))
-                if !PortRange.isValid(model.settings.port) {
-                    Label("Use a port from 1 to 65535. Ports below 1024 need administrator rights.", systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption).foregroundStyle(Palette.error)
-                } else if model.settings.port < 1024 {
-                    Label("Ports below 1024 need administrator rights; the proxy may fail to start.", systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption).foregroundStyle(Palette.warning)
+                if let warning = pane.portWarning {
+                    Label(warning.message, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption).foregroundStyle(warning == .invalid ? Palette.error : Palette.warning)
                 }
                 Toggle("Pick another port if it is taken", isOn: $model.settings.autoSelectPort)
                 Toggle("Listen on all interfaces (phones, tablets)", isOn: $model.settings.listenOnAllInterfaces)
@@ -69,13 +61,10 @@ private struct GeneralSettings: View {
                 }
             }
             Section("This Mac") {
-                OpenAtLoginToggle()
+                Toggle("Open Watcher at login", isOn: $pane.opensAtLogin)
                 Toggle("Turn on the system proxy when the proxy starts", isOn: $model.settings.autoSystemProxy)
                 Toggle("Hide Apple system traffic", isOn: $model.settings.hideAppleTraffic)
-                Toggle("Show website icons", isOn: Binding(
-                    get: { model.preferences.websiteIconsEnabled },
-                    set: { model.preferences.websiteIconsEnabled = $0 }
-                ))
+                Toggle("Show website icons", isOn: $pane.showsWebsiteIcons)
                 Text("Icons are downloaded from each site's /favicon.ico, directly and not through Watcher, and kept in ~/.watcher/favicons.")
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -86,22 +75,13 @@ private struct GeneralSettings: View {
         }
         .formStyle(.grouped)
     }
-}
 
-/// macOS owns the login item, so its status is read back after every change instead of being stored in settings.
-private struct OpenAtLoginToggle: View {
-    @Environment(NoticeCenter.self) private var notices
-    @State private var isOn = SMAppService.mainApp.status == .enabled
-    var body: some View {
-        Toggle("Open Watcher at login", isOn: Binding(get: { isOn }, set: { on in
-            do { try on ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister() }
-            catch {
-                let message = "Cannot change the login item: \(error.localizedDescription). "
-                    + "This works only in the packaged Watcher.app."
-                notices.notify(message, .error)
-            }
-            isOn = SMAppService.mainApp.status == .enabled
-        }))
+    private var statusTint: Color {
+        switch pane.status {
+        case .listening: Palette.done
+        case .stopped: .secondary
+        case .failed: Palette.error
+        }
     }
 }
 

@@ -18,7 +18,8 @@ public extension AppDependencies {
         systemProxy: (any SystemProxying)? = nil,
         lifecycle: AppLifecycleSpy? = nil,
         sender: (any RequestSending)? = nil,
-        workspace: WorkspaceOpenerSpy? = nil
+        workspace: WorkspaceOpenerSpy? = nil,
+        loginItem: LoginItemStub? = nil
     ) throws -> AppDependencies {
         let files = files ?? FileAccessFake()
         let engine = try engine ?? .inMemory(files: files)
@@ -38,7 +39,8 @@ public extension AppDependencies {
             workspace: workspace ?? WorkspaceOpenerSpy(),
             paths: SupportPaths(directory: URL(fileURLWithPath: "/fake-home/.watcher")),
             focusFilterField: {},
-            devices: .none
+            devices: .none,
+            loginItem: (loginItem ?? LoginItemStub()).loginItem
         )
     }
 }

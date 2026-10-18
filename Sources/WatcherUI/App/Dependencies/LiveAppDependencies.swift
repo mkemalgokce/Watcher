@@ -21,7 +21,8 @@ extension AppDependencies {
             workspace: LiveWorkspaceOpener(),
             paths: SupportPaths(directory: WatcherPaths.supportDirectory),
             focusFilterField: LiveSearchFocus.focusFilterField,
-            devices: .live
+            devices: .live,
+            loginItem: .live
         )
     }
 
@@ -48,7 +49,8 @@ extension AppDependencies {
             workspace: LiveWorkspaceOpener(),
             paths: SupportPaths(directory: directory),
             focusFilterField: {},
-            devices: .none
+            devices: .none,
+            loginItem: .inert
         )
     }
 

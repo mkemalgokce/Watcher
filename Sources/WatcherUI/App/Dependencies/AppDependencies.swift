@@ -21,6 +21,7 @@ public struct AppDependencies {
     var paths: SupportPaths
     var focusFilterField: @MainActor () -> Void
     var devices: DevicesViewModel.DeviceProbe
+    var loginItem: LoginItem
 
     var requestServices: RequestActions.Services {
         RequestActions.Services(sender: sender, clipboard: clipboard, workspace: workspace, paths: paths, files: files)

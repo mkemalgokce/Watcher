@@ -25,6 +25,7 @@ public final class AppModel {
     let devices: DevicesViewModel
     let viewer: ViewerOptions
     let filePicker: FilePicker
+    let settingsPane: SettingsViewModel
     /// Set once the first-run setup has been completed or skipped.
     var onboardingDone: Bool {
         didSet { preferences.onboardingDone = onboardingDone }
@@ -64,6 +65,10 @@ public final class AppModel {
         )
         workspaces = WorkspacesViewModel(engine: engine, settings: settings, notices: notices)
         breakpoints = BreakpointsViewModel(center: engine.breakpoints, settings: settings, notices: notices)
+        settingsPane = SettingsViewModel(
+            proxy: proxy, settings: settings, preferences: dependencies.preferences,
+            loginItem: dependencies.loginItem, notices: notices
+        )
         let proxy = proxy
         devices = DevicesViewModel(probe: dependencies.devices, certificateURL: dependencies.paths.certificateURL) {
             proxy.port
