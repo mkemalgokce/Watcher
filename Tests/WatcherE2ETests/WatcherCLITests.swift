@@ -3,7 +3,7 @@ import Testing
 import WatcherCore
 import WatcherTestSupport
 
-@Suite(.timeLimit(.minutes(1)), .tags(.e2e, .smoke))
+@Suite(.timeLimit(.minutes(1)), .tags(.e2e))
 struct WatcherCLITests {
     @Test
     func helpListsEverySubcommandAndSucceeds() throws {
