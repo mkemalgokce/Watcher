@@ -101,6 +101,11 @@ public final class WatcherEngine: @unchecked Sendable {
     /// The port the proxy is actually listening on (differs from the setting when it was busy or 0).
     public private(set) var boundPort: Int?
 
+    /// How long Compose keeps a WebSocket open for replies, through the injected sleep.
+    func waitWhileListening(_ duration: Duration) async throws {
+        try await sleep(duration)
+    }
+
     /// Pushes settings into the live proxy; does nothing while stopped (start applies them).
     public func apply(_ settings: WatcherSettings) async {
         guard let server else { return }

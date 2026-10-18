@@ -51,7 +51,7 @@ public extension WatcherEngine {
                     record(.serverToClient, message)
                 }
             }
-            try await Task.sleep(for: .seconds(seconds))
+            try await waitWhileListening(.seconds(seconds))
             task.cancel(with: .normalClosure, reason: nil)
             receiver.cancel()
             let status = (task.response as? HTTPURLResponse)?.statusCode ?? 101
