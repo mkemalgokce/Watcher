@@ -2,11 +2,13 @@ import Foundation
 import WatcherCore
 
 /// An in-memory file system: files are paths with contents; folders and executables are sets of paths.
-/// Every write stamps the file with the next of a sequence of modification dates, so two writes always differ.
+/// Every write stamps the file with the next of a sequence of modification dates, so two writes always differ,
+/// and a plain write leaves the file with the usual 0644 permissions, as a real one does under the default umask.
+/// `permissionHistory` keeps every permission a file was written with, so a moment of wider access shows.
 public final class FileAccessFake: @unchecked Sendable {
     /// The `FileAccess` closures that can throw.
     public enum Operation: Sendable {
-        case read, writeAtomically, remove, move, createDirectory, contentsOfDirectory, setPermissions
+        case read, writeAtomically, remove, move, createDirectory, contentsOfDirectory, writePrivately
     }
 
     public struct Failure: Error, Equatable {
@@ -22,7 +24,7 @@ public final class FileAccessFake: @unchecked Sendable {
     private var executables: Set<String>
     private var directories: Set<String>
     private var modified: [String: Date] = [:]
-    private var permissions: [String: Int] = [:]
+    private var permissions: [String: [Int]] = [:]
     private var writeCount = 0
     private var temporaryCount = 0
     private var failingOperations: Set<Operation> = []
@@ -44,8 +46,9 @@ public final class FileAccessFake: @unchecked Sendable {
         lock.withLock { files[path] }
     }
 
-    public func permissions(of path: String) -> Int? {
-        lock.withLock { permissions[path] }
+    /// Every permission the file has had, oldest first.
+    public func permissionHistory(of path: String) -> [Int] {
+        lock.withLock { permissions[path] ?? [] }
     }
 
     /// Writes as another process would, outside `access`.
@@ -90,7 +93,12 @@ public final class FileAccessFake: @unchecked Sendable {
                     return data
                 }
             },
-            writeAtomically: { [self] data, url in try perform(.writeAtomically) { store(data, at: url.path) } },
+            writeAtomically: { [self] data, url in
+                try perform(.writeAtomically) {
+                    store(data, at: url.path)
+                    permissions[url.path, default: []].append(0o644)
+                }
+            },
             remove: { [self] url in
                 try perform(.remove) {
                     guard files.removeValue(forKey: url.path) != nil else { throw CocoaError(.fileNoSuchFile) }
@@ -116,7 +124,12 @@ public final class FileAccessFake: @unchecked Sendable {
                     return children.sorted().map(URL.init(fileURLWithPath:))
                 }
             },
-            setPermissions: { [self] mode, path in try perform(.setPermissions) { permissions[path] = mode } },
+            writePrivately: { [self] data, url in
+                try perform(.writePrivately) {
+                    store(data, at: url.path)
+                    permissions[url.path, default: []].append(0o600)
+                }
+            },
             modificationDate: { [self] path in lock.withLock { files[path] == nil ? nil : modified[path] } },
             temporaryFile: { [self] pathExtension in
                 lock.withLock {

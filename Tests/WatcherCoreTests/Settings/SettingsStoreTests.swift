@@ -32,9 +32,11 @@ struct SettingsStoreTests {
     }
 
     @Test
-    func writesAreReadableOnlyByTheOwnerAndCreateTheFolder() throws {
-        try store().replace(with: WatcherSettings())
-        #expect(files.permissions(of: path) == 0o600)
+    func writesAreReadableOnlyByTheOwnerFromTheStartAndCreateTheFolder() throws {
+        let store = store()
+        try store.replace(with: WatcherSettings())
+        try store.update { $0.port = 7777 }
+        #expect(files.permissionHistory(of: path) == [0o600, 0o600], "the file may hold proxy credentials")
         #expect(files.folders == ["/home/.watcher"])
     }
 
@@ -106,8 +108,8 @@ struct SettingsStoreTests {
     func aFailedWriteThrowsAndKeepsTheOldValue() throws {
         let store = store()
         try store.update { $0.port = 1 }
-        files.fail(.writeAtomically)
-        #expect(throws: FileAccessFake.Failure(operation: .writeAtomically)) { try store.update { $0.port = 2 } }
+        files.fail(.writePrivately)
+        #expect(throws: FileAccessFake.Failure(operation: .writePrivately)) { try store.update { $0.port = 2 } }
         #expect(store.value.port == 1)
     }
 

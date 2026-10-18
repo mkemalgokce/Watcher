@@ -14,7 +14,8 @@ public struct FileAccess: Sendable {
     public var createDirectory: @Sendable (URL) throws -> Void
     /// The files and folders directly inside a folder; throws when it does not exist.
     public var contentsOfDirectory: @Sendable (URL) throws -> [URL]
-    public var setPermissions: @Sendable (_ mode: Int, _ path: String) throws -> Void
+    /// Like `writeAtomically`, but the file is readable and writable by its owner alone from the moment it appears.
+    public var writePrivately: @Sendable (Data, URL) throws -> Void
     public var modificationDate: @Sendable (String) -> Date?
     /// A path in the temporary directory that no other call returns, ending in `.<extension>`.
     public var temporaryFile: @Sendable (_ extension: String) -> URL
@@ -29,14 +30,14 @@ public struct FileAccess: Sendable {
         move: @escaping @Sendable (_ from: URL, _ to: URL) throws -> Void,
         createDirectory: @escaping @Sendable (URL) throws -> Void,
         contentsOfDirectory: @escaping @Sendable (URL) throws -> [URL],
-        setPermissions: @escaping @Sendable (_ mode: Int, _ path: String) throws -> Void,
+        writePrivately: @escaping @Sendable (Data, URL) throws -> Void,
         modificationDate: @escaping @Sendable (String) -> Date?,
         temporaryFile: @escaping @Sendable (_ extension: String) -> URL
     ) {
         self.isExecutable = isExecutable; self.fileExists = fileExists; self.isDirectory = isDirectory
         self.read = read; self.writeAtomically = writeAtomically; self.remove = remove; self.move = move
         self.createDirectory = createDirectory; self.contentsOfDirectory = contentsOfDirectory
-        self.setPermissions = setPermissions
+        self.writePrivately = writePrivately
         self.modificationDate = modificationDate; self.temporaryFile = temporaryFile
     }
 }

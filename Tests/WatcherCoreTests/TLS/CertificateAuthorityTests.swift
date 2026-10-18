@@ -25,7 +25,7 @@ struct CertificateAuthorityTests {
     func aNewAuthorityIsSavedWithAPrivateKeyOnlyTheUserCanRead() throws {
         let authority = try authority()
         #expect(files.folders.contains(directory.path))
-        #expect(files.permissions(of: keyPath) == 0o600)
+        #expect(files.permissionHistory(of: keyPath) == [0o600])
         #expect(authority.certificateURL.path == certificatePath)
         #expect(files.contents(of: certificatePath) == Data(authority.certificatePEM.utf8))
         let keyWritten = try #require(files.access.modificationDate(keyPath))
@@ -53,7 +53,7 @@ struct CertificateAuthorityTests {
         #expect(throws: (any Error).self) { try authority() }
     }
 
-    @Test(arguments: [FileAccessFake.Operation.createDirectory, .writeAtomically, .setPermissions])
+    @Test(arguments: [FileAccessFake.Operation.createDirectory, .writePrivately, .writeAtomically])
     func aFolderOrFileThatCannotBeWrittenIsReported(_ operation: FileAccessFake.Operation) {
         files.fail(operation)
         #expect(throws: FileAccessFake.Failure(operation: operation)) { try authority() }

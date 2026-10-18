@@ -31,6 +31,23 @@ struct LiveFileAccessTests {
     }
 
     @Test
+    func aPrivateWriteReplacesTheFileWithOneOnlyTheOwnerCanReadAndLeavesNothingBehind() throws {
+        let file = temporary.url.appendingPathComponent("secret")
+        try files.writeAtomically(Data("old".utf8), file)
+        try files.writePrivately(Data("new".utf8), file)
+        #expect(try files.read(file) == Data("new".utf8))
+        let mode = try #require(FileManager.default.attributesOfItem(atPath: file.path)[.posixPermissions] as? Int)
+        #expect(mode == 0o600)
+        #expect(try files.contentsOfDirectory(temporary.url).map(\.lastPathComponent) == ["secret"])
+    }
+
+    @Test
+    func aPrivateWriteIntoAMissingFolderThrows() {
+        let file = temporary.url.appendingPathComponent("none/secret")
+        #expect(throws: (any Error).self) { try files.writePrivately(Data(), file) }
+    }
+
+    @Test
     func temporaryFilesAreUniqueAndCarryTheirExtension() {
         let first = files.temporaryFile("har"), second = files.temporaryFile("har")
         #expect(first != second)

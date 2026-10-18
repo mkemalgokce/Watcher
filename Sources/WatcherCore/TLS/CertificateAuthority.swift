@@ -50,8 +50,7 @@ public final class CertificateAuthority: @unchecked Sendable {
             let key = P256.Signing.PrivateKey()
             certificate = try Self.makeRoot(key: key, name: name, now: now())
             self.key = key
-            try files.writeAtomically(Data(key.pemRepresentation.utf8), keyURL)
-            try files.setPermissions(0o600, keyURL.path)
+            try files.writePrivately(Data(key.pemRepresentation.utf8), keyURL)
             try files.writeAtomically(Data(certificate.serializeAsPEM().pemString.utf8), certURL)
         }
         // Prefer the identifier stored in the certificate so leaf certificates always match the CA that is actually trusted.
