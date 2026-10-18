@@ -21,34 +21,32 @@ final class UpstreamClients: UpstreamSending, @unchecked Sendable {
     }
 
     func update(external: ExternalProxySettings, pac: PACEvaluator?, dnsRules: [DNSSpoofRule], clientCertificates: [CustomCertificateRule]) {
-        let stale: [HTTPClient] = lock.withLock {
+        Self.shutDown(lock.withLock {
             self.external = external; self.pac = pac
             bypass = HostList(["localhost", "127.0.0.1", "::1"] + external.bypass)
             spoofs = dnsRules; self.clientCertificates = clientCertificates
-            defer { cache.removeAll() }
-            return Array(cache.values)
-        }
-        for client in stale {
-            Task { try? await client.shutdown() }
-        }
+            return takeCachedLocked()
+        })
     }
 
     func setKeyLog(_ callback: NIOSSLKeyLogCallback?) {
-        let stale: [HTTPClient] = lock.withLock { keyLog = callback; defer { cache.removeAll() }; return Array(cache.values) }
-        for client in stale {
-            Task { try? await client.shutdown() }
-        }
+        Self.shutDown(lock.withLock { keyLog = callback; return takeCachedLocked() })
     }
 
     /// The address to connect to for `host`: a spoofed one if a DNS Spoofing rule matches, else the host itself.
     func address(for host: String) -> String {
-        lock.withLock { spoofs.first { $0.host.caseInsensitiveCompare(host) == .orderedSame }?.address ?? host }
+        lock.withLock { spoofedAddressLocked(for: host) ?? host }
+    }
+
+    /// How a request reaches its origin: directly, or through the external proxy the settings or the PAC script name.
+    func route(for request: RequestRecord) -> PACEvaluator.Route {
+        lock.withLock { routeLocked(for: request) }
     }
 
     func client(for request: RequestRecord) -> HTTPClient {
         lock.withLock {
             let host = request.host
-            let address = spoofs.first { $0.host.caseInsensitiveCompare(host) == .orderedSame }?.address
+            let address = spoofedAddressLocked(for: host)
             let route = routeLocked(for: request)
             let identity = clientCertificates.first { Wildcard($0.host).matches(host) }
             let key = "\(host)|\(address ?? "-")|\(route)|\(identity?.p12Path ?? "-")"
@@ -91,10 +89,26 @@ final class UpstreamClients: UpstreamSending, @unchecked Sendable {
     }
 
     func shutdown() async {
-        let clients = lock.withLock { defer { cache.removeAll() }; return Array(cache.values) }
-        for client in clients {
+        for client in lock.withLock({ takeCachedLocked() }) {
             try? await client.shutdown()
         }
+    }
+
+    /// Empties the cache and returns what it held; call with the lock held.
+    private func takeCachedLocked() -> [HTTPClient] {
+        defer { cache.removeAll() }
+        return Array(cache.values)
+    }
+
+    /// Shuts replaced clients down without waiting for them.
+    private static func shutDown(_ clients: [HTTPClient]) {
+        for client in clients {
+            Task { try? await client.shutdown() }
+        }
+    }
+
+    private func spoofedAddressLocked(for host: String) -> String? {
+        spoofs.first { $0.host.caseInsensitiveCompare(host) == .orderedSame }?.address
     }
 
     private func routeLocked(for request: RequestRecord) -> PACEvaluator.Route {
