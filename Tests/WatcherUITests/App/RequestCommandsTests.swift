@@ -12,15 +12,25 @@ struct RequestCommandsTests {
 
     private let clipboard = ClipboardSpy()
     private let panels = FilePanelsStub()
+    private let workspace = WorkspaceOpenerSpy()
+    private let sender = RequestSenderSpy()
 
     private func commands(for flow: Flow?, ids: Set<Flow.ID>? = nil) throws -> (RequestCommands, AppModel) {
-        let model = try AppModel(dependencies: .test(clipboard: clipboard, panels: panels))
+        let model = try AppModel(dependencies: .test(
+            clipboard: clipboard, panels: panels, sender: sender, workspace: workspace
+        ))
         if let flow {
             model.engine.store.load([flow])
             model.list.syncFromStore()
         }
         return (model.requestCommands(for: flow, ids: ids), model)
     }
+
+    private static let performed: [(Command, String?)] = [
+        (.repeatRequest, "GET a.test → 200"), (.editAndRepeat, nil), (.mockResponse, "Mock created"),
+        (.copyRequestHeaders, "Request headers copied"), (.copyResponseHeaders, "Response headers copied"),
+        (.saveRequestBody, nil),
+    ]
 
     private static let body = Data("x".utf8)
     private static let flows: [(String, Flow)] = [
@@ -68,6 +78,37 @@ struct RequestCommandsTests {
         #expect(try commands(for: .fixture(starred: true)).0.starTitle == "Remove Star")
         #expect(try commands(for: .fixture()).0.starTitle == "Star")
         #expect(try commands(for: nil).0.starTitle == "Star")
+    }
+
+    @Test(arguments: performed)
+    func eachRemainingCommandDoesItsThingAndSaysSo(command: Command, notice: String?) async throws {
+        let flow = Flow.fixture(
+            request: .fixture(host: "a.test", body: Self.body), response: .fixture(status: 200, body: Self.body)
+        )
+        let (commands, model) = try commands(for: flow)
+        model.proxy.toggleRunning()
+        #expect(await eventually { model.proxy.isRunning && !model.proxy.isSwitchingProxy })
+        commands.perform(command)
+        let happened: () -> Bool = {
+            switch command {
+            case .repeatRequest: sender.sent.map(\.host) == ["a.test"]
+            case .editAndRepeat: model.router.sheet == .compose && model.router.composeSource?.id == flow.id
+            case .mockResponse: workspace.opened.count == 1
+            case .copyRequestHeaders: clipboard.text == ExchangeText.headerText(of: flow, side: .request)
+            case .copyResponseHeaders: clipboard.text == ExchangeText.headerText(of: flow, side: .response)
+            case .saveRequestBody: panels.saveRequests.count == 1
+            default: false
+            }
+        }
+        #expect(await eventually { happened() })
+        if let notice {
+            #expect(await eventually { model.notices.notice?.message.hasPrefix(notice) == true })
+        }
+    }
+
+    @Test(arguments: [(true, "star.slash"), (false, "star")])
+    func theStarSymbolFollowsTheStar(starred: Bool, symbol: String) throws {
+        #expect(try commands(for: .fixture(starred: starred)).0.starSymbol == symbol)
     }
 
     @Test

@@ -28,6 +28,10 @@ struct RequestCommands {
         flow?.isStarred == true ? "Remove Star" : "Star"
     }
 
+    var starSymbol: String {
+        flow?.isStarred == true ? "star.slash" : "star"
+    }
+
     func isEnabled(_ command: Command) -> Bool {
         guard let flow else { return false }
         switch command {

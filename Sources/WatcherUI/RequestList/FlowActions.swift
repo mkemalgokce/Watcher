@@ -16,7 +16,7 @@ struct FlowActions: View {
             item("Repeat", "arrow.clockwise", .repeatRequest, in: commands)
             item("Edit & Repeat…", "square.and.pencil", .editAndRepeat, in: commands)
             Divider()
-            item(commands.starTitle, flow.isStarred ? "star.slash" : "star", .toggleStar, in: commands)
+            item(commands.starTitle, commands.starSymbol, .toggleStar, in: commands)
             Button("Add Comment…", systemImage: "text.bubble") { onComment(flow) }
             Menu("Copy as", systemImage: "doc.on.doc") {
                 item("URL", nil, .copyURL, in: commands)
