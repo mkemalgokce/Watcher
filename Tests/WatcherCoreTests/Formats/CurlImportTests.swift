@@ -158,6 +158,17 @@ struct CurlImportTests {
         #expect(request.headers.value(for: "authorization") == "Basic " + Data("user:pw".utf8).base64EncodedString())
     }
 
+    @Test
+    func hexEscapesInAnANSIQuoteAreBytes() throws {
+        let request = try CurlImport.parse(#"curl --data-raw $'caf\xc3\xa9 é' https://x.com/"#)
+        #expect(request.body == Data("café é".utf8))
+    }
+
+    @Test
+    func hexEscapesThatAreNotUTF8AreRefusedRatherThanAltered() {
+        #expect(throws: CurlImport.Failure.self) { try CurlImport.parse(#"curl --data-raw $'\xff' https://x.com/"#) }
+    }
+
     @Test(arguments: [
         ("curl -G -d 'q=hello world' https://x.com/s", "/s?q=hello%20world"),
         ("curl -G -d 'q=100%' https://x.com/s?a=1", "/s?a=1&q=100%25"),

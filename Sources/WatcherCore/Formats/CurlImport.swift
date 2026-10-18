@@ -205,32 +205,35 @@ public enum CurlImport {
 
     /// The body of a `$'…'` word, with its backslash escapes resolved.
     private static func ansiC(_ characters: inout ArraySlice<Character>) throws -> String {
-        var result = ""
+        var result: [UInt8] = [] // bytes, so a run of `\x` escapes can spell out UTF-8
+        func append(_ character: Character) {
+            result += character.utf8
+        }
         while let character = characters.popFirst() {
             if character == "'" {
-                return result
+                guard let text = String(bytes: result, encoding: .utf8) else {
+                    throw Failure(description: "A $' quote holds bytes that are not UTF-8 text; this is not supported.")
+                }
+                return text
             }
-            guard character == "\\", let escape = characters.popFirst() else { result.append(character); continue }
+            guard character == "\\", let escape = characters.popFirst() else { append(character); continue }
             switch escape {
-            case "n": result.append("\n")
-            case "t": result.append("\t")
-            case "r": result.append("\r")
-            case "0": result.append("\0")
-            case "x":
-                let hex = String(characters.prefix(2).prefix { $0.isHexDigit })
-                characters.removeFirst(hex.count)
-                if let value = UInt8(hex, radix: 16) {
-                    result.append(Character(Unicode.Scalar(value)))
-                }
-            case "u":
-                let hex = String(characters.prefix(4).prefix { $0.isHexDigit })
-                characters.removeFirst(hex.count)
-                if let value = UInt32(hex, radix: 16), let scalar = Unicode.Scalar(value) {
-                    result.append(Character(scalar))
-                }
-            default: result.append(escape) // \\ \' \" and anything else stand for themselves
+            case "n": append("\n")
+            case "t": append("\t")
+            case "r": append("\r")
+            case "0": append("\0")
+            case "x": hexValue(&characters, digits: 2).map { result.append(UInt8($0)) }
+            case "u": hexValue(&characters, digits: 4).flatMap(Unicode.Scalar.init).map { append(Character($0)) }
+            default: append(escape) // \\ \' \" and anything else stand for themselves
             }
         }
         throw Failure(description: "A $' quote is not closed.")
+    }
+
+    /// Takes up to `digits` hex digits off the front of `characters`; nil when none are there.
+    private static func hexValue(_ characters: inout ArraySlice<Character>, digits: Int) -> UInt32? {
+        let hex = String(characters.prefix(digits).prefix { $0.isHexDigit })
+        characters.removeFirst(hex.count)
+        return UInt32(hex, radix: 16)
     }
 }
