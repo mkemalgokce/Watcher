@@ -4,7 +4,7 @@ import WatcherCore
 /// Which dialog, page and half of the exchange the windows show, and requests to move focus or bring Compare forward.
 @MainActor @Observable
 final class WindowRouter {
-    enum Sheet: Identifiable {
+    enum Sheet: Identifiable, CaseIterable {
         case tools, breakpoints, compose, devices, welcome, converter, help
         var id: Self {
             self
