@@ -2,6 +2,7 @@ import AppKit
 import SnapshotTesting
 import SwiftUI
 import Testing
+import WebKit
 
 /// Image references differ between macOS releases, so each major version keeps its own under `__Snapshots__/macOS-<major>/`.
 enum ImageSnapshot {
@@ -101,20 +102,36 @@ enum ImageSnapshot {
         host.layoutSubtreeIfNeeded()
         host.useOpaqueSelections()
         await Self.settle(host, until: isDone, sourceLocation: sourceLocation)
-        let file = URL(fileURLWithPath: "\(filePath)")
-        let directory = file.deletingLastPathComponent().appendingPathComponent("__Snapshots__")
-            .appendingPathComponent(osFolder).appendingPathComponent(file.deletingPathExtension().lastPathComponent)
         let failure = verifySnapshot(
-            of: host,
-            as: .image(precision: 0.99, perceptualPrecision: 0.98, size: size),
-            named: name,
-            snapshotDirectory: directory.path,
-            file: filePath,
-            testName: testName
+            of: host, as: .image(precision: 0.99, perceptualPrecision: 0.98, size: size), named: name,
+            snapshotDirectory: referenceDirectory(filePath), file: filePath, testName: testName
         )
-        if let failure {
-            Issue.record(Comment(rawValue: failure), sourceLocation: sourceLocation)
-        }
+        failure.map { Issue.record(Comment(rawValue: $0), sourceLocation: sourceLocation) }
+    }
+
+    /// A web page draws in another process, so it is captured with WebKit's own snapshot instead of the view's layers.
+    @MainActor
+    static func verify(
+        page web: WKWebView,
+        named name: String,
+        filePath: StaticString = #filePath,
+        testName: String = #function,
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) async throws {
+        let image = try await web.takeSnapshot(configuration: nil)
+        let failure = verifySnapshot(
+            of: image, as: .image(precision: 0.99, perceptualPrecision: 0.98), named: name,
+            snapshotDirectory: referenceDirectory(filePath), file: filePath, testName: testName
+        )
+        failure.map { Issue.record(Comment(rawValue: $0), sourceLocation: sourceLocation) }
+    }
+
+    /// `__Snapshots__/macOS-<major>/<test file name>` beside the test file.
+    private static func referenceDirectory(_ filePath: StaticString) -> String {
+        let file = URL(fileURLWithPath: "\(filePath)")
+        return file.deletingLastPathComponent().appendingPathComponent("__Snapshots__")
+            .appendingPathComponent(osFolder)
+            .appendingPathComponent(file.deletingPathExtension().lastPathComponent).path
     }
 }
 
