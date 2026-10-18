@@ -28,6 +28,22 @@ analyzer_rules:
   - unused_declaration
   - unused_import
 
+# Umbrella modules whose types the compiler resolves to the module underneath; importing the umbrella is still right.
+unused_import:
+  allowed_transitive_imports:
+    - module: Foundation
+      allowed_transitive_imports: [CoreFoundation, Darwin, Dispatch, ObjectiveC, _DarwinFoundation1, _DarwinFoundation2, _DarwinFoundation3]
+    - module: Darwin
+      allowed_transitive_imports: [_DarwinFoundation1, _DarwinFoundation2, _DarwinFoundation3]
+    - module: NIO
+      allowed_transitive_imports: [NIOCore, NIOPosix, NIOEmbedded]
+    - module: SwiftUI
+      allowed_transitive_imports: [SwiftUICore, CoreGraphics, CoreFoundation, Foundation]
+    - module: AppKit
+      allowed_transitive_imports: [CoreGraphics, CoreFoundation, Foundation]
+    - module: Crypto
+      allowed_transitive_imports: [CryptoKit]
+
 line_length:
   warning: 120
   ignores_comments: true

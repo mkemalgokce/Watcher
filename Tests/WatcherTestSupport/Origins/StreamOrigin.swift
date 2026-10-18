@@ -1,4 +1,3 @@
-import Foundation
 import NIO
 
 /// Raw TCP origin streaming a chunked event-stream: one event immediately, the next after `delay`.
