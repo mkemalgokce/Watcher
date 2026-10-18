@@ -57,4 +57,41 @@ struct SmokeTests {
         #expect(model.list.flows.isEmpty)
         #expect(!model.proxy.isRunning)
     }
+
+    @Test(.tags(.network)) @MainActor
+    func appModelOnALiveEngineListsWhatPassesThroughTheProxy() async throws {
+        try await withHarness { harness in
+            let model = try AppModel(dependencies: .test(
+                engine: harness.engine, sleep: liveSleep, runner: AnyPortRunner(harness.engine)
+            ))
+            model.observeEngine()
+            let response = try await harness.get("/from-the-app")
+            #expect(response.status == 200)
+            let list = model.list
+            #expect(await eventually { list.flows.contains { $0.request.path == "/from-the-app" } })
+        }
+    }
+
+    @Test(
+        .tags(.network, .externalTool),
+        .enabled(if: ExternalTool.python3.isAvailable, "needs python3")
+    )
+    func anHTTPSConnectIsDecryptedAndRecordedThroughTheProxy() async throws {
+        try await withHarness { harness in
+            _ = try runPython(pythonTLSViaProxy(port: harness.proxyPort, host: "upstream.test", verify: false) + """
+
+            t.sendall(b"GET /secure HTTP/1.1\\r\\nHost: upstream.test\\r\\nConnection: close\\r\\n\\r\\n")
+            t.settimeout(1)
+            try: t.recv(4096)
+            except Exception: pass
+            """)
+            let recorded = await eventually(timeout: 5) {
+                harness.engine.store.all.contains { $0.request.path == "/secure" }
+            }
+            let flow = try #require(harness.engine.store.all.first { $0.request.path == "/secure" })
+            #expect(recorded)
+            #expect(flow.request.scheme == "https")
+            #expect(flow.request.host == "upstream.test")
+        }
+    }
 }
