@@ -119,10 +119,23 @@ public final class CertificateAuthority: @unchecked Sendable {
         return context
     }
 
+    private static func subjectName(for host: String) -> GeneralName {
+        if IPv4Address(host) != nil {
+            let octets = host.split(separator: ".").compactMap { UInt8($0) }
+            return .ipAddress(ASN1OctetString(contentBytes: ArraySlice(octets)))
+        }
+        var address = in6_addr()
+        if inet_pton(AF_INET6, host, &address) == 1 {
+            let bytes = withUnsafeBytes(of: &address) { Array($0) }
+            return .ipAddress(ASN1OctetString(contentBytes: ArraySlice(bytes)))
+        }
+        return .dnsName(host)
+    }
+
     /// A one-year server certificate for `host`, signed by this CA.
     func leafCertificate(for host: String, key leafKey: P256.Signing.PrivateKey = P256.Signing.PrivateKey()) throws -> Certificate {
         let now = now()
-        let san: GeneralName = IPv4Address(host) != nil ? .ipAddress(ASN1OctetString(contentBytes: ArraySlice(host.split(separator: ".").compactMap { UInt8($0) }))) : .dnsName(host)
+        let san = Self.subjectName(for: host)
         return try Certificate(
             version: .v3, serialNumber: .init(),
             publicKey: .init(leafKey.publicKey),
