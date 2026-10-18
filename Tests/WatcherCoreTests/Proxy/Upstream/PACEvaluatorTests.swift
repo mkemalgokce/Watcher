@@ -49,6 +49,12 @@ struct PACEvaluatorTests {
     }
 
     @Test
+    func aLookupThatThrowsGoesDirect() throws {
+        let pac = try PACEvaluator(script: "function FindProxyForURL() { throw new Error('boom'); }")
+        #expect(pac.route(for: "http://x.test/", host: "x.test") == .direct)
+    }
+
+    @Test
     func aLookupThatNeverFinishesGoesDirect() throws {
         let pac = try PACEvaluator(
             script: "function FindProxyForURL() { for (;;) {} }",

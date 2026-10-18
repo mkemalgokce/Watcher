@@ -34,6 +34,7 @@ public final class WatcherEngine: @unchecked Sendable {
     private let files: FileAccess
     private let pacLoader: @Sendable (String) async throws -> PACEvaluator
     private let sleep: Sleep
+    private let pacTimeout: Duration
     let now: @Sendable () -> Date
     private let makeServer: @Sendable (FlowStore, CertificateAuthority) -> ProxyServer
 
@@ -43,13 +44,15 @@ public final class WatcherEngine: @unchecked Sendable {
         directory: URL = WatcherPaths.supportDirectory,
         files: FileAccess = .live,
         pacLoader: (@Sendable (String) async throws -> PACEvaluator)? = nil,
+        pacTimeout: Duration = .seconds(10),
         sleep: @escaping Sleep = liveSleep,
         now: @escaping @Sendable () -> Date = { Date() },
         makeServer: @escaping @Sendable (FlowStore, CertificateAuthority) -> ProxyServer = {
             ProxyServer(store: $0, authority: $1)
         }
     ) throws {
-        self.files = files; self.sleep = sleep; self.now = now; self.makeServer = makeServer
+        self.files = files; self.pacTimeout = pacTimeout; self.sleep = sleep
+        self.now = now; self.makeServer = makeServer
         self.pacLoader = pacLoader ?? { try await PACEvaluator.load(from: $0) }
         authority = try CertificateAuthority(directory: directory, files: files)
         settings = SettingsStore(url: WatcherPaths.settingsFile(in: directory), files: files)
@@ -288,7 +291,8 @@ public final class WatcherEngine: @unchecked Sendable {
             return loaded.evaluator
         }
         do {
-            let evaluator = try await pacLoader(external.pacURL)
+            let (loader, location) = (pacLoader, external.pacURL)
+            let evaluator = try await withTimeout(pacTimeout, "PAC download") { try await loader(location) }
             lock.withLock { loadedPAC = (external.pacURL, evaluator) }
             return evaluator
         } catch {

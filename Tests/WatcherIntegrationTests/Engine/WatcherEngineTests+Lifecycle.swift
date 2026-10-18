@@ -16,6 +16,7 @@ extension WatcherEngineTests {
             pacLoader: @escaping @Sendable (String) async throws -> PACEvaluator = { _ in
                 throw PACEvaluator.LoadError(description: "no PAC in this test")
             },
+            pacTimeout: Duration = .seconds(10),
             makeServer: @escaping @Sendable (FlowStore, CertificateAuthority) -> ProxyServer = {
                 ProxyServer(store: $0, authority: $1, clientApp: { _ in nil })
             }
@@ -24,6 +25,7 @@ extension WatcherEngineTests {
                 directory: URL(fileURLWithPath: "/fake-home/.watcher"),
                 files: (files ?? self.files).access,
                 pacLoader: pacLoader,
+                pacTimeout: pacTimeout,
                 sleep: { _ in try await Task.sleep(for: .milliseconds(5)) },
                 makeServer: makeServer
             )
@@ -103,6 +105,25 @@ extension WatcherEngineTests {
             await applying.value
             let socksPort = try #require(engine.socksPort)
             #expect(await accepts(port: socksPort))
+            try await engine.stop()
+        }
+
+        @Test
+        func aPACScriptThatNeverArrivesDoesNotHoldUpTheStart() async throws {
+            let engine = try engine(
+                pacLoader: { _ in
+                    try await sleepUntilCancelled(.zero)
+                    throw PACEvaluator.LoadError(description: "cancelled")
+                },
+                pacTimeout: .milliseconds(50)
+            )
+            try engine.settings.update {
+                $0.externalProxy.isEnabled = true; $0.externalProxy.kind = .pac
+                $0.externalProxy.pacURL = "http://pac.test/proxy.pac"
+            }
+            _ = try await engine.start(port: 0)
+            #expect(engine.isRunning)
+            #expect(logged.value.contains { $0.hasPrefix("PAC:") && $0.contains("did not answer") }, "\(logged.value)")
             try await engine.stop()
         }
 
