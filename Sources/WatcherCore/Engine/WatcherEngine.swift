@@ -9,7 +9,10 @@ public final class WatcherEngine: @unchecked Sendable {
     public let workspaces: WorkspaceStore
 
     /// Receives script `console.log` output and non-fatal problems (e.g. a busy reverse-proxy port).
-    public var onLog: @Sendable (String) -> Void = { _ in }
+    public var onLog: @Sendable (String) -> Void {
+        get { lock.withLock { logHandler } }
+        set { lock.withLock { logHandler = newValue } }
+    }
 
     /// False tunnels all HTTPS untouched whatever the stored settings say, without changing them; set it before `start`.
     public var decryptsHTTPS = true
@@ -18,6 +21,8 @@ public final class WatcherEngine: @unchecked Sendable {
     private let lock = NSLock()
     private var server: ProxyServer?
     private var bound: Int?
+    private var logHandler: @Sendable (String) -> Void = { _ in }
+    private var hostsReportedAbandoned: Set<String> = []
     /// The last queued start, stop or apply; each one waits for it, so they never interleave.
     private var lastStep: Task<Void, Never>?
     private var watcher: Task<Void, Never>?
@@ -66,6 +71,12 @@ public final class WatcherEngine: @unchecked Sendable {
         }
     }
 
+    /// Once per host, so clients that never trust the CA do not flood the log.
+    private func reportAbandonedHandshake(of host: String) {
+        guard lock.withLock({ hostsReportedAbandoned.insert(host).inserted }) else { return }
+        onLog("\(host) abandoned the TLS handshake")
+    }
+
     private func startNow(port: Int?, pac: PACEvaluator?) async throws -> Int {
         // A stopped ProxyServer cannot be restarted, so every start gets a fresh one.
         let server = makeServer(store, authority)
@@ -82,9 +93,7 @@ public final class WatcherEngine: @unchecked Sendable {
                 self?.onLog("\(host) rejected Watcher's certificate (pinning?); it is no longer decrypted")
             }
         }
-        server.onHandshakeAbandoned = { [weak self] host in
-            self?.onLog("\(host) abandoned the TLS handshake")
-        }
+        server.onHandshakeAbandoned = { [weak self] in self?.reportAbandonedHandshake(of: $0) }
         let bound: Int
         do {
             do {
