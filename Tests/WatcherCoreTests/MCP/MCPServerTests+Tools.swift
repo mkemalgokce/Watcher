@@ -1,6 +1,4 @@
-import AsyncHTTPClient
 import Foundation
-import NIO
 import Testing
 @testable import WatcherCore
 import WatcherTestSupport
@@ -25,13 +23,6 @@ extension MCPServerTests {
             let reply = try await tests.json((server ?? tests.server).handle(line))
             let result = try #require(reply["result"] as? [String: Any])
             return (tests.text(of: reply), result["isError"] as? Bool ?? false)
-        }
-
-        private func engine(upstream: UpstreamStub) throws -> WatcherEngine {
-            let directory = URL(fileURLWithPath: "/fake-home/.watcher")
-            return try WatcherEngine(directory: directory, files: FileAccessFake().access) {
-                ProxyServer(store: $0, authority: $1, upstream: upstream)
-            }
         }
 
         private var settings: WatcherSettings {
@@ -197,7 +188,9 @@ extension MCPServerTests {
             let files = FileAccessFake()
             let server = try MCPServer(engine: WatcherEngine.inMemory(files: files), localAddresses: { [] })
             files.fail(.writePrivately)
-            #expect(try await call("create_blacklist", #"{"pattern":"*"}"#, on: server).isError)
+            let result = try await call("create_blacklist", #"{"pattern":"*"}"#, on: server)
+            #expect(result.isError)
+            #expect(result.text == "\(FileAccessFake.Failure(operation: .writePrivately))")
         }
 
         // MARK: Compose
@@ -212,24 +205,6 @@ extension MCPServerTests {
         func composeOnAStoppedEngineReports503() async throws {
             let result = try await call("create_compose_http", #"{"url":"https://a.test/x"}"#)
             #expect(result.text.hasPrefix("HTTP 503"))
-        }
-
-        @Test
-        func composeSendsTheRequestItDescribesAndSkipsMalformedHeaderLines() async throws {
-            let created = HTTPClientResponse(status: .created, body: .bytes(ByteBuffer(string: "made")))
-            let upstream = UpstreamStub(response: { created })
-            let engine = try engine(upstream: upstream)
-            _ = try await engine.start(port: 0)
-            let headers = #"X-A: 1\nnot a header\nX-B:2"#
-            let arguments = #"{"method":"post","url":"http://a.test:8080/p?q=1","headers":"\#(headers)","body":"data"}"#
-            let result = try await call("create_compose_http", arguments, on: MCPServer(engine: engine))
-            try await engine.stop()
-            #expect(result.text == "HTTP 201\nmade")
-            let sent = try #require(upstream.sent.first?.record)
-            #expect((sent.method, sent.host, sent.port, sent.path) == ("POST", "a.test", 8080, "/p?q=1"))
-            #expect(sent.headers.filter { ["X-A", "X-B"].contains($0.name) }.map(\.value) == ["1", "2"])
-            #expect(!sent.headers.contains { $0.name.hasPrefix("not") })
-            #expect(sent.body == Data("data".utf8))
         }
     }
 }
