@@ -27,7 +27,14 @@ extension ProxyServer {
                 channel.configureHTTP2Pipeline(mode: .server) { stream in
                     stream.pipeline.addHandlers([
                         HTTP2FramePayloadToHTTP1ServerCodec(),
-                        ProxyConnectionHandler(server: self, codecs: [], origin: nil, tunnel: ("https", host, port), isHTTP2: true, details: details),
+                        ProxyConnectionHandler(
+                            server: self,
+                            codecs: [],
+                            origin: nil,
+                            tunnel: TunnelTarget(scheme: "https", host: host, port: port),
+                            isHTTP2: true,
+                            details: details
+                        ),
                     ])
                 }.map { _ in () }
             }

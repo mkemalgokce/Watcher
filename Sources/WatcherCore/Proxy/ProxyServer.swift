@@ -171,13 +171,9 @@ public final class ProxyServer: @unchecked Sendable {
         }
         guard settings.isEnabled else { return nil }
         do {
-            let channel = try await ServerBootstrap(group: group)
-                .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-                .childChannelInitializer { [self] channel in
-                    guard allowsClient(channel) else { channel.close(promise: nil); return channel.eventLoop.makeFailedFuture(ChannelError.ioOnClosedChannel) }
-                    return channel.pipeline.addHandler(SocksHandler(server: self))
-                }
-                .bind(host: host, port: settings.port).get()
+            let channel = try await bind(host: host, port: settings.port) { [self] channel in
+                channel.pipeline.addHandler(SocksHandler(server: self))
+            }
             lock.withLock { socksListener = channel }
             return nil
         } catch { return "SOCKS proxy on port \(settings.port): \(error)" }
@@ -193,14 +189,25 @@ public final class ProxyServer: @unchecked Sendable {
     }
 
     private func listen(host: String, port: Int, origin: ReverseOrigin?) async throws -> Channel {
+        try await bind(host: host, port: port) { [self] channel in
+            channel.pipeline.addHandlers(http1Pipeline(origin: origin).handlers)
+        }
+    }
+
+    /// Accepts connections on `host:port` from the clients Access Control allows, each set up by `install`.
+    private func bind(
+        host: String,
+        port: Int,
+        install: @escaping @Sendable (Channel) -> EventLoopFuture<Void>
+    ) async throws -> Channel {
         try await ServerBootstrap(group: group)
             .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .childChannelInitializer { [self] channel in
-                guard allowsClient(channel) else { channel.close(promise: nil); return channel.eventLoop.makeFailedFuture(ChannelError.ioOnClosedChannel) }
-                let encoder = HTTPResponseEncoder()
-                let decoder = ByteToMessageHandler(HTTPRequestDecoder(leftOverBytesStrategy: .forwardBytes))
-                let handler = ProxyConnectionHandler(server: self, codecs: [encoder, decoder], origin: origin)
-                return channel.pipeline.addHandlers([encoder, decoder, handler])
+                guard allowsClient(channel) else {
+                    channel.close(promise: nil)
+                    return channel.eventLoop.makeFailedFuture(ChannelError.ioOnClosedChannel)
+                }
+                return install(channel)
             }
             .bind(host: host, port: port).get()
     }

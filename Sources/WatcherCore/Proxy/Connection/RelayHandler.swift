@@ -24,3 +24,11 @@ final class RelayHandler: ChannelInboundHandler {
         context.close(promise: nil)
     }
 }
+
+extension RelayHandler {
+    /// Joins two connections so bytes flow between them untouched, both ways.
+    static func join(_ client: Channel, _ upstream: Channel) -> EventLoopFuture<Void> {
+        client.pipeline.addHandler(RelayHandler(peer: upstream))
+            .flatMap { upstream.pipeline.addHandler(RelayHandler(peer: client)) }
+    }
+}

@@ -20,7 +20,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
     private var body = Data()
     private var tooLarge = false
     /// Set after a CONNECT (or SOCKS) we handle ourselves: every request now belongs to this origin.
-    private var tunnel: (scheme: String, host: String, port: Int)?
+    private var tunnel: TunnelTarget?
     /// Feeds a large upload to the upstream while it is still arriving.
     private var upload: AsyncStream<ByteBuffer>.Continuation?
     private let clientApp: ClientAppResolver
@@ -31,7 +31,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
         server: ProxyServer,
         codecs: [RemovableChannelHandler],
         origin: ReverseOrigin?,
-        tunnel: (scheme: String, host: String, port: Int)? = nil,
+        tunnel: TunnelTarget? = nil,
         isHTTP2: Bool = false,
         details: ConnectionDetails = ConnectionDetails()
     ) {
@@ -90,7 +90,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
                     guard let decoder else { return context.eventLoop.makeFailedFuture(ChannelError.ioOnClosedChannel) }
                     return context.pipeline.removeHandler(decoder)
                 }.flatMap { [self] in
-                    let fresh = ByteToMessageHandler(HTTPRequestDecoder(leftOverBytesStrategy: .forwardBytes))
+                    let fresh = ProxyServer.requestDecoder()
                     decoder = fresh
                     return context.pipeline.addHandler(fresh, position: .before(self))
                 }.flatMap { [self] in
@@ -100,7 +100,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
                     } catch { return context.eventLoop.makeFailedFuture(error) }
                 }.whenComplete { [self] result in
                     switch result {
-                    case .success: tunnel = ("https", host, port)
+                    case .success: tunnel = TunnelTarget(scheme: "https", host: host, port: port)
                     case .failure: context.close(promise: nil)
                     }
                 }
@@ -122,7 +122,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
 
     private func blindTunnel(_ context: ChannelHandlerContext, host: String, port: Int, head: HTTPRequestHead) {
         let client = context.channel
-        ClientBootstrap(group: context.eventLoop).connect(host: server.resolve(host), port: port).whenComplete { [self] result in
+        server.connectBlind(to: host, port: port, on: context.eventLoop).whenComplete { [self] result in
             switch result {
             case let .failure(error):
                 writer.respond(502, "Tunnel to \(host):\(port) failed: \(error)", to: client, head: head)
@@ -130,9 +130,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
                 acknowledgeConnect(context).flatMap { [self] in
                     EventLoopFuture.andAllSucceed(codecs.map { context.pipeline.removeHandler($0) }, on: context.eventLoop)
                 }.flatMap {
-                    context.pipeline.addHandler(RelayHandler(peer: upstream))
-                }.flatMap {
-                    upstream.pipeline.addHandler(RelayHandler(peer: client))
+                    RelayHandler.join(client, upstream)
                 }.flatMap {
                     context.pipeline.removeHandler(self)
                 }.whenFailure { _ in client.close(promise: nil); upstream.close(promise: nil) }
@@ -161,16 +159,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
         if !isHTTP2, head.headers.contains(name: "Upgrade") {
             return upgrade(channel, head: head, record: record)
         }
-        Task {
-            var record = record
-            record.clientApp = await self.clientApp.app(for: channel)
-            switch await server.serve(record, allowStreaming: true, connection: self.details.summary) {
-            case let .buffered(response):
-                channel.eventLoop.execute { self.writer.respond(response, to: channel, head: head) }
-            case let .streamed(response, body, complete):
-                await self.writer.stream(response, body: body, to: channel, head: head, complete: complete)
-            }
-        }
+        dispatch(record, upload: nil, on: channel, head: head)
     }
 
     /// Bodies above the threshold are streamed upstream as they arrive, unless a tool needs to read the body.
@@ -180,11 +169,21 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
               !server.tools.needsRequestBody, let record = makeRecord(head) else { return }
         let (stream, continuation) = AsyncStream<ByteBuffer>.makeStream()
         upload = continuation
+        dispatch(record, upload: .init(body: stream, length: length), on: channel, head: head)
+    }
+
+    /// Serves the request off the event loop and writes the answer back, whole or streamed.
+    private func dispatch(
+        _ record: RequestRecord,
+        upload: ProxyServer.Upload?,
+        on channel: Channel,
+        head: HTTPRequestHead
+    ) {
         let server = server
         Task {
             var record = record
             record.clientApp = await self.clientApp.app(for: channel)
-            switch await server.serve(record, allowStreaming: true, upload: .init(body: stream, length: length), connection: self.details.summary) {
+            switch await server.serve(record, allowStreaming: true, upload: upload, connection: self.details.summary) {
             case let .buffered(response):
                 channel.eventLoop.execute { self.writer.respond(response, to: channel, head: head) }
             case let .streamed(response, body, complete):

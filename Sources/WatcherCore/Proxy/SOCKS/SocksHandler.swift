@@ -84,14 +84,13 @@ final class SocksHandler: ChannelInboundHandler, RemovableChannelHandler {
     private func relay(_ context: ChannelHandlerContext, host: String, port: Int) {
         let client = context.channel
         let leftover = pending; pending = []
-        ClientBootstrap(group: context.eventLoop).connect(host: server.resolve(host), port: port).whenComplete { [self] result in
+        server.connectBlind(to: host, port: port, on: context.eventLoop).whenComplete { [self] result in
             switch result {
             case .failure:
                 reply(context, [5, 5, 0, 1, 0, 0, 0, 0, 0, 0]); context.close(promise: nil)
             case let .success(upstream):
                 reply(context, Self.success)
-                context.pipeline.addHandler(RelayHandler(peer: upstream))
-                    .flatMap { upstream.pipeline.addHandler(RelayHandler(peer: client)) }
+                RelayHandler.join(client, upstream)
                     .flatMap { context.pipeline.removeHandler(self) }
                     .whenComplete { _ in
                         if !leftover.isEmpty {
@@ -108,19 +107,13 @@ final class SocksHandler: ChannelInboundHandler, RemovableChannelHandler {
         pending = []
         let pipeline = context.pipeline
         do {
-            let encoder = HTTPResponseEncoder()
-            let decoder = ByteToMessageHandler(HTTPRequestDecoder(leftOverBytesStrategy: .forwardBytes))
             let details = ConnectionDetails()
-            let handler = ProxyConnectionHandler(
-                server: server,
-                codecs: [encoder, decoder],
-                origin: nil,
-                tunnel: (isTLS ? "https" : "http", host, port),
-                details: details
-            )
-            var handlers: [ChannelHandler] = [encoder, decoder, handler]
+            let tunnel = TunnelTarget(scheme: isTLS ? "https" : "http", host: host, port: port)
+            let http1 = server.http1Pipeline(tunnel: tunnel, details: details)
+            var handlers: [ChannelHandler] = http1.handlers
             if isTLS, server.authority != nil {
-                try handlers.insert(contentsOf: server.tlsHandlers(host: host, http1: [encoder, decoder, handler], details: details), at: 0)
+                let tls = try server.tlsHandlers(host: host, http1: http1.handlers, details: details)
+                handlers.insert(contentsOf: tls, at: 0)
             }
             pipeline.addHandlers(handlers, position: .first)
                 .flatMap { pipeline.removeHandler(self) }
