@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import watcher_cli
+import WatcherCore
 import WatcherTestSupport
 
 @Suite(.tags(.unit))
@@ -26,5 +27,16 @@ struct CLIEnvironmentTests {
         var environment = CLIHarness().environment
         environment.variables = variables
         #expect(environment.supportDirectory.path == directory)
+    }
+
+    @Test
+    func theLiveEnvironmentReadsTheProcessEnvironmentAndWorkingDirectory() {
+        let live = CLIEnvironment.live
+        let home = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+        #expect(live.variables == ProcessInfo.processInfo.environment)
+        #expect(live.home == home)
+        #expect(live.currentDirectory.path == FileManager.default.currentDirectoryPath)
+        let variables = ProcessInfo.processInfo.environment
+        #expect(live.supportDirectory == WatcherPaths.directory(environment: variables, home: home))
     }
 }

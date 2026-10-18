@@ -130,7 +130,13 @@ let package = Package(
         ),
         .testTarget(
             name: "WatcherIntegrationTests",
-            dependencies: ["WatcherCore", "WatcherUI", "WatcherTestSupport"],
+            dependencies: [
+                "watcher-cli",
+                "WatcherCore",
+                "WatcherUI",
+                "WatcherTestSupport",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(
