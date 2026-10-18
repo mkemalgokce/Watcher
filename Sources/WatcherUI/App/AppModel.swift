@@ -10,6 +10,7 @@ public final class AppModel {
     let engine: WatcherEngine
     @ObservationIgnored let clipboard: any Clipboard
     let notices: NoticeCenter
+    @ObservationIgnored let preferences: any Preferences
     let sessionFiles: SessionFilesViewModel
     /// Certificate trust and device setup (DeviceSetupView, the welcome sheet and the first-run list). Previews and tests
     /// get a probe that never asks the keychain, simctl or adb, so what they show is the same on every Mac.
@@ -73,8 +74,8 @@ public final class AppModel {
 
     var askWorkspaceName = false
     /// Set once the first-run setup has been completed or skipped.
-    var onboardingDone = UserDefaults.standard.bool(forKey: "onboarding.done") {
-        didSet { UserDefaults.standard.set(onboardingDone, forKey: "onboarding.done") }
+    var onboardingDone: Bool {
+        didSet { preferences.onboardingDone = onboardingDone }
     }
 
     /// Request to pre-fill the compose window with (Edit & Repeat).
@@ -125,6 +126,8 @@ public final class AppModel {
     init(dependencies: AppDependencies, listening: Bool = false, systemProxy: SystemProxy? = nil) {
         engine = dependencies.engine
         clipboard = dependencies.clipboard
+        preferences = dependencies.preferences
+        onboardingDone = dependencies.preferences.onboardingDone
         let notices = NoticeCenter(sleep: dependencies.sleep, announce: dependencies.announce)
         self.notices = notices
         sessionFiles = SessionFilesViewModel(

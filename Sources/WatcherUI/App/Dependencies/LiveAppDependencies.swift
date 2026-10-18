@@ -11,7 +11,8 @@ extension AppDependencies {
             announce: LiveAnnouncer.announce,
             panels: LiveFilePanels(),
             files: .live,
-            commands: LiveCommandRunner.run
+            commands: LiveCommandRunner.run,
+            preferences: LivePreferences.standard
         )
     }
 
@@ -27,7 +28,8 @@ extension AppDependencies {
             announce: { _ in },
             panels: LiveFilePanels(),
             files: .live,
-            commands: LiveCommandRunner.run
+            commands: LiveCommandRunner.run,
+            preferences: LivePreferences.standard
         )
     }
 

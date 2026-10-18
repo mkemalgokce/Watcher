@@ -70,8 +70,8 @@ private struct GeneralSettings: View {
                 Toggle("Turn on the system proxy when the proxy starts", isOn: $model.settings.autoSystemProxy)
                 Toggle("Hide Apple system traffic", isOn: $model.settings.hideAppleTraffic)
                 Toggle("Show website icons", isOn: Binding(
-                    get: { UserDefaults.standard.object(forKey: "icons.websites") as? Bool ?? true },
-                    set: { UserDefaults.standard.set($0, forKey: "icons.websites") }
+                    get: { model.preferences.websiteIconsEnabled },
+                    set: { model.preferences.websiteIconsEnabled = $0 }
                 ))
                 Text("Icons are downloaded from each site's /favicon.ico, directly and not through Watcher, and kept in ~/.watcher/favicons.")
                     .font(.caption).foregroundStyle(.secondary)

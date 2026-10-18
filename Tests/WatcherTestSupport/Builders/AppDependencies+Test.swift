@@ -12,7 +12,8 @@ public extension AppDependencies {
         announcer: AnnouncerSpy? = nil,
         panels: FilePanelsStub? = nil,
         files: FileAccessFake? = nil,
-        commands: CommandRunnerSpy? = nil
+        commands: CommandRunnerSpy? = nil,
+        preferences: PreferencesFake? = nil
     ) throws -> AppDependencies {
         let files = files ?? FileAccessFake()
         return try AppDependencies(
@@ -22,7 +23,8 @@ public extension AppDependencies {
             announce: (announcer ?? AnnouncerSpy()).announce,
             panels: panels ?? FilePanelsStub(),
             files: files.access,
-            commands: (commands ?? CommandRunnerSpy()).runner
+            commands: (commands ?? CommandRunnerSpy()).runner,
+            preferences: preferences ?? PreferencesFake()
         )
     }
 }

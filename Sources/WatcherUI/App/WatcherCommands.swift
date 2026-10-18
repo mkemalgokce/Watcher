@@ -57,15 +57,19 @@ public struct WatcherCommands: Commands {
                 Button("Errors") { model.sidebar = .errors }.keyboardShortcut("3")
                 Button("WebSocket") { model.sidebar = .webSocket }.keyboardShortcut("4")
                 Divider()
-                Button("Show Body Preview") { UserDefaults.standard.set("Preview", forKey: "body.mode") }.keyboardShortcut("1", modifiers: [.command, .control])
-                Button("Show Body Pretty") { UserDefaults.standard.set("Pretty", forKey: "body.mode") }.keyboardShortcut("2", modifiers: [.command, .control])
-                Button("Show Body Raw") { UserDefaults.standard.set("Raw", forKey: "body.mode") }.keyboardShortcut("3", modifiers: [.command, .control])
-                Button("Show Body as Hex") { UserDefaults.standard.set("Hex", forKey: "body.mode") }.keyboardShortcut("4", modifiers: [.command, .control])
+                Button("Show Body Preview") { model.preferences.showBody(.preview) }
+                    .keyboardShortcut("1", modifiers: [.command, .control])
+                Button("Show Body Pretty") { model.preferences.showBody(.pretty) }
+                    .keyboardShortcut("2", modifiers: [.command, .control])
+                Button("Show Body Raw") { model.preferences.showBody(.raw) }
+                    .keyboardShortcut("3", modifiers: [.command, .control])
+                Button("Show Body as Hex") { model.preferences.showBody(.hex) }
+                    .keyboardShortcut("4", modifiers: [.command, .control])
                 Button("Show Request") { model.exchangeSide = .request }.keyboardShortcut("[", modifiers: [.command, .option])
                 Button("Show Response") { model.exchangeSide = .response }.keyboardShortcut("]", modifiers: [.command, .option])
-                Button("Filter JSON Body") { UserDefaults.standard.set(!UserDefaults.standard.bool(forKey: "body.jsonFilter"), forKey: "body.jsonFilter") }
+                Button("Filter JSON Body") { model.preferences.toggleJSONFilter() }
                     .keyboardShortcut("j", modifiers: [.command, .shift])
-                Button("Toggle Line Wrapping") { UserDefaults.standard.set(!(UserDefaults.standard.object(forKey: "body.wrap") as? Bool ?? true), forKey: "body.wrap") }
+                Button("Toggle Line Wrapping") { model.preferences.toggleLineWrapping() }
                     .keyboardShortcut("l", modifiers: [.command, .option])
                 Divider()
                 Button("Clear Filters") { model.query.reset(); model.sidebar = .all }.keyboardShortcut("l", modifiers: [.command, .shift])

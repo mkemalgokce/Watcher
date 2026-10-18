@@ -12,4 +12,5 @@ public struct AppDependencies {
     var panels: any FilePanels
     var files: FileAccess
     var commands: CommandRunner
+    var preferences: any Preferences
 }

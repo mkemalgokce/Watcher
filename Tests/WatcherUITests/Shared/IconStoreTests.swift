@@ -10,7 +10,7 @@ import WatcherTestSupport
 struct IconStoreTests {
     @Test
     func aFaviconArrivingRedrawsOnlyItsOwnRow() {
-        let store = IconStore()
+        let store = IconStore(preferences: PreferencesFake())
         let otherRowChanged = ObservationFlag()
         withObservationTracking {
             _ = store.favicon(for: "a.example", fetch: false)

@@ -151,6 +151,15 @@ struct AppModelTests {
     }
 
     @Test
+    func onboardingIsReadFromAndSavedToThePreferences() throws {
+        let preferences = PreferencesFake(["onboarding.done": true])
+        let model = try AppModel(dependencies: .test(preferences: preferences))
+        #expect(model.onboardingDone)
+        model.onboardingDone = false
+        #expect(preferences.values["onboarding.done"] as? Bool == false)
+    }
+
+    @Test
     func theProxyPortIsTheConfiguredOneUntilAPortIsBound() {
         let model = AppModel(listening: false)
         model.settings.port = 9123

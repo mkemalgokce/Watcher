@@ -5,7 +5,7 @@ import WatcherCore
 /// Icons for the apps that send requests and the websites they talk to, loaded once and cached.
 @MainActor @Observable
 final class IconStore {
-    static let shared = IconStore()
+    static let shared = IconStore(preferences: LivePreferences.standard)
 
     // Filled while views are drawn, so they must not count as observable changes: writing observed state during a view
     // update re-renders every icon. Only favicons, which arrive later, are observed.
@@ -15,9 +15,10 @@ final class IconStore {
     @ObservationIgnored private var favicons: [String: FaviconSlot] = [:]
     @ObservationIgnored private var requested: Set<String> = []
 
-    /// Website icons are fetched from the sites themselves; people who do not want that can switch it off in Settings.
-    static var websiteIconsEnabled: Bool {
-        UserDefaults.standard.object(forKey: "icons.websites") as? Bool ?? true
+    @ObservationIgnored private let preferences: any Preferences
+
+    init(preferences: any Preferences) {
+        self.preferences = preferences
     }
 
     // MARK: Apps
@@ -74,7 +75,7 @@ final class IconStore {
     func favicon(for domain: String, fetch: Bool = true) -> NSImage? {
         let slot = slot(for: domain)
         let isAddress = domain.allSatisfy { $0.isNumber || $0 == "." }
-        if slot.image == nil, fetch, Self.websiteIconsEnabled, !isAddress, !requested.contains(domain) {
+        if slot.image == nil, fetch, preferences.websiteIconsEnabled, !isAddress, !requested.contains(domain) {
             requested.insert(domain)
             Task {
                 if let icon = await Self.loadFavicon(domain) {
