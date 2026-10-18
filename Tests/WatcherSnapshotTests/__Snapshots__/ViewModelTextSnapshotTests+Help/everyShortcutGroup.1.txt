@@ -1,0 +1,44 @@
+Capture
+  ⌘E  Record or pause (starts and stops the proxy)
+  ⇧⌘Y  Send this Mac's traffic through Watcher (system proxy)
+  ⌘K  Clear the session
+  ⇧⌘D  Set up a phone, simulator or this Mac
+Find and filter
+  ⌘F  Filter requests
+  ⌥⌘F  Find in the body
+  ⌘G  Next match
+  ⇧⌘G  Previous match
+  ⇧⌘J  Filter a JSON body with a path or jq
+  ⇧⌘L  Clear filters
+  ⌘1 – ⌘4  All requests, Starred, Errors, WebSocket
+Selected request
+  ⌘R  Repeat
+  ⌥⌘R  Edit and repeat
+  ⌘D  Star or unstar
+  ⇧⌘C  Copy as cURL
+  ⌥⌘C  Copy URL
+  ⌥⌘M  Mock this response from a local file
+  ⇧⌘B  Set as compare base and open Compare
+  ⌘⌫  Delete
+Inspector
+  ⌥⌘[  Show the request (narrow inspector)
+  ⌥⌘]  Show the response (narrow inspector)
+  ⌃⌘1 – ⌃⌘4  Body as Preview, Pretty, Raw, Hex
+  ⌥⌘L  Wrap long lines
+Windows
+  ⌘N  New request (Compose)
+  ⌥⌘N  New request from the curl command on the clipboard
+  ⌘B  Breakpoints: paused requests
+  ⌘T  Tools: Map Local, Block, Scripting…
+  ⇧⌘U  Converter: Base64, URL, JWT, timestamps
+  ⌘,  Settings
+  ⌘/  This help
+In Compose and Breakpoints
+  ⌘↩  Send, or continue with your edits
+  ⇧⌘↩  Continue unchanged
+  ⇧⌘⌫  Abort the paused request
+  ⎋  Close
+File
+  ⌘O  Open a session, HAR or Charles file
+  ⌘S  Save the session
+  ⇧⌘E  Export HAR

@@ -1,0 +1,17 @@
+state: neutral
+line: Not recording · 2 requests
+lan: none
+system proxy: System proxy off [neutral]
+https: HTTPS decrypted
+tools: none
+paused: 0
+summary: 2 of 2 · 0 B
+
+state: done
+line: Recording on 127.0.0.1:9123 · 2 requests
+lan: 192.168.1.5:9123
+system proxy: System proxy off [neutral]
+https: HTTPS decrypted
+tools: 2 tools on
+paused: 1
+summary: 2 of 2 · 0 B
