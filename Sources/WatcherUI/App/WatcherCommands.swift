@@ -25,8 +25,8 @@ public struct WatcherCommands: Commands {
                 Divider()
                 Button("Open…") { model.sessionFiles.importFile() }.keyboardShortcut("o")
                 Menu("Workspaces") {
-                    ForEach(model.workspaces, id: \.self) { name in Button(name) { model.openWorkspace(name) } }
-                    if !model.workspaces.isEmpty {
+                    ForEach(model.workspaces.names, id: \.self) { name in Button(name) { model.workspaces.open(name) } }
+                    if !model.workspaces.names.isEmpty {
                         Divider()
                     }
                     Button("Save Current as…") { model.askWorkspaceName = true }

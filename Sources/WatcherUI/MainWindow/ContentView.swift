@@ -49,7 +49,7 @@ public struct ContentView: View {
         }
         .alert("Save Workspace", isPresented: $model.askWorkspaceName) {
             TextField("Name", text: $workspaceName)
-            Button("Save") { model.saveWorkspace(named: workspaceName); workspaceName = "" }
+            Button("Save") { model.workspaces.save(named: workspaceName); workspaceName = "" }
             Button("Cancel", role: .cancel) { workspaceName = "" }
         } message: { Text("Saves the current requests and all tool settings.") }
         .overlay(alignment: .bottom) { NoticeBanner().padding(.bottom, 34) } // above the status bar, clear of the filter bar

@@ -19,7 +19,7 @@ public final class AppModel {
     /// Settable inside the module so previews can show paused traffic.
     internal(set) var hits: [BreakpointCenter.Hit] = []
     let proxy: ProxyController
-    private(set) var workspaces: [String] = []
+    let workspaces: WorkspacesViewModel
     /// The dialog currently shown over the main window; menus and toolbar both open it through here.
     var sheet: Sheet?
     /// The page Tools opens on; callers set it to land on the tool they mean.
@@ -88,7 +88,7 @@ public final class AppModel {
         devices = DevicesViewModel(probe: listening ? .live : .none, certificateURL: WatcherPaths.supportDirectory.appendingPathComponent("watcher-ca.pem"))
         let settings = SettingsEditor(engine: engine, sleep: dependencies.sleep, notices: notices)
         self.settings = settings
-        workspaces = engine.workspaces.list()
+        workspaces = WorkspacesViewModel(engine: engine, settings: settings, notices: notices)
         proxy = ProxyController(runner: dependencies.runner, systemProxy: dependencies.systemProxy, notices: notices) {
             settings.value
         }
@@ -234,22 +234,6 @@ public final class AppModel {
             self?.notices.notify("Requests restored", .success)
         }
         notices.notify("Cleared \(removed.count) request\(removed.count == 1 ? "" : "s")", action: undo)
-    }
-
-    func saveWorkspace(named name: String) {
-        do {
-            try engine.saveWorkspace(named: name)
-            workspaces = engine.workspaces.list()
-        } catch { notices.notify("\(error)", .error) }
-    }
-
-    func openWorkspace(_ name: String) {
-        Task {
-            do {
-                try await engine.openWorkspace(named: name)
-                settings.value = engine.settings.value
-            } catch { notices.notify("\(error)", .error) }
-        }
     }
 
     func revealCertificate() {
