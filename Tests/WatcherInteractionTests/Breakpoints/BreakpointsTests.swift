@@ -9,7 +9,7 @@ extension InteractionTests {
     struct BreakpointsTests {
         @Test
         func breakpointRulesCanBeDeletedFromTheWindow() async throws {
-            let model = AppModel.preview()
+            let model = try AppModel.demo()
             model.settings.breakpoints = RuleSet(isEnabled: true, rules: [
                 BreakpointRule(name: "Login", matching: MatchingRule(pattern: "api.example.com/v1/login")),
                 BreakpointRule(name: "Users", matching: MatchingRule(pattern: "*/v1/users*")),
@@ -27,7 +27,7 @@ extension InteractionTests {
 
         @Test
         func pausedRequestCanBeContinuedAndItsBreakpointRemoved() async throws {
-            let model = AppModel.preview()
+            let model = try AppModel.demo()
             let request = RequestRecord.fixture(method: "POST", path: "/v1/login")
             model.settings.breakpoints = RuleSet(isEnabled: true, rules: [
                 BreakpointRule(name: "Login", matching: MatchingRule(pattern: "api.example.com/v1/login")),

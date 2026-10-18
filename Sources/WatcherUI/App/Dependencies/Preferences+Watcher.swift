@@ -10,17 +10,4 @@ extension Preferences {
         get { object(forKey: "icons.websites") as? Bool ?? true }
         set { set(newValue, forKey: "icons.websites") }
     }
-
-    /// The body viewers follow this through `@AppStorage("body.mode")`.
-    func showBody(_ mode: BodyMode) {
-        set(mode.rawValue, forKey: "body.mode")
-    }
-
-    func toggleJSONFilter() {
-        set(!(object(forKey: "body.jsonFilter") as? Bool ?? false), forKey: "body.jsonFilter")
-    }
-
-    func toggleLineWrapping() {
-        set(!(object(forKey: "body.wrap") as? Bool ?? true), forKey: "body.wrap")
-    }
 }

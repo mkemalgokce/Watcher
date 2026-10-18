@@ -16,64 +16,30 @@ struct BodyViewer: View {
     @Environment(SessionFilesViewModel.self) private var sessionFiles
     let flow: Flow
     let side: MessageSide
-    @AppStorage("body.mode") private var mode = BodyMode.preview.rawValue
-    @AppStorage("body.wrap") private var wraps = true
-    @AppStorage("body.sortKeys") private var sortKeys = false
-    @AppStorage("body.fontSize") private var fontSize = 12.0
-    /// The JSON path / jq field stays hidden until asked for (⇧⌘J), keeping one control row less above every body.
-    @AppStorage("body.jsonFilter") private var showsFilter = false
+    @Bindable var options: ViewerOptions
     @State private var jsonPath = ""
-    @State private var prepared: Prepared?
-    /// The body after Content-Encoding is undone, and what it can be rendered as. Decoding a large gzip body is not cheap,
-    /// so it happens once per body (off the main thread when large) instead of on every view update.
-    @State private var unpacked: Unpacked?
-
-    struct Unpacked: Equatable {
-        let id: UnpackKey
-        let data: Data
-        let richKind: RichKind?
-    }
-
-    struct UnpackKey: Hashable { let flow: UUID; let side: MessageSide; let size: Int }
+    @State private var prepared: BodyRendering.Prepared?
+    /// Decoding a large gzip body is not cheap, so it happens once per body (off the main thread when large) instead of
+    /// on every view update.
+    @State private var unpacked: BodyRendering.Unpacked?
 
     /// Bodies below this are formatted on the spot so the first frame already shows them.
     private static let instantLimit = 256 * 1024
-    /// Text longer than this is shown cut off; the whole body can still be saved or copied from the menu.
-    private static let displayLimit = 16 * 1024 * 1024
-
-    struct Prepared: Equatable {
-        var text: String
-        var language: BodyLanguage
-        var note: String?
-        var cutFrom: Int?
-        var pathFailed = false
-    }
 
     private struct Key: Hashable { let flow: UUID; let side: MessageSide; let mode: BodyMode; let sortKeys: Bool; let path: String; let size: Int }
 
-    init(flow: Flow, side: MessageSide) {
-        self.flow = flow; self.side = side
+    init(flow: Flow, side: MessageSide, options: ViewerOptions) {
+        self.flow = flow; self.side = side; self.options = options
         let headers = flow.headers(side), payload = flow.body(side)
         if payload.count < Self.instantLimit {
-            let defaults = UserDefaults.standard
-            var mode = BodyMode(rawValue: defaults.string(forKey: "body.mode") ?? "") ?? .preview
-            if mode == .preview {
-                mode = .pretty
-            } // text is prepared as pretty; a rich preview does not need it
-            _prepared = State(initialValue: Self.compute(
-                payload,
-                headers.value(for: "content-type"),
-                headers.value(for: "content-encoding"),
-                mode,
-                defaults.bool(forKey: "body.sortKeys"),
-                ""
+            let type = headers.value(for: "content-type"), encoding = headers.value(for: "content-encoding")
+            // Text is prepared as pretty; a rich preview does not need it.
+            let mode = options.mode == .preview ? .pretty : options.mode
+            _prepared = State(initialValue: BodyRendering.prepare(
+                payload, contentType: type, encoding: encoding, mode: mode, sortKeys: options.sortsKeys
             ))
-            _unpacked = State(initialValue: Self.unpack(
-                UnpackKey(flow: flow.id, side: side, size: payload.count),
-                payload,
-                headers.value(for: "content-type"),
-                headers.value(for: "content-encoding")
-            ))
+            let key = BodyRendering.UnpackKey(flow: flow.id, side: side, size: payload.count)
+            _unpacked = State(initialValue: BodyRendering.unpack(key, payload, contentType: type, encoding: encoding))
         }
     }
 
@@ -89,11 +55,15 @@ struct BodyViewer: View {
         headers.value(for: "content-type")
     }
 
-    private var unpackKey: UnpackKey {
-        UnpackKey(flow: flow.id, side: side, size: payload.count)
+    private var encoding: String? {
+        headers.value(for: "content-encoding")
     }
 
-    private var current: Unpacked? {
+    private var unpackKey: BodyRendering.UnpackKey {
+        BodyRendering.UnpackKey(flow: flow.id, side: side, size: payload.count)
+    }
+
+    private var current: BodyRendering.Unpacked? {
         unpacked?.id == unpackKey ? unpacked : nil
     }
 
@@ -105,15 +75,12 @@ struct BodyViewer: View {
         current?.richKind
     }
 
-    private nonisolated static func unpack(_ key: UnpackKey, _ payload: Data, _ type: String?, _ encoding: String?) -> Unpacked {
-        let data = BodyDecoder.decode(payload, contentEncoding: encoding).data
-        return Unpacked(id: key, data: data, richKind: payload.isEmpty ? nil : RichKind.of(contentType: type, data: data))
+    private var effectiveMode: BodyMode {
+        BodyRendering.effectiveMode(chosen: options.mode, richKind: richKind)
     }
 
-    /// The chosen mode, falling back to Pretty when this body has nothing to render.
-    private var effectiveMode: BodyMode {
-        let chosen = BodyMode(rawValue: mode) ?? .preview
-        return chosen == .preview && richKind == nil ? .pretty : chosen
+    private var showsFilterField: Bool {
+        effectiveMode != .preview && prepared?.language == .json && (options.showsJSONFilter || !jsonPath.isEmpty)
     }
 
     private var textMode: BodyMode {
@@ -121,7 +88,7 @@ struct BodyViewer: View {
     }
 
     private var key: Key {
-        Key(flow: flow.id, side: side, mode: textMode, sortKeys: sortKeys, path: jsonPath, size: payload.count)
+        Key(flow: flow.id, side: side, mode: textMode, sortKeys: options.sortsKeys, path: jsonPath, size: payload.count)
     }
 
     var body: some View {
@@ -129,7 +96,7 @@ struct BodyViewer: View {
             if !payload.isEmpty {
                 toolbar
             } // formats and filters mean nothing for an empty body
-            if effectiveMode != .preview, let prepared, prepared.language == .json, showsFilter || !jsonPath.isEmpty {
+            if showsFilterField, let prepared {
                 TextField("Filter with a JSON path or jq: users[0].name, ..email, .users[] | .id", text: $jsonPath)
                     .textFieldStyle(.roundedBorder).controlSize(.small).accessibilityLabel("JSON path or jq filter")
                 if prepared.pathFailed {
@@ -141,9 +108,12 @@ struct BodyViewer: View {
         .task(id: key) { await prepare() }
         .task(id: unpackKey) {
             guard current == nil else { return }
-            let (key, payload, type, encoding) = (unpackKey, payload, contentType, headers.value(for: "content-encoding"))
-            let result = payload.count < Self.instantLimit ? Self.unpack(key, payload, type, encoding)
-                : await Task.detached(priority: .userInitiated) { Self.unpack(key, payload, type, encoding) }.value
+            let (key, payload, type, encoding) = (unpackKey, payload, contentType, encoding)
+            let unpack: @Sendable () -> BodyRendering.Unpacked = {
+                BodyRendering.unpack(key, payload, contentType: type, encoding: encoding)
+            }
+            let result = payload.count < Self.instantLimit
+                ? unpack() : await Task.detached(priority: .userInitiated, operation: unpack).value
             if !Task.isCancelled {
                 unpacked = result
             }
@@ -152,25 +122,31 @@ struct BodyViewer: View {
 
     private var toolbar: some View {
         HStack(spacing: 8) {
-            TabStrip(items: BodyMode.allCases.filter { $0 != .preview || richKind != nil }.map { item in
+            TabStrip(items: BodyRendering.modes(richKind: richKind).map { item in
                 TabItem(id: item, title: item.rawValue, symbol: item.symbol, shortcut: "⌃⌘\((BodyMode.allCases.firstIndex(of: item) ?? 0) + 1)")
-            }, selection: Binding(get: { effectiveMode }, set: { mode = $0.rawValue }))
+            }, selection: Binding(get: { effectiveMode }, set: { options.mode = $0 }))
             Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(1).layoutPriority(-1)
             Spacer(minLength: 0)
             GlassGroup {
                 HStack(spacing: 2) {
                     if effectiveMode != .preview, prepared?.language == .json {
-                        IconButton("Filter with a JSON path or jq expression", symbol: "line.3.horizontal.decrease.circle", shortcut: "⇧⌘J", isOn: showsFilter) { showsFilter.toggle() }
+                        IconButton(
+                            "Filter with a JSON path or jq expression", symbol: "line.3.horizontal.decrease.circle",
+                            shortcut: "⇧⌘J", isOn: options.showsJSONFilter
+                        ) { options.toggleJSONFilter() }
                     }
                     if effectiveMode != .preview {
-                        IconButton(wraps ? "Don't Wrap Long Lines" : "Wrap Long Lines", symbol: "arrow.turn.down.left", shortcut: "⌥⌘L", isOn: wraps) { wraps.toggle() }
+                        IconButton(
+                            options.wrapsLines ? "Don't Wrap Long Lines" : "Wrap Long Lines",
+                            symbol: "arrow.turn.down.left", shortcut: "⌥⌘L", isOn: options.wrapsLines
+                        ) { options.toggleLineWrapping() }
                     }
                     IconButton("Copy Body", symbol: "doc.on.doc") { actions.copy(fullText(), "Body copied") }
                     Menu {
                         if prepared?.language == .json {
-                            Toggle("Sort Keys", isOn: $sortKeys)
+                            Toggle("Sort Keys", isOn: $options.sortsKeys)
                         }
-                        Stepper("Font Size: \(Int(fontSize))", value: $fontSize, in: 9 ... 20)
+                        Stepper("Font Size: \(Int(options.fontSize))", value: $options.fontSize, in: 9 ... 20)
                         Divider()
                         if prepared?.language == .json {
                             Button("Copy as Minified JSON") { actions.copy(BodyFormatter.minified(fullText(), language: .json), "Minified JSON copied") }
@@ -199,12 +175,19 @@ struct BodyViewer: View {
         } else if let prepared {
             VStack(alignment: .leading, spacing: 4) {
                 if let cut = prepared.cutFrom {
-                    Label("Showing the first \(Format.bytes(Self.displayLimit)) of \(Format.bytes(cut)). Copy or save the body to get all of it.", systemImage: "scissors")
-                        .font(.caption).foregroundStyle(Palette.warning)
+                    let shown = Format.bytes(BodyRendering.displayLimit)
+                    Label(
+                        "Showing the first \(shown) of \(Format.bytes(cut)). Copy or save the body to get all of it.",
+                        systemImage: "scissors"
+                    )
+                    .font(.caption).foregroundStyle(Palette.warning)
                 }
                 // A hex dump is columns; wrapping would break them.
-                SyntaxTextView(prepared.text, language: prepared.language, wraps: prepared.language == .binary ? false : wraps, fontSize: fontSize)
-                    .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 6))
+                SyntaxTextView(
+                    prepared.text, language: prepared.language,
+                    wraps: prepared.language == .binary ? false : options.wrapsLines, fontSize: options.fontSize
+                )
+                .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 6))
             }
         } else if payload.count > 512 * 1024 {
             ProgressView("Formatting \(Format.bytes(payload.count))…").controlSize(.small)
@@ -215,31 +198,27 @@ struct BodyViewer: View {
     }
 
     private var summary: String {
-        if effectiveMode == .preview, let richKind {
-            return switch richKind {
-            case .image: "Image"; case .html: "HTML, rendered offline"; case .pdf: "PDF"; case .media: "Audio / video"
-            case .eventStream: "Server-Sent Events"; case .form: "Form fields"
-            }
-        }
-        var parts = [prepared?.language.displayName ?? "…"]
-        if let note = prepared?.note {
-            parts.append(note)
-        }
-        return parts.joined(separator: " · ")
+        BodyRendering.summary(mode: effectiveMode, richKind: richKind, prepared: prepared)
     }
 
     /// Formatting and filtering run off the main thread for large bodies; a newer request (another selection, a key typed) cancels this one.
     private func prepare() async {
-        let (payload, type, encoding, mode, sortKeys, path) = (payload, contentType, headers.value(for: "content-encoding"), textMode, sortKeys, jsonPath)
-        var result: Prepared
+        let (payload, type, encoding) = (payload, contentType, encoding)
+        let (mode, sortKeys, path) = (textMode, options.sortsKeys, jsonPath)
+        let prepare: @Sendable () -> BodyRendering.Prepared = {
+            BodyRendering.prepare(
+                payload, contentType: type, encoding: encoding, mode: mode, sortKeys: sortKeys, path: path
+            )
+        }
+        var result: BodyRendering.Prepared
         if payload.count < Self.instantLimit {
-            result = Self.compute(payload, type, encoding, mode, sortKeys, path)
+            result = prepare()
         } else {
             if !path.isEmpty {
                 try? await Task.sleep(for: .milliseconds(300))
             } // let typing settle before querying a large document
             guard !Task.isCancelled else { return }
-            result = await Task.detached(priority: .userInitiated) { Self.compute(payload, type, encoding, mode, sortKeys, path) }.value
+            result = await Task.detached(priority: .userInitiated, operation: prepare).value
         }
         guard !Task.isCancelled else { return }
         if result.language == .protobuf, mode == .pretty {
@@ -248,38 +227,12 @@ struct BodyViewer: View {
         prepared = result
     }
 
-    private nonisolated static func compute(_ payload: Data, _ type: String?, _ encoding: String?, _ mode: BodyMode, _ sortKeys: Bool, _ path: String, capped: Bool = true) -> Prepared {
-        var result: Prepared
-        switch mode {
-        case .hex: result = Prepared(text: BodyFormatter.hexDump(payload), language: .binary)
-        case .raw:
-            result = Prepared(text: String(data: payload, encoding: .utf8) ?? BodyFormatter.hexDump(payload), language: BodyLanguage.detect(contentType: type, data: payload), note: "raw")
-        case .pretty, .preview:
-            let formatted = BodyFormatter.format(payload, contentType: type, contentEncoding: encoding, sortKeys: sortKeys)
-            result = Prepared(text: formatted.text, language: formatted.language, note: formatted.note)
-        }
-        if result.language == .json, !path.isEmpty {
-            let filtered = JQ.looksLikeJQ(path) ? JQ.run(path, on: payload) : JSONQuery.run(path, on: payload)
-            if let filtered {
-                result.text = filtered
-            } else {
-                result.pathFailed = true
-            }
-        }
-        if capped, result.text.utf8.count > displayLimit {
-            result.cutFrom = result.text.utf8.count
-            var cut = String(decoding: result.text.utf8.prefix(displayLimit), as: UTF8.self)
-            if let newline = cut.lastIndex(of: "\n") {
-                cut = String(cut[..<newline])
-            } // end on a whole line
-            result.text = cut
-        }
-        return result
-    }
-
     /// The complete text for copy and save, even when the viewer shows only the first part.
     private func fullText() -> String {
-        Self.compute(payload, contentType, headers.value(for: "content-encoding"), textMode, sortKeys, "", capped: false).text
+        BodyRendering.prepare(
+            payload, contentType: contentType, encoding: encoding, mode: textMode, sortKeys: options.sortsKeys,
+            limit: nil
+        ).text
     }
 
     private var fileName: String {

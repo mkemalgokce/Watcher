@@ -10,7 +10,7 @@ extension InteractionTests {
     struct InspectorTests {
         @Test
         func headerButtonsStarCopyAndRepeatTheRequest() async throws {
-            let model = AppModel.preview()
+            let model = try AppModel.demo()
             model.observeEngine()
             let selected = model.list.flows[0]
             try await withWindow(showing: FlowDetailView().environment(model), width: 900) { window in
@@ -31,7 +31,7 @@ extension InteractionTests {
 
         @Test
         func narrowInspectorSwitchesBetweenRequestAndResponse() async throws {
-            let model = AppModel.preview()
+            let model = try AppModel.demo()
             model.router.exchangeSide = .response
             try await withWindow(showing: FlowDetailView().environment(model), width: 420) { window in
                 try await window.press("Request")

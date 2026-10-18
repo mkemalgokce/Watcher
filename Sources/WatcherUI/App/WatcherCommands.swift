@@ -58,21 +58,21 @@ public struct WatcherCommands: Commands {
                 Button("Errors") { model.list.sidebar = .errors }.keyboardShortcut("3")
                 Button("WebSocket") { model.list.sidebar = .webSocket }.keyboardShortcut("4")
                 Divider()
-                Button("Show Body Preview") { model.preferences.showBody(.preview) }
+                Button("Show Body Preview") { model.viewer.mode = .preview }
                     .keyboardShortcut("1", modifiers: [.command, .control])
-                Button("Show Body Pretty") { model.preferences.showBody(.pretty) }
+                Button("Show Body Pretty") { model.viewer.mode = .pretty }
                     .keyboardShortcut("2", modifiers: [.command, .control])
-                Button("Show Body Raw") { model.preferences.showBody(.raw) }
+                Button("Show Body Raw") { model.viewer.mode = .raw }
                     .keyboardShortcut("3", modifiers: [.command, .control])
-                Button("Show Body as Hex") { model.preferences.showBody(.hex) }
+                Button("Show Body as Hex") { model.viewer.mode = .hex }
                     .keyboardShortcut("4", modifiers: [.command, .control])
                 Button("Show Request") { model.router.exchangeSide = .request }
                     .keyboardShortcut("[", modifiers: [.command, .option])
                 Button("Show Response") { model.router.exchangeSide = .response }
                     .keyboardShortcut("]", modifiers: [.command, .option])
-                Button("Filter JSON Body") { model.preferences.toggleJSONFilter() }
+                Button("Filter JSON Body") { model.viewer.toggleJSONFilter() }
                     .keyboardShortcut("j", modifiers: [.command, .shift])
-                Button("Toggle Line Wrapping") { model.preferences.toggleLineWrapping() }
+                Button("Toggle Line Wrapping") { model.viewer.toggleLineWrapping() }
                     .keyboardShortcut("l", modifiers: [.command, .option])
                 Divider()
                 Button("Clear Filters") { model.list.clearFilters() }

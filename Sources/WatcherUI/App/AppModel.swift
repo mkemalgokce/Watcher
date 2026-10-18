@@ -23,6 +23,7 @@ public final class AppModel {
     let breakpoints: BreakpointsViewModel
     /// Certificate trust and device setup (DeviceSetupView, the welcome sheet and the first-run list).
     let devices: DevicesViewModel
+    let viewer: ViewerOptions
     /// Set once the first-run setup has been completed or skipped.
     var onboardingDone: Bool {
         didSet { preferences.onboardingDone = onboardingDone }
@@ -41,6 +42,7 @@ public final class AppModel {
         clipboard = dependencies.clipboard
         preferences = dependencies.preferences
         onboardingDone = dependencies.preferences.onboardingDone
+        viewer = ViewerOptions(preferences: dependencies.preferences)
         let notices = NoticeCenter(sleep: dependencies.sleep, announce: dependencies.announce)
         self.notices = notices
         let settings = SettingsEditor(engine: engine, sleep: dependencies.sleep, notices: notices)

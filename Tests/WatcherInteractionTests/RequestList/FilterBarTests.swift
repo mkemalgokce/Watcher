@@ -9,7 +9,7 @@ extension InteractionTests {
     struct FilterBarTests {
         @Test
         func tokensFilterTheListAndTheSummaryClearsThem() async throws {
-            let model = AppModel.preview()
+            let model = try AppModel.demo()
             try await withWindow(showing: FlowListView().environment(model)) { window in
                 #expect(model.list.visibleFlows.count == 5)
                 #expect(window.elements("Clear Filters").isEmpty, "no summary row while nothing is filtered")
@@ -27,7 +27,7 @@ extension InteractionTests {
 
         @Test
         func noMatchesOffersClearFilters() async throws {
-            let model = AppModel.preview()
+            let model = try AppModel.demo()
             model.list.query.text = "no-such-request"
             try await withWindow(showing: FlowListView().environment(model)) { window in
                 #expect(model.list.visibleFlows.isEmpty)

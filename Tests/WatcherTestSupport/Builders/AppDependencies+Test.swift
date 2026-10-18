@@ -49,4 +49,10 @@ public extension AppModel {
     static func test(clipboard: ClipboardSpy? = nil) throws -> AppModel {
         try AppModel(dependencies: .test(clipboard: clipboard))
     }
+
+    /// A test model showing the preview's demo requests, the first one selected.
+    @MainActor
+    static func demo() throws -> AppModel {
+        try test().showingDemoData()
+    }
 }

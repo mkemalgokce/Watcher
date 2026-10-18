@@ -3,7 +3,7 @@ import Testing
 import WatcherTestSupport
 @testable import WatcherUI
 
-/// The preferences the app keeps between launches, their defaults and the menu toggles that flip them.
+/// The preferences the app keeps between launches, and their defaults.
 @Suite(.tags(.unit))
 struct PreferencesWatcherTests {
     @Test
@@ -22,30 +22,5 @@ struct PreferencesWatcherTests {
         #expect(preferences.values["icons.websites"] as? Bool == false)
         #expect(preferences.onboardingDone)
         #expect(!preferences.websiteIconsEnabled)
-    }
-
-    @Test(arguments: BodyMode.allCases)
-    func showingABodyModeStoresItsName(mode: BodyMode) {
-        let preferences = PreferencesFake()
-        preferences.showBody(mode)
-        #expect(preferences.values["body.mode"] as? String == mode.rawValue)
-    }
-
-    @Test
-    func theJSONFilterStartsOffAndToggles() {
-        let preferences = PreferencesFake()
-        preferences.toggleJSONFilter()
-        #expect(preferences.values["body.jsonFilter"] as? Bool == true)
-        preferences.toggleJSONFilter()
-        #expect(preferences.values["body.jsonFilter"] as? Bool == false)
-    }
-
-    @Test
-    func lineWrappingStartsOnAndToggles() {
-        let preferences = PreferencesFake()
-        preferences.toggleLineWrapping()
-        #expect(preferences.values["body.wrap"] as? Bool == false)
-        preferences.toggleLineWrapping()
-        #expect(preferences.values["body.wrap"] as? Bool == true)
     }
 }

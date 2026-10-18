@@ -3,7 +3,7 @@ import Foundation
 extension UserDefaults: Preferences {}
 
 enum LivePreferences {
-    /// The app's defaults domain, which the views' `@AppStorage` reads too.
+    /// The app's defaults domain.
     static var standard: any Preferences {
         UserDefaults.standard
     }

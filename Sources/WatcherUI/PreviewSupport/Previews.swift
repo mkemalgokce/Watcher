@@ -31,18 +31,21 @@ extension AppModel {
             flow(5, "GET", "slow.example.com", "/report", status: nil, ms: 5.0),
         ])
     }
+
+    /// The demo requests in the list with the first one selected, as previews and interaction tests start.
+    func showingDemoData() -> AppModel {
+        loadDemoData()
+        list.syncFromStore()
+        list.selection = list.flows.first?.id
+        return self
+    }
 }
 
 #if DEBUG
     extension AppModel {
         /// A model filled with demo traffic for Xcode previews.
         @MainActor static func preview() -> AppModel {
-            let model = AppModel(dependencies: .preview())
-            model.preferences.showBody(.preview) // previews share defaults; start from the app's default view
-            model.loadDemoData()
-            model.list.syncFromStore()
-            model.list.selection = model.list.flows.first?.id
-            return model
+            AppModel(dependencies: .preview()).showingDemoData()
         }
     }
 
@@ -61,7 +64,6 @@ extension AppModel {
 #if DEBUG
     #Preview("Large JSON", traits: .fixedLayout(width: 1320, height: 780)) {
         let model = AppModel(dependencies: .preview())
-        model.preferences.showBody(.preview)
         let item = #"{"id":12345,"name":"Ada Lovelace","tags":["a","b",null,true],"score":-1.5e3,"avatar":"https://example.com/a.png"},"#
         let body = "[" + String(repeating: item, count: 300_000) + #"{"end":true}]"# // ~33 MB
         var flow = Flow(sequence: 1, request: RequestRecord(method: "GET", scheme: "https", host: "api.example.com", port: 443, path: "/v1/export", clientApp: "curl"))
@@ -73,7 +75,6 @@ extension AppModel {
 
     #Preview("Form data", traits: .fixedLayout(width: 1320, height: 780)) {
         let model = AppModel(dependencies: .preview())
-        model.preferences.showBody(.preview)
         // A 2×2 red PNG, uploaded next to an ordinary field.
         let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAEAAAAAoCAIAAADBrGu+AAAAWElEQVR4nO3PwQkAIBDAsJvLv/uPpEP4CEKhA6Rz9vq64YIGtKABLWhACxrQgga0oAEtaEALGtCCBrSgAS1oQAsa0IIGtKABLWhACxrQgga0oAEtaEALHrtwRezT21HipwAAAABJRU5ErkJggg==")!
         var body = Data("--B\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nHoliday photo\r\n--B\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"red.png\"\r\nContent-Type: image/png\r\n\r\n".utf8)
@@ -117,7 +118,6 @@ extension AppModel {
 
     #Preview("Insights", traits: .fixedLayout(width: 1320, height: 900)) {
         let model = AppModel(dependencies: .preview())
-        model.preferences.showBody(.preview)
         let png = "iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAAQUlEQVR4nO3OMQ0AIBAAsZ/RjW9wwTE0qYDO2ucrkw+EhISE6oGQkJBQPRASEhKqB0JCQkL1QEhISKgeCAkJPXYBFEP1xJNEZhsAAAAASUVORK5CYII="
         func part(_ s: String) -> String {
             Data(s.utf8).base64EncodedString().replacingOccurrences(of: "=", with: "").replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")

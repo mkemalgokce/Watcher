@@ -6,7 +6,6 @@
     /// A model showing one captured exchange with the given response body, for checking how a content type is previewed.
     @MainActor func singleResponse(_ type: String, _ body: Data, path: String) -> AppModel {
         let model = AppModel(dependencies: .preview())
-        model.preferences.showBody(.preview)
         var flow = Flow(sequence: 1, request: RequestRecord(method: "GET", scheme: "https", host: "docs.example.com", port: 443, path: path, clientApp: "Safari"))
         flow.response = ResponseRecord(status: 200, headers: [Header("Content-Type", type)], body: body)
         flow.state = .completed; flow.duration = 0.2

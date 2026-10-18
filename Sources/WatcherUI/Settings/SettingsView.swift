@@ -4,11 +4,12 @@ import WatcherCore
 
 /// The standard macOS Settings window (⌘,).
 public struct SettingsView: View {
+    @Environment(AppModel.self) private var model
     public init() {}
     public var body: some View {
         TabView {
             GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }
-            AppearanceSettings().tabItem { Label("Viewer", systemImage: "textformat") }
+            AppearanceSettings(options: model.viewer).tabItem { Label("Viewer", systemImage: "textformat") }
             ProxySettings().tabItem { Label("Proxy", systemImage: "network") }
             AdvancedSettings().tabItem { Label("Advanced", systemImage: "slider.horizontal.3") }
         }
@@ -105,25 +106,25 @@ private struct OpenAtLoginToggle: View {
 }
 
 private struct AppearanceSettings: View {
-    @AppStorage("body.mode") private var mode = BodyMode.preview.rawValue
-    @AppStorage("body.wrap") private var wraps = true
-    @AppStorage("body.sortKeys") private var sortKeys = false
-    @AppStorage("body.fontSize") private var fontSize = 12.0
+    @Bindable var options: ViewerOptions
 
     private let sample = #"{"user":{"id":42,"name":"Ada","admin":true,"tags":["a","b"],"manager":null}}"#
 
     var body: some View {
         Form {
             Section("Bodies") {
-                Picker("Show bodies as", selection: $mode) {
-                    ForEach(BodyMode.allCases, id: \.self) { Text($0.rawValue).tag($0.rawValue) }
+                Picker("Show bodies as", selection: $options.mode) {
+                    ForEach(BodyMode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                 }.pickerStyle(.segmented)
-                Toggle("Wrap long lines", isOn: $wraps)
-                Toggle("Sort JSON keys", isOn: $sortKeys)
-                Slider(value: $fontSize, in: 9 ... 20, step: 1) { Text("Font size \(Int(fontSize))") }
+                Toggle("Wrap long lines", isOn: $options.wrapsLines)
+                Toggle("Sort JSON keys", isOn: $options.sortsKeys)
+                Slider(value: $options.fontSize, in: 9 ... 20, step: 1) { Text("Font size \(Int(options.fontSize))") }
             }
             Section("Preview") {
-                SyntaxTextView(BodyFormatter.format(Data(sample.utf8), contentType: "application/json", sortKeys: sortKeys).text, language: .json, wraps: wraps, fontSize: fontSize)
+                let text = BodyFormatter.format(
+                    Data(sample.utf8), contentType: "application/json", sortKeys: options.sortsKeys
+                ).text
+                SyntaxTextView(text, language: .json, wraps: options.wrapsLines, fontSize: options.fontSize)
                     .frame(height: 150)
             }
         }

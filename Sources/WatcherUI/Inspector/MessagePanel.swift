@@ -10,8 +10,6 @@ struct MessagePanel: View {
     let side: MessageSide
     /// In a narrow inspector the title becomes the Request / Response switch, so switching costs no extra row.
     var switchesSide = false
-    @AppStorage("panel.request.section") private var requestSection = Section.body.rawValue
-    @AppStorage("panel.response.section") private var responseSection = Section.body.rawValue
 
     enum Section: String, CaseIterable {
         case headers = "Headers", params = "Params", body = "Body", cookies = "Cookies", raw = "Raw"
@@ -33,10 +31,6 @@ struct MessagePanel: View {
         }
     }
 
-    private var sectionBinding: Binding<String> {
-        side == .request ? $requestSection : $responseSection
-    }
-
     private var content: MessagePanelViewModel {
         MessagePanelViewModel(
             flow: flow,
@@ -47,7 +41,7 @@ struct MessagePanel: View {
     }
 
     private var section: Section {
-        content.section(chosen: sectionBinding.wrappedValue)
+        content.section(chosen: model.viewer.section(for: side).rawValue)
     }
 
     private var headers: [Header] {
@@ -83,7 +77,7 @@ struct MessagePanel: View {
                 switch section {
                 case .headers: KeyValueTable(rows: KeyValueRow.headers(headers), emptyText: "No headers.")
                 case .params: KeyValueTable(rows: KeyValueRow.fields(fields), emptyText: "No query parameters or form fields.")
-                case .body: BodyViewer(flow: flow, side: side)
+                case .body: BodyViewer(flow: flow, side: side, options: model.viewer)
                 case .cookies: KeyValueTable(
                         rows: KeyValueRow.cookies(cookies, secureConnection: flow.request.scheme == "https"),
                         emptyText: side == .request ? "No cookies were sent." : "The server set no cookies."
@@ -122,7 +116,7 @@ struct MessagePanel: View {
             }
             TabStrip(items: available.map { item in
                 TabItem(id: item, title: item.rawValue, symbol: item.symbol, badge: count(item).flatMap { $0 > 0 ? "\($0)" : nil })
-            }, selection: Binding(get: { section }, set: { sectionBinding.wrappedValue = $0.rawValue }))
+            }, selection: Binding(get: { section }, set: { model.viewer.choose($0, for: side) }))
                 .accessibilityLabel("\(side == .request ? "Request" : "Response") section")
         }
     }

@@ -25,7 +25,8 @@ extension AppDependencies {
         )
     }
 
-    /// Previews: a throwaway directory and a private pasteboard, so nothing reaches the user's settings or clipboard.
+    /// Previews: a throwaway directory, a private pasteboard and preferences in memory, so nothing reaches the user's
+    /// settings, defaults or clipboard.
     static func preview() -> AppDependencies {
         let name = "watcher-preview-\(UUID().uuidString)"
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(name)
@@ -39,7 +40,7 @@ extension AppDependencies {
             panels: LiveFilePanels(),
             files: .live,
             commands: LiveCommandRunner.run,
-            preferences: LivePreferences.standard,
+            preferences: InMemoryPreferences(),
             runner: engine,
             systemProxy: InertSystemProxy(),
             onTerminate: { _ in },

@@ -9,7 +9,7 @@ extension InteractionTests {
     struct CompareWindowTests {
         @Test
         func compareSwitchesWhatItCompares() async throws {
-            let model = AppModel.preview()
+            let model = try AppModel.demo()
             var request = model.list.flows[0].request
             request.headers.append(Header("X-Debug", "1"))
             let response = model.list.flows[0].response
