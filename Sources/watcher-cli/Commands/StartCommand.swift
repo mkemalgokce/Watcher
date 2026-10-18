@@ -44,7 +44,7 @@ struct Start: AsyncParsableCommand {
             do {
                 try environment.systemProxy.enable(port: bound)
             } catch {
-                tasks.forEach { $0.cancel() }
+                await Self.stop(tasks)
                 try? await shutDown(engine, in: environment)
                 throw error
             }
@@ -52,8 +52,16 @@ struct Start: AsyncParsableCommand {
         for await _ in stopRequests {
             break
         }
-        tasks.forEach { $0.cancel() }
+        await Self.stop(tasks)
         try await shutDown(engine, in: environment)
+    }
+
+    /// Waits for the tasks to end, so no line prints after the `Saved` ones.
+    private static func stop(_ tasks: [Task<Void, Never>]) async {
+        tasks.forEach { $0.cancel() }
+        for task in tasks {
+            await task.value
+        }
     }
 
     /// Headless sessions cannot edit a held message, so breakpoints just continue unchanged.
