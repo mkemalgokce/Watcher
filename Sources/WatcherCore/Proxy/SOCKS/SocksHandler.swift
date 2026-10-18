@@ -36,9 +36,12 @@ final class SocksHandler: ChannelInboundHandler, RemovableChannelHandler {
             state = .request
             advance(context)
         case .request:
-            guard let (host, port, consumed) = parseRequest() else { return }
-            if consumed < 0 {
-                reply(context, [5, 7, 0, 1, 0, 0, 0, 0, 0, 0]); return context.close(promise: nil)
+            let parsed = SocksRequest.parse(pending)
+            guard case let .connect(host, port, consumed) = parsed else {
+                if case let .unsupported(code) = parsed {
+                    reply(context, [5, code, 0, 1, 0, 0, 0, 0, 0, 0]); context.close(promise: nil)
+                }
+                return
             }
             pending.removeFirst(consumed)
             if server.shouldIntercept(host: host) {
@@ -52,26 +55,6 @@ final class SocksHandler: ChannelInboundHandler, RemovableChannelHandler {
             guard let first = pending.first else { return }
             install(context, host: host, port: port, isTLS: first == 0x16)
         }
-    }
-
-    /// Returns host, port and bytes consumed; consumed < 0 means unsupported; nil means more bytes are needed.
-    private func parseRequest() -> (String, Int, Int)? {
-        guard pending.count >= 4 else { return nil }
-        guard pending[0] == 5, pending[1] == 1 else { return ("", 0, -1) }
-        let host: String, addressEnd: Int
-        switch pending[3] {
-        case 1:
-            guard pending.count >= 10 else { return nil }
-            host = pending[4 ..< 8].map(String.init).joined(separator: "."); addressEnd = 8
-        case 3:
-            guard pending.count >= 5, pending.count >= 7 + Int(pending[4]) else { return nil }
-            host = String(decoding: pending[5 ..< (5 + Int(pending[4]))], as: UTF8.self); addressEnd = 5 + Int(pending[4])
-        case 4:
-            guard pending.count >= 22 else { return nil }
-            host = stride(from: 4, to: 20, by: 2).map { String(format: "%x", Int(pending[$0]) << 8 | Int(pending[$0 + 1])) }.joined(separator: ":"); addressEnd = 20
-        default: return ("", 0, -1)
-        }
-        return (host, Int(pending[addressEnd]) << 8 | Int(pending[addressEnd + 1]), addressEnd + 2)
     }
 
     private static let success: [UInt8] = [5, 0, 0, 1, 0, 0, 0, 0, 0, 0]
