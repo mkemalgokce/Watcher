@@ -53,18 +53,18 @@ struct StatusBar: View {
                     notices.notify("Start the proxy first.", .error)
                 }
             }
-            let decryptsAll = model.settings.sslProxying.include.contains("*") && model.settings.sslProxying.exclude.isEmpty
+            let https = StatusBarText.https(model.settings.sslProxying)
             item(
                 symbol: "lock.open.fill",
-                tint: decryptsAll ? Palette.done : .secondary,
-                text: decryptsAll ? "HTTPS decrypted" : "HTTPS: \(model.settings.sslProxying.include.count) hosts",
+                tint: https.decryptsAll ? Palette.done : .secondary,
+                text: https.text,
                 help: "Which HTTPS hosts Watcher decrypts (SSL Proxying in Tools). Apps must trust the Watcher certificate."
             ) { router.toolsSelection = .sslProxying; router.show(.tools) }
             if !activeTools.isEmpty {
                 item(
                     symbol: "wrench.adjustable.fill",
                     tint: Palette.modified,
-                    text: activeTools.count == 1 ? activeTools[0] : "\(activeTools.count) tools on",
+                    text: StatusBarText.tools(activeTools),
                     help: "Changing traffic: \(activeTools.joined(separator: ", ")). Click to open Tools (⌘T)."
                 ) { router.show(.tools) }
             }
