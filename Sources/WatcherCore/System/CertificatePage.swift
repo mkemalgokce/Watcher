@@ -17,7 +17,7 @@ public struct CertificatePage: Sendable {
         host: String,
         port: Int,
         proxyPort: Int?,
-        localAddresses: @autoclosure () -> Set<String> = Set(LocalNetwork.ipv4Addresses().map(\.ip))
+        localAddresses: @autoclosure () -> Set<String> = LocalNetwork.addressSet()
     ) -> Bool {
         if host.lowercased() == magicHost {
             return true

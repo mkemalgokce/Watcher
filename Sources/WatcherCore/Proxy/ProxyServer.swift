@@ -63,7 +63,7 @@ public final class ProxyServer: @unchecked Sendable {
         upstreamTLS: TLSConfiguration = .makeClientConfiguration(),
         upstream sender: (any UpstreamSending)? = nil,
         clientApp: @escaping @Sendable (Int) -> String? = ClientProcess.name(forLocalPort:),
-        localAddresses: @escaping @Sendable () -> Set<String> = { Set(LocalNetwork.ipv4Addresses().map(\.ip)) },
+        localAddresses: @escaping @Sendable () -> Set<String> = { LocalNetwork.addressSet() },
         now: @escaping @Sendable () -> Date = { Date() },
         files: FileAccess = .live
     ) {

@@ -36,7 +36,7 @@ public final class WatcherEngine: @unchecked Sendable {
         pacLoader: @escaping @Sendable (String) async throws -> PACEvaluator = {
             try await PACEvaluator.load(from: $0)
         },
-        sleep: @escaping Sleep = { try await Task.sleep(for: $0) },
+        sleep: @escaping Sleep = liveSleep,
         makeServer: @escaping @Sendable (FlowStore, CertificateAuthority) -> ProxyServer = {
             ProxyServer(store: $0, authority: $1)
         }

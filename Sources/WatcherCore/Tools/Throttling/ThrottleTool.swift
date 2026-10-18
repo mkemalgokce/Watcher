@@ -17,7 +17,7 @@ struct ThrottleTool: Tool {
     init(
         settings: ThrottleSettings,
         roll: @escaping @Sendable () -> Int = { Int.random(in: 1 ... 100) },
-        sleep: @escaping Sleep = { try await Task.sleep(for: $0) }
+        sleep: @escaping Sleep = liveSleep
     ) {
         profile = settings.profile; host = settings.host.lowercased()
         self.roll = roll; self.sleep = sleep

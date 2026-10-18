@@ -14,7 +14,7 @@ struct MapLocalTool: Tool {
     init(
         rules: [MapLocalRule],
         read: @escaping @Sendable (URL) throws -> Data = FileAccess.live.read,
-        sleep: @escaping Sleep = { try await Task.sleep(for: $0) }
+        sleep: @escaping Sleep = liveSleep
     ) {
         entries = rules.map { ($0, $0.matching.compile()) }
         self.read = read; self.sleep = sleep
