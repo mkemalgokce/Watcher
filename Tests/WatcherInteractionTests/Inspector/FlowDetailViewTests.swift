@@ -16,7 +16,7 @@ extension InteractionTests {
             try await withWindow(showing: FlowDetailView().environment(model), width: 900) { window in
                 try await window.press("Star")
                 #expect(await eventually { model.list.flows[0].isStarred }, "the star comes back as an event batch")
-                #expect(await eventually { !window.elements("Remove Star").isEmpty }, "the button now offers to undo")
+                #expect(await window.shows("Remove Star"), "the button now offers to undo")
 
                 try await window.press("Copy as cURL")
                 #expect(model.notices.notice?.message == "cURL copied")

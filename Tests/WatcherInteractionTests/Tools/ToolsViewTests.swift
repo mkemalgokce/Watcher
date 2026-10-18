@@ -17,7 +17,7 @@ extension InteractionTests {
                 #expect(model.settings.blockList.isEnabled, "a new rule works without a second switch")
 
                 model.settings.blockList.isEnabled = false
-                #expect(await eventually { !window.elements("Turn On").isEmpty })
+                #expect(await window.shows("Turn On"))
                 try await window.press("Turn On")
                 #expect(model.settings.blockList.isEnabled)
 

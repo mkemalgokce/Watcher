@@ -30,6 +30,7 @@ struct FlowListView: View {
                 .width(min: 40, ideal: 48).customizationID("method")
             TableColumn("Status", value: \.sortStatus) { StatusPill(flow: $0) }
                 .width(min: 44, ideal: 54).customizationID("status")
+            // Table cells drop the environment's IconStore, so the cells that show icons get it directly.
             TableColumn("Request", value: \.sortURL) { RequestCell(flow: $0).environment(model.icons) }
                 .width(min: 120, ideal: 160).customizationID("request").disabledCustomizationBehavior(.visibility)
             TableColumn("App", value: \.sortApp) { flow in

@@ -52,7 +52,7 @@ extension InteractionTests {
             let model = try mainWindowModel()
             try await withWindow(showing: ContentView().environment(model), width: 1320, height: 780) { window in
                 model.router.sheet = nil
-                #expect(await eventually { !window.elements(label).isEmpty }, "\(label) is in the toolbar")
+                #expect(await window.shows(label), "\(label) is in the toolbar")
                 try await window.press(label)
                 #expect(model.router.sheet == sheet, "\(label)")
             }
@@ -64,7 +64,7 @@ extension InteractionTests {
             await withWindow(showing: ContentView().environment(model), width: 1320, height: 780) { window in
                 model.router.sheet = nil
                 #expect(
-                    await eventually { !window.elements("More").isEmpty },
+                    await window.shows("More"),
                     "Start/Stop, converter, devices and shortcuts sit in the More menu"
                 )
             }

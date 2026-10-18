@@ -32,21 +32,34 @@ public final class TestWindow {
 
     /// Whether an element labelled `label` shows up within the default wait.
     public func shows(_ label: String) async -> Bool {
-        await eventually { !elements(label).isEmpty }
+        await eventually { exposeToAccessibility(); return !elements(label).isEmpty }
     }
 
     /// The first non-nil `find()` within the default wait, or nil when the element never shows up.
     public func appearing(_ find: () -> AXUIElement?) async -> AXUIElement? {
         var element: AXUIElement?
-        _ = await eventually { element = find(); return element != nil }
+        _ = await eventually { exposeToAccessibility(); element = find(); return element != nil }
         return element
+    }
+
+    /// The service now and then hands out no window at all for seconds on end; ordering the window front again brings it back.
+    private func exposeToAccessibility() {
+        if AccessibilityAPI.firstWindowRole() != "AXWindow" {
+            window.orderFront(nil)
+        }
     }
 
     /// Presses the control labelled `label`, waiting for it to appear; a label's text matches too, but only something
     /// pressable is pressed.
     public func press(_ label: String) async throws {
         let control = await appearing { elements(label).first(where: AccessibilityAPI.canPress) }
-        guard let control else { throw TestSupportError("no control labelled “\(label)”") }
+        guard let control else {
+            let window = AccessibilityAPI.firstWindowRole() ?? "none"
+            let found = elements(label).isEmpty
+                ? "no control labelled “\(label)”"
+                : "“\(label)” shows but cannot be pressed"
+            throw TestSupportError("\(found) (first window role: \(window))")
+        }
         let result = AccessibilityAPI.press(control)
         await settle()
         guard result == .success else { throw TestSupportError("“\(label)” did not respond to a press (\(result))") }

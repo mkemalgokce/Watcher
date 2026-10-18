@@ -20,7 +20,7 @@ extension InteractionTests {
             model.list.selection = model.list.flows.last?.id
             try await withWindow(showing: CompareWindow().environment(model), width: 900, height: 600) { window in
                 #expect(
-                    await eventually { !window.elements("No Differences").isEmpty },
+                    await window.shows("No Differences"),
                     "the response bodies are the same"
                 )
                 try await window.press("Headers")
@@ -28,7 +28,7 @@ extension InteractionTests {
                     await eventually { window.elements("No Differences").isEmpty },
                     "the added request header shows up as a difference"
                 )
-                #expect(await eventually { !window.elements("+1").isEmpty })
+                #expect(await window.shows("+1"))
             }
         }
     }

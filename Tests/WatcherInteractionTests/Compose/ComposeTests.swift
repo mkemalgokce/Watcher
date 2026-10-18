@@ -14,7 +14,7 @@ extension InteractionTests {
                 #expect(await window.shows("Start Proxy"), "the empty response pane offers to start the proxy")
                 try await window.press("Send")
                 #expect(
-                    await eventually { !window.elements("Not Sent").isEmpty },
+                    await window.shows("Not Sent"),
                     "a send with the proxy stopped shows why"
                 )
             }
