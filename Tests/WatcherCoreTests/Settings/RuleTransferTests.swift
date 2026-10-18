@@ -83,4 +83,27 @@ struct RuleTransferTests {
         #expect(replaced.blockList.rules.count == 2)
         #expect(replaced.port == 2222)
     }
+
+    @Test
+    func replacingToolRulesKeepsProtobufPreviewerAndCertificateRules() {
+        let local = settings(port: 1111, toolsOn: true, rules: [("keep", true)])
+        var incoming = settings(port: 2222, toolsOn: false, rules: [("in", false)])
+        incoming.blockList = RuleSet(isEnabled: true, rules: [BlockRule(name: "in", matching: match)])
+        var expected = local
+        expected.blockList = incoming.blockList
+        #expect(local.replacingToolRules(with: incoming) == expected)
+    }
+
+    @Test
+    func appendImportKeepsThisMachinesSchemasTemplatesAndCustomProfiles() {
+        var local = WatcherSettings()
+        local.protobufSchemas = ["local.desc"]
+        local.breakpointTemplates = [BreakpointTemplate(name: "local", status: 200)]
+        local.throttle.customProfiles = [NetworkProfile(name: "local")]
+        let incoming = WatcherSettings.everythingChanged
+        let merged = local.importing(incoming, mode: .append)
+        #expect(merged.protobufSchemas == ["local.desc"])
+        #expect(merged.breakpointTemplates.map(\.name) == ["local"])
+        #expect(merged.throttle.customProfiles.map(\.name) == ["local"])
+    }
 }
