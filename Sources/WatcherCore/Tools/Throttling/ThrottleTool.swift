@@ -10,13 +10,22 @@ struct ThrottleTool: Tool {
     private let profile: NetworkProfile
     private let host: String
 
-    init(settings: ThrottleSettings) {
+    /// A number from 1 to 100; the request is dropped when it is at most the loss percent.
+    private let roll: @Sendable () -> Int
+    private let sleep: Sleep
+
+    init(
+        settings: ThrottleSettings,
+        roll: @escaping @Sendable () -> Int = { Int.random(in: 1 ... 100) },
+        sleep: @escaping Sleep = { try await Task.sleep(for: $0) }
+    ) {
         profile = settings.profile; host = settings.host.lowercased()
+        self.roll = roll; self.sleep = sleep
     }
 
     func intercept(request: inout RequestRecord) async -> RequestDecision {
         guard applies(to: request) else { return .forward }
-        if Int.random(in: 1 ... 100) <= profile.packetLossPercent {
+        if roll() <= profile.packetLossPercent {
             return .respond(ProxyServer.message(504, "Watcher simulated packet loss (\(profile.name))"))
         }
         await pause(bytes: request.body.count, kbps: profile.uploadKbps)
@@ -36,7 +45,7 @@ struct ThrottleTool: Tool {
         let transfer = kbps > 0 ? Double(bytes) * 8 / (Double(kbps) * 1000) : 0
         let seconds = Double(profile.latencyMilliseconds) / 1000 + transfer
         if seconds > 0 {
-            try? await Task.sleep(for: .seconds(seconds))
+            try? await sleep(.seconds(seconds))
         }
     }
 }
