@@ -4,7 +4,7 @@ import Foundation
 import WatcherTestSupport
 
 /// A `CLIEnvironment` over an in-memory file system, a command spy and an engine fake, whose output the test reads back.
-/// The support folder is `/fake-home/.watcher`, as `WATCHER_HOME` names it; standard input answers `input` line by line.
+/// The support folder is `/fake-home/.watcher`, as `WATCHER_HOME` names it, and the working directory is `/work`; standard input answers `input` line by line.
 final class CLIHarness {
     static let supportDirectory = "/fake-home/.watcher"
 
@@ -59,6 +59,7 @@ final class CLIHarness {
             },
             variables: ["WATCHER_HOME": Self.supportDirectory],
             home: URL(fileURLWithPath: "/Users/me", isDirectory: true),
+            currentDirectory: URL(fileURLWithPath: "/work", isDirectory: true),
             files: files.access,
             commands: commands.runner,
             lanAddresses: { [lanAddresses] in lanAddresses },

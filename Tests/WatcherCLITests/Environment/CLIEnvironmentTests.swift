@@ -13,10 +13,12 @@ struct CLIEnvironmentTests {
         #expect(CLIHarness().environment.url(forPath: typed).path == path)
     }
 
-    @Test
-    func aRelativePathIsResolvedAgainstTheWorkingDirectory() {
-        let url = CLIHarness().environment.url(forPath: "s.har")
-        #expect(url.path == URL(fileURLWithPath: "s.har").path)
+    @Test(arguments: [
+        ("s.har", "/work/s.har"), ("./a/../b.csv", "/work/b.csv"), ("out/s.har", "/work/out/s.har"),
+        ("../up.csv", "/up.csv"), ("~other/x", "/work/~other/x"), ("", "/work"), ("/tmp/../x", "/x"),
+    ])
+    func aRelativePathIsResolvedAgainstTheWorkingDirectory(typed: String, path: String) {
+        #expect(CLIHarness().environment.url(forPath: typed).path == path)
     }
 
     @Test(arguments: [(["WATCHER_HOME": "/tmp/isolated"], "/tmp/isolated"), ([:], "/Users/me/.watcher")])

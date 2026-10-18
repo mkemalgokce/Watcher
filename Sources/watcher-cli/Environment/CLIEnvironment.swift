@@ -11,6 +11,8 @@ struct CLIEnvironment {
     var readLine: @Sendable () -> String?
     var variables: [String: String]
     var home: URL
+    /// What a relative path typed on the command line is relative to.
+    var currentDirectory: URL
     var files: FileAccess
     var commands: CommandRunner
     var lanAddresses: @Sendable () -> [LocalNetwork.Address]
@@ -68,7 +70,7 @@ struct CLIEnvironment {
         report("Put back the system proxy a previous session left pointing at Watcher")
     }
 
-    /// A path the user typed; `~` is their home folder.
+    /// A path the user typed; `~` is their home folder, and a relative one starts at the working directory.
     func url(forPath path: String) -> URL {
         if path == "~" {
             return home
@@ -76,6 +78,6 @@ struct CLIEnvironment {
         if path.hasPrefix("~/") {
             return home.appendingPathComponent(String(path.dropFirst(2)))
         }
-        return URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+        return URL(fileURLWithPath: path, relativeTo: currentDirectory).standardized.absoluteURL
     }
 }

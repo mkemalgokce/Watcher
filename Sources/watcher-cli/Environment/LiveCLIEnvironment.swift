@@ -10,6 +10,7 @@ extension CLIEnvironment {
         readLine: { Swift.readLine(strippingNewline: true) },
         variables: ProcessInfo.processInfo.environment,
         home: URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true),
+        currentDirectory: URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true),
         files: .live,
         commands: LiveCommandRunner.run,
         lanAddresses: { LocalNetwork.ipv4Addresses() },
