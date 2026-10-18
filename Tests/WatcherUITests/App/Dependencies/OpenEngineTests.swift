@@ -23,6 +23,7 @@ struct OpenEngineTests {
             return try .inMemory()
         }
         #expect(opened.value == [directory])
+        #expect(result.directory == directory)
         #expect(result.problem == nil)
     }
 
@@ -37,7 +38,9 @@ struct OpenEngineTests {
             return try .inMemory()
         }
         #expect(opened.value == [directory, fallback])
-        #expect(result.problem == "Cannot open Watcher's data in /home/.watcher: settings.json is unreadable. "
+        #expect(result.directory == fallback, "certificate paths must follow the folder the engine signs in")
+        #expect(result.problem?.folder == directory)
+        #expect(result.problem?.message == "Cannot open Watcher's data in /home/.watcher: settings.json is unreadable. "
             + "This session records into a temporary folder; fix the folder and relaunch Watcher.")
     }
 }

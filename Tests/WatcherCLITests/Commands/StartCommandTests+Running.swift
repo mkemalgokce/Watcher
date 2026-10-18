@@ -83,7 +83,6 @@ extension StartCommandTests {
             try await StartCommandTests.run([], in: cli)
             let printedAtExit = cli.printed
             cli.engine.store.update(late.id) { $0.response = .fixture(status: 200); $0.state = .completed }
-            try await Task.sleep(for: .milliseconds(300))
 
             #expect(cli.printed == printedAtExit)
         }

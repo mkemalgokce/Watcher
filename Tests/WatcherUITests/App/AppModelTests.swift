@@ -30,12 +30,22 @@ struct AppModelTests {
     }
 
     @Test
-    func aStartupProblemIsShownAsAnErrorNoticeAtLaunch() throws {
+    func aStartupProblemStaysOnTheModelAfterLaterNotices() throws {
+        let problem = StartupProblem(message: "Cannot open the data in /x.", folder: URL(fileURLWithPath: "/x"))
         var dependencies = try AppDependencies.test()
-        dependencies.startupProblem = "Cannot open Watcher's data in /x: nope."
+        dependencies.startupProblem = problem
         let model = AppModel(dependencies: dependencies)
-        #expect(model.notices.notice?.message == "Cannot open Watcher's data in /x: nope.")
-        #expect(model.notices.notice?.kind == .error)
+        model.notices.notify("Recording on 127.0.0.1:9090", .success)
+        #expect(model.startupProblem == problem)
+    }
+
+    @Test
+    func showingTheStartupFolderRevealsTheFolderThatFailed() throws {
+        let workspace = WorkspaceOpenerSpy()
+        var dependencies = try AppDependencies.test(workspace: workspace)
+        dependencies.startupProblem = StartupProblem(message: "nope", folder: URL(fileURLWithPath: "/x"))
+        AppModel(dependencies: dependencies).showStartupFolder()
+        #expect(workspace.revealed == [[URL(fileURLWithPath: "/x")]])
     }
 
     @Test

@@ -64,7 +64,9 @@ struct McpCommandTests {
         let command = try Mcp.parse([])
         await #expect(throws: ExitCode.failure) { try await command.run(in: cli.environment) }
         #expect(cli.printed.isEmpty)
-        #expect(cli.printedToErrorOutput.count == 1)
+        #expect(cli.printedToErrorOutput == [
+            "Cannot start the proxy: Failure(). Another program may be using the port; try --port.",
+        ])
         #expect(cli.commands.commands.isEmpty)
     }
 }

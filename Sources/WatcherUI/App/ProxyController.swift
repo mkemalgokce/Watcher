@@ -63,13 +63,27 @@ final class ProxyController {
 
     func toggleRunning() {
         guard !isSwitchingProxy else { return }
+        if isRunning {
+            switchProxy()
+        } else {
+            startRecording()
+        }
+    }
+
+    /// Starts the proxy when it is off; unlike `toggleRunning` it never pauses a proxy that is already on.
+    func startRecording() {
+        guard !isRunning, !isSwitchingProxy else { return }
         let port = settings().port
-        if !isRunning, !PortRange.isValid(port) {
+        if !PortRange.isValid(port) {
             let error = "Port \(port) is not valid. Choose a port from 1 to 65535 in Settings."
             proxyError = error
             notices.notify(error, .error)
             return
         }
+        switchProxy()
+    }
+
+    private func switchProxy() {
         isSwitchingProxy = true
         proxyError = nil
         let pending = systemProxySwitch
@@ -116,7 +130,7 @@ final class ProxyController {
                 + "pick a different port in Settings."
             proxyError = message
             notices.notify(message, .error, action: NoticeAction(title: "Try Again") { [weak self] in
-                self?.toggleRunning()
+                self?.startRecording()
             })
         }
     }

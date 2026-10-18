@@ -83,8 +83,12 @@ extension ProxyServer {
             return exchange.stream(request, head: head, body: upstreamResponse.body, tools: requestTools)
         }
         var body: ByteBuffer
-        do { body = try await upstreamResponse.body.collect(upTo: bodyLimit) } catch is NIOTooManyBytesError {
-            throw NIOTooManyBytesError()
+        do {
+            body = try await upstreamResponse.body.collect(upTo: bodyLimit)
+        } catch let tooLarge as NIOTooManyBytesError {
+            throw tooLarge
+        } catch let cancelled as CancellationError {
+            throw cancelled
         } catch {
             let reason = "The connection to \(request.host) broke before the response ended: \(error)"
             let failure = Self.message(502, reason)
