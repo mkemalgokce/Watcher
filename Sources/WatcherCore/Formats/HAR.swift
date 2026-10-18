@@ -37,7 +37,8 @@ public enum HAR {
             "cookies": [], "headersSize": -1, "bodySize": request.body.count,
         ]
         if !request.body.isEmpty {
-            requestObject["postData"] = ["mimeType": request.headers.value(for: "content-type") ?? "", "text": text(request.body).text]
+            let mimeType = request.headers.value(for: "content-type") ?? ""
+            requestObject["postData"] = contentObject(request.body, mimeType: mimeType)
         }
         let duration = (flow.duration ?? 0) * 1000
         var entry: [String: Any] = [
@@ -46,11 +47,8 @@ public enum HAR {
             "timings": timings(flow),
         ]
         if let response = flow.response {
-            let body = text(response.body)
-            var content: [String: Any] = ["size": response.body.count, "mimeType": response.headers.value(for: "content-type") ?? "", "text": body.text]
-            if body.isBase64 {
-                content["encoding"] = "base64"
-            }
+            var content = contentObject(response.body, mimeType: response.headers.value(for: "content-type") ?? "")
+            content["size"] = response.body.count
             entry["response"] = [
                 "status": response.status, "statusText": HTTPStatus.reason(response.status),
                 "httpVersion": flow.upstreamHTTPVersion ?? "HTTP/1.1", "headers": response.headers.map { ["name": $0.name, "value": $0.value] },
@@ -82,8 +80,17 @@ public enum HAR {
         return ["send": 0, "wait": firstByte, "receive": max(0, duration - firstByte)]
     }
 
-    private static func text(_ data: Data) -> (text: String, isBase64: Bool) {
-        String(data: data, encoding: .utf8).map { ($0, false) } ?? (data.base64EncodedString(), true)
+    /// HAR 1.2 defines `encoding` for response content only; request bodies use it too so bytes that are not UTF-8 survive.
+    private static func contentObject(_ data: Data, mimeType: String) -> [String: Any] {
+        guard let text = String(data: data, encoding: .utf8) else {
+            return ["mimeType": mimeType, "text": data.base64EncodedString(), "encoding": "base64"]
+        }
+        return ["mimeType": mimeType, "text": text]
+    }
+
+    private static func data(fromContent content: Any?) -> Data {
+        let content = content as? [String: Any], text = content?["text"] as? String ?? ""
+        return content?["encoding"] as? String == "base64" ? Data(base64Encoded: text) ?? Data() : Data(text.utf8)
     }
 
     // MARK: Import
@@ -105,16 +112,14 @@ public enum HAR {
             method: method, scheme: scheme, host: host,
             port: url.port ?? RequestRecord.defaultPort(for: scheme), path: path,
             headers: [Header](jsonList: request["headers"]),
-            body: Data(((request["postData"] as? [String: Any])?["text"] as? String ?? "").utf8)
+            body: data(fromContent: request["postData"])
         )
         let startedAt = (entry["startedDateTime"] as? String).flatMap(formatter.date) ?? now
         var flow = Flow(sequence: sequence, request: record, startedAt: startedAt)
         flow.duration = (entry["time"] as? Double).map { $0 / 1000 }
 
         if let response = entry["response"] as? [String: Any], let status = response["status"] as? Int, status > 0 {
-            let content = response["content"] as? [String: Any]
-            let raw = content?["text"] as? String ?? ""
-            let body = content?["encoding"] as? String == "base64" ? Data(base64Encoded: raw) ?? Data() : Data(raw.utf8)
+            let body = data(fromContent: response["content"])
             flow.response = ResponseRecord(status: status, headers: [Header](jsonList: response["headers"]), body: body)
             flow.state = .completed
         } else {

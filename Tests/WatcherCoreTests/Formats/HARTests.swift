@@ -41,4 +41,11 @@ struct HARTests {
         #expect(timings["wait"] == wait)
         #expect(timings["receive"] == receive)
     }
+
+    @Test
+    func aRequestBodyThatIsNotUTF8SurvivesARoundTrip() throws {
+        let body = Data([0xFF, 0x00, 0x80])
+        let flow = Flow.fixture(request: .fixture(method: "POST", body: body))
+        #expect(try HAR.flows(from: HAR.export([flow])).first?.request.body == body)
+    }
 }
