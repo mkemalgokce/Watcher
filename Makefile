@@ -45,14 +45,15 @@ lint-analyze-baseline:
 	rm -f .build/analyze.log && $(MAKE) .build/analyze.log
 	$(SWIFTLINT) analyze --quiet --write-baseline $(ANALYZE_BASELINE) --compiler-log-path .build/analyze.log || true
 
+# Network, process and window tests measure time, so they run one at a time, as XCTest did.
 test:
-	swift test
+	swift test --no-parallel
 
 test-unit:
 	swift test --filter '$(UNIT_TESTS)'
 
 test-integration:
-	swift test --filter WatcherIntegrationTests
+	swift test --no-parallel --filter WatcherIntegrationTests
 
 test-smoke:
 	swift test --filter WatcherIntegrationTests.SmokeTests
@@ -80,4 +81,4 @@ dmg:
 	scripts/package-release.sh $(or $(VERSION),0.0.0) 1
 
 coverage:
-	scripts/coverage.sh --skip '$(OUTSIDE_COVERAGE)'
+	scripts/coverage.sh --no-parallel --skip '$(OUTSIDE_COVERAGE)'
