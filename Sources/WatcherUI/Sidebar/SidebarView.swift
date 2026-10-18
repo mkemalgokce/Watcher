@@ -21,7 +21,7 @@ struct SidebarView: View {
                 Section("Apps") {
                     ForEach(counts.apps) { group in
                         Label { Text(IconStore.appName(forProcess: group.name)).lineLimit(1) } icon: { AppIconView(process: group.name) }
-                            .badge(group.count).tag(AppModel.SidebarItem.app(group.name)).help(group.name)
+                            .badge(group.count).tag(SidebarItem.app(group.name)).help(group.name)
                     }
                 }
             }
@@ -29,7 +29,7 @@ struct SidebarView: View {
                 Section("Domains") {
                     ForEach(counts.domains) { group in
                         Label { Text(group.name).lineLimit(1).truncationMode(.middle) } icon: { SiteIconView(domain: group.name) }
-                            .badge(group.count).tag(AppModel.SidebarItem.domain(group.name))
+                            .badge(group.count).tag(SidebarItem.domain(group.name))
                             .contextMenu {
                                 Button("Block \(group.name)", systemImage: "nosign") {
                                     model.settings.blockList.isEnabled = true
@@ -48,7 +48,7 @@ struct SidebarView: View {
     }
 
     /// Like Mail's mailboxes: one-colour symbols in the accent tint, and a count only when there is something.
-    private func row(_ title: String, symbol: String, count: Int, tag: AppModel.SidebarItem) -> some View {
+    private func row(_ title: String, symbol: String, count: Int, tag: SidebarItem) -> some View {
         Label(title, systemImage: symbol)
             .badge(count)
             .tag(tag)

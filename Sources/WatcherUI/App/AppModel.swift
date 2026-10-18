@@ -15,41 +15,11 @@ public final class AppModel {
     /// Certificate trust and device setup (DeviceSetupView, the welcome sheet and the first-run list). Previews and tests
     /// get a probe that never asks the keychain, simctl or adb, so what they show is the same on every Mac.
     let devices: DevicesViewModel
-    private(set) var flows: [Flow] = []
+    let list: FlowListViewModel
     /// Settable inside the module so previews can show paused traffic.
     internal(set) var hits: [BreakpointCenter.Hit] = []
     let proxy: ProxyController
     private(set) var workspaces: [String] = []
-    var selection: Flow.ID?
-    var query = FlowFilter() {
-        didSet {
-            if query != oldValue {
-                refreshDerived()
-            }
-        }
-    }
-
-    var sidebar = SidebarItem.all {
-        didSet {
-            if sidebar != oldValue {
-                refreshDerived()
-            }
-        }
-    }
-
-    /// Column the list is sorted by (click a header); arrival order by default, so live traffic appends at the bottom.
-    var sortOrder = [KeyPathComparator(\Flow.sequence)] {
-        didSet {
-            if sortOrder != oldValue {
-                refreshDerived()
-            }
-        }
-    }
-
-    /// Filtered list, sidebar counts and totals, recomputed once per batch of changes instead of on every view update.
-    private(set) var visibleFlows: [Flow] = []
-    private(set) var counts = SidebarCounts()
-    private(set) var visibleBytes = 0
     /// The dialog currently shown over the main window; menus and toolbar both open it through here.
     var sheet: Sheet?
     /// The page Tools opens on; callers set it to land on the tool they mean.
@@ -92,10 +62,6 @@ public final class AppModel {
 
     var settings: SettingsEditor
 
-    @ObservationIgnored private var indexByID: [Flow.ID: Int] = [:]
-    @ObservationIgnored private var pendingEvents: [FlowEvent] = []
-    @ObservationIgnored private var flushTask: Task<Void, Never>?
-
     public convenience init() {
         self.init(listening: true)
     }
@@ -129,11 +95,10 @@ public final class AppModel {
         proxy.restoreLeftoverSystemProxy()
         dependencies.onTerminate { [proxy] in proxy.applicationWillTerminate() }
 
-        settings.onChange = { [weak self] old, new in
-            if old.hideAppleTraffic != new.hideAppleTraffic {
-                self?.refreshDerived()
-            }
-        }
+        let list = FlowListViewModel(store: engine.store, sleep: dependencies.sleep)
+        list.hidesAppleTraffic = settings.hideAppleTraffic
+        settings.onChange = { [list] _, new in list.hidesAppleTraffic = new.hideAppleTraffic }
+        self.list = list
         if listening {
             observeEngine()
         }
@@ -141,11 +106,8 @@ public final class AppModel {
 
     /// Follows the store and paused breakpoints; separate from init so tests can watch a model that has no system side effects.
     func observeEngine() {
-        let flowEvents = engine.store.events()
+        list.observeStore()
         let breakpointChanges = engine.breakpoints.changes()
-        Task { for await event in flowEvents {
-            self.enqueue(event)
-        } }
         Task { for await _ in breakpointChanges {
             self.breakpointsChanged(self.engine.breakpoints.pending)
         } }
@@ -158,61 +120,13 @@ public final class AppModel {
         }
     }
 
-    enum SidebarItem: Hashable {
-        case all, starred, errors, webSocket
-        case app(String), domain(String)
-    }
-
-    /// The search field and quick filters combined with the sidebar choice.
-    var effectiveFilter: FlowFilter {
-        var filter = query
-        switch sidebar {
-        case .all: break
-        case .starred: filter.starredOnly = true
-        case .errors: filter.errorsOnly = true
-        case .webSocket: filter.webSocketOnly = true
-        case let .app(name): filter.app = name
-        case let .domain(name): filter.host = name
-        }
-        return filter
-    }
-
-    struct SidebarCounts: Equatable {
-        var starred = 0, errors = 0, webSocket = 0
-        var apps: [FlowGroup] = [], domains: [FlowGroup] = []
-    }
-
-    private func refreshDerived() {
-        let shown = settings.hideAppleTraffic ? flows.filter { !AppleTraffic.isApple($0.request.host) } : flows
-        let filtered = effectiveFilter.apply(to: shown)
-        // Arrival order is the order flows are kept in; sorting is only paid for when another column was chosen.
-        visibleFlows = sortOrder == [KeyPathComparator(\Flow.sequence)] ? filtered : filtered.sorted(using: sortOrder)
-        visibleBytes = visibleFlows.reduce(0) { $0 + ($1.response?.body.count ?? 0) }
-        var next = SidebarCounts(apps: FlowGrouping.apps(flows), domains: FlowGrouping.domains(flows))
-        for flow in flows {
-            if flow.isStarred {
-                next.starred += 1
-            }
-            if FlowFilter.isError(flow) {
-                next.errors += 1
-            }
-            if !flow.webSocketMessages.isEmpty || flow.response?.status == 101 {
-                next.webSocket += 1
-            }
-        }
-        if next != counts {
-            counts = next
-        }
-    }
-
     func show(_ sheet: Sheet) {
         self.sheet = sheet
     }
 
     /// The line under the window title: starting, listening (with the address), stopped, or that starting failed.
     var statusLine: String {
-        let count = visibleFlows.count == flows.count ? "\(flows.count) requests" : "\(visibleFlows.count) of \(flows.count) requests"
-        return proxy.status(listing: count)
+        proxy.status(listing: list.countText)
     }
 
     var isRunning: Bool {
@@ -250,8 +164,56 @@ public final class AppModel {
         proxy.port
     }
 
+    var flows: [Flow] {
+        list.flows
+    }
+
+    var visibleFlows: [Flow] {
+        list.visibleFlows
+    }
+
+    var counts: SidebarCounts {
+        list.counts
+    }
+
+    var visibleBytes: Int {
+        list.visibleBytes
+    }
+
+    var selection: Flow.ID? {
+        get { list.selection }
+        set { list.selection = newValue }
+    }
+
+    var query: FlowFilter {
+        get { list.query }
+        set { list.query = newValue }
+    }
+
+    var sidebar: SidebarItem {
+        get { list.sidebar }
+        set { list.sidebar = newValue }
+    }
+
+    var sortOrder: [KeyPathComparator<Flow>] {
+        get { list.sortOrder }
+        set { list.sortOrder = newValue }
+    }
+
     var selectedFlow: Flow? {
-        selection.flatMap { indexByID[$0] }.map { flows[$0] }
+        list.selectedFlow
+    }
+
+    func enqueue(_ event: FlowEvent) {
+        list.enqueue(event)
+    }
+
+    func flushEvents() {
+        list.flushEvents()
+    }
+
+    func syncFromStore() {
+        list.syncFromStore()
     }
 
     /// End of the welcome screen: remember the choice, then start capturing.
@@ -438,88 +400,5 @@ public final class AppModel {
     func setAndroidProxy(_ device: AndroidDevice, enabled: Bool) {
         let lanAddress = LocalNetwork.ipv4Addresses().first?.ip
         Task { await devices.setProxy(on: device, enabled: enabled, port: proxyPort, lanAddress: lanAddress) }
-    }
-
-    // MARK: Private
-
-    /// Store events arrive one per request, header and chunk; applying each on its own re-rendered the whole window
-    /// hundreds of times a second under load. They are collected and applied together a few times a second instead.
-    func enqueue(_ event: FlowEvent) {
-        pendingEvents.append(event)
-        guard flushTask == nil else { return }
-        flushTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(80))
-            self?.flushEvents()
-        }
-    }
-
-    /// Applies every collected event with a single change to `flows`.
-    func flushEvents() {
-        flushTask?.cancel(); flushTask = nil
-        let events = pendingEvents
-        pendingEvents = []
-        guard !events.isEmpty else { return }
-        var next = flows, index = indexByID, removed = Set<Flow.ID>(), wasCleared = false
-        for event in events {
-            switch event {
-            case let .added(flow):
-                if let i = index[flow.id] {
-                    next[i] = flow
-                } else {
-                    index[flow.id] = next.count; next.append(flow)
-                }
-            case let .updated(flow): if let i = index[flow.id] {
-                    next[i] = flow
-                }
-            case let .removed(id): if index.removeValue(forKey: id) != nil {
-                    removed.insert(id)
-                }
-            case .cleared: next = []; index = [:]; removed = []; wasCleared = true
-            }
-        }
-        if !removed.isEmpty {
-            next.removeAll { removed.contains($0.id) }
-            index = Dictionary(uniqueKeysWithValues: next.enumerated().map { ($1.id, $0) })
-        }
-        flows = next
-        indexByID = index
-        if wasCleared || selection.map({ index[$0] == nil }) == true {
-            selection = nil
-        }
-        refreshDerived()
-    }
-
-    /// Takes everything currently in the store without waiting for its events (previews and snapshots).
-    func syncFromStore() {
-        pendingEvents = []; flows = engine.store.all; reindex(); refreshDerived()
-    }
-
-    private func reindex() {
-        indexByID = Dictionary(uniqueKeysWithValues: flows.enumerated().map { ($1.id, $0) })
-    }
-}
-
-/// Values the list sorts by: plain Comparable stand-ins for the optional parts of a flow.
-extension Flow {
-    /// No response sorts first, failures before any status code.
-    var sortStatus: Int {
-        state == .failed ? -1 : response?.status ?? 0
-    }
-
-    var sortURL: String {
-        request.url
-    }
-
-    var sortSize: Int {
-        response?.body.count ?? -1
-    }
-
-    /// Unfinished requests sort as the longest, so they stand out at the end of a duration sort.
-    var sortDuration: TimeInterval {
-        duration ?? .greatestFiniteMagnitude
-    }
-
-    var sortApp: String {
-        request.clientApp ?? ""
     }
 }

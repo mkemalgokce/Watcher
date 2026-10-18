@@ -63,15 +63,11 @@ struct MessagePanel: View {
         EmbeddedDataIndex.shared.segments(in: flow, side: side)
     }
 
-    private var isWebSocket: Bool {
-        !flow.webSocketMessages.isEmpty || flow.response?.status == 101
-    }
-
     private var available: [Section] {
         Section.allCases.filter { section in
             switch section {
             case .params: side == .request
-            case .messages: side == .response && isWebSocket
+            case .messages: side == .response && flow.isWebSocket
             case .previewers: side == .response && !model.settings.previewers.active.isEmpty
             case .decoded: !embedded.isEmpty
             default: true
