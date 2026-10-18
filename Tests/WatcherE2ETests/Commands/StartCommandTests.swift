@@ -3,9 +3,9 @@ import Testing
 import WatcherCore
 import WatcherTestSupport
 
-@Suite(.timeLimit(.minutes(1)), .tags(.e2e, .network, .externalTool))
+@Suite(.timeLimit(.minutes(1)), .tags(.e2e, .network))
 struct StartCommandTests {
-    @Test(.enabled(if: ExternalTool.curl.isAvailable, "needs curl"))
+    @Test(.enabled(if: ExternalTool.curl.isAvailable, "needs curl"), .tags(.externalTool))
     func proxiesACurlRequestAndWritesItToTheHARAndCSVFilesOnCtrlC() async throws {
         let origin = TestUpstream()
         try await origin.start()

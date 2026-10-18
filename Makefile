@@ -57,8 +57,10 @@ test-unit:
 test-integration:
 	swift test --no-parallel --filter WatcherIntegrationTests
 
+# Every smoke suite is named *SmokeTests; the binary is built first for the same reason as in test-e2e.
 test-smoke:
-	swift test --filter WatcherIntegrationTests.SmokeTests
+	swift build --product watcher-cli
+	WATCHER_CLI="$$(swift build --show-bin-path)/watcher-cli" swift test --filter SmokeTests
 
 # Built first because a test cannot run swift build while swift test holds the build lock.
 test-e2e:
