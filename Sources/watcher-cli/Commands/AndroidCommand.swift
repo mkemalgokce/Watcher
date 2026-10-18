@@ -25,14 +25,14 @@ struct AndroidCommand: ParsableCommand {
     func run(in environment: CLIEnvironment) throws {
         let adb = environment.adb
         let devices = try AndroidDevice.list(run: adb)
-        guard action != .list else { return Self.list(devices, to: environment.output) }
-        let device = try chosenDevice(from: devices)
         switch action {
-        case .list: break
+        case .list:
+            Self.list(devices, to: environment.output)
         case .cert:
-            try device.pushCertificate(environment.certificateAuthority().certificateURL, run: adb)
+            try chosenDevice(from: devices).pushCertificate(environment.certificateAuthority().certificateURL, run: adb)
             environment.output(Self.certificateCopied)
         case .proxy:
+            let device = try chosenDevice(from: devices)
             let lanAddress = environment.lanAddresses().first?.ip
             let port = port ?? environment.settings.value.port
             guard let endpoint = device.proxyEndpoint(port: port, lanAddress: lanAddress) else {
@@ -41,7 +41,7 @@ struct AndroidCommand: ParsableCommand {
             try device.setProxy(endpoint, run: adb)
             environment.output("Proxy set to \(endpoint)")
         case .unproxy:
-            try device.setProxy(nil, run: adb)
+            try chosenDevice(from: devices).setProxy(nil, run: adb)
             environment.output("Proxy cleared")
         }
     }
