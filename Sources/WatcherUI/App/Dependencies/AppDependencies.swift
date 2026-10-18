@@ -26,6 +26,7 @@ public struct AppDependencies {
     var loginItem: LoginItem
     var now: @Sendable () -> Date
     var homeDirectory: URL
+    var appInfo: AppInfo
     var faviconDownload: FaviconDownload
 
     var requestServices: RequestActions.Services {

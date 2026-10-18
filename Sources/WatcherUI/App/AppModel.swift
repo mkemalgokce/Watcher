@@ -31,6 +31,8 @@ public final class AppModel {
     /// The time the inspector and Compose measure against.
     let now: @Sendable () -> Date
     private let sleep: Sleep
+    let appInfo: AppInfo
+    let supportDirectory: URL
     private let files: FileAccess
     private let homeDirectory: URL
     /// Set once the first-run setup has been completed or skipped.
@@ -50,8 +52,8 @@ public final class AppModel {
         self.engine = engine
         clipboard = dependencies.clipboard
         now = dependencies.now
-        sleep = dependencies.sleep
-        files = dependencies.files; homeDirectory = dependencies.homeDirectory
+        sleep = dependencies.sleep; files = dependencies.files; homeDirectory = dependencies.homeDirectory
+        appInfo = dependencies.appInfo; supportDirectory = dependencies.paths.directory
         preferences = dependencies.preferences
         onboardingDone = dependencies.preferences.onboardingDone
         viewer = ViewerOptions(preferences: dependencies.preferences)

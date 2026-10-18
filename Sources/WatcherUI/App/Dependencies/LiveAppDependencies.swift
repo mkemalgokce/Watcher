@@ -26,6 +26,7 @@ extension AppDependencies {
             loginItem: .live,
             now: Date.init,
             homeDirectory: URL(fileURLWithPath: NSHomeDirectory()),
+            appInfo: .live,
             faviconDownload: LiveFaviconDownload.fetch
         )
     }
@@ -58,6 +59,7 @@ extension AppDependencies {
             loginItem: .inert,
             now: Date.init,
             homeDirectory: URL(fileURLWithPath: NSHomeDirectory()),
+            appInfo: .live,
             faviconDownload: LiveFaviconDownload.fetch
         )
     }

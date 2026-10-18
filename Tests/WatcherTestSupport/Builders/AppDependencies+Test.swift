@@ -48,6 +48,11 @@ public extension AppDependencies {
             loginItem: (loginItem ?? LoginItemStub()).loginItem,
             now: (clock ?? ClockStub()).now,
             homeDirectory: URL(fileURLWithPath: "/fake-home"),
+            appInfo: AppInfo(
+                bundleIdentifier: nil, shortVersion: nil, buildNumber: nil,
+                operatingSystem: OperatingSystemVersion(majorVersion: 26, minorVersion: 0, patchVersion: 0),
+                architecture: "arm64", homeDirectory: "/fake-home"
+            ),
             faviconDownload: { _ in nil }
         )
     }
