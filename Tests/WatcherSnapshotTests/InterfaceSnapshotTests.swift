@@ -55,6 +55,7 @@ struct InterfaceSnapshotTests {
 
     @Test
     func theCSVExportStaysTheSame() throws {
-        try assertSnapshot(of: #require(String(bytes: CSVExporter.export(Self.flows), encoding: .utf8)), as: .lines)
+        let csv = try #require(String(bytes: CSVExporter.export(Self.flows), encoding: .utf8))
+        assertSnapshot(of: csv.replacingOccurrences(of: "\r\n", with: "\\r\\n\n"), as: .lines)
     }
 }
