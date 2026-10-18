@@ -8,7 +8,7 @@ extension InteractionTests {
     struct ComposeTests {
         @Test
         func composeExplainsWhyItCannotSendYet() async throws {
-            let model = AppModel(listening: false)
+            let model = try AppModel.test()
             try await withWindow(showing: ComposeView().environment(model), width: 900, height: 640) { window in
                 #expect(!window.elements("Start Proxy").isEmpty, "the empty response pane offers to start the proxy")
                 try await window.press("Send")

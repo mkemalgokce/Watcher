@@ -9,15 +9,15 @@ import WatcherTestSupport
 @Suite(.serialized, .tags(.unit))
 struct AppModelTests {
     @Test
-    func hidingAppleTrafficRefreshesTheList() {
-        let model = AppModel(listening: false)
+    func hidingAppleTrafficRefreshesTheList() throws {
+        let model = try AppModel.test()
         model.settings.hideAppleTraffic = false
         [Flow.fixture(sequence: 1, host: "gateway.icloud.com", status: 200), .fixture(sequence: 2, status: 200)]
-            .forEach { model.enqueue(.added($0)) }
-        model.flushEvents()
-        #expect(model.visibleFlows.count == 2)
+            .forEach { model.list.enqueue(.added($0)) }
+        model.list.flushEvents()
+        #expect(model.list.visibleFlows.count == 2)
         model.settings.hideAppleTraffic = true
-        #expect(model.visibleFlows.map(\.sequence) == [2])
+        #expect(model.list.visibleFlows.map(\.sequence) == [2])
     }
 
     @Test
@@ -34,11 +34,11 @@ struct AppModelTests {
         let preferences = PreferencesFake()
         let runner = ProxyRunnerStub()
         let model = try AppModel(dependencies: .test(preferences: preferences, runner: runner))
-        model.show(.welcome)
+        model.router.show(.welcome)
         model.finishOnboarding()
         #expect(preferences.onboardingDone)
-        #expect(model.sheet == nil)
-        #expect(await eventually { model.isRunning && !model.isSwitchingProxy })
+        #expect(model.router.sheet == nil)
+        #expect(await eventually { model.proxy.isRunning && !model.proxy.isSwitchingProxy })
 
         model.finishOnboarding()
         try? await Task.sleep(for: .milliseconds(50))
@@ -50,8 +50,8 @@ struct AppModelTests {
         let lifecycle = AppLifecycleSpy()
         let systemProxy = SystemProxySpy()
         let model = try AppModel(dependencies: .test(systemProxy: systemProxy, lifecycle: lifecycle))
-        model.setSystemProxy(true)
-        #expect(await eventually { model.systemProxyOn })
+        model.proxy.setSystemProxy(true)
+        #expect(await eventually { model.proxy.systemProxyOn })
         lifecycle.terminate()
         #expect(systemProxy.calls.last == "disable")
     }
@@ -64,20 +64,20 @@ struct AppModelTests {
     }
 
     @Test
-    func theProxyPortIsTheConfiguredOneUntilAPortIsBound() {
-        let model = AppModel(listening: false)
+    func theProxyPortIsTheConfiguredOneUntilAPortIsBound() throws {
+        let model = try AppModel.test()
         model.settings.port = 9123
-        #expect(model.proxyPort == 9123)
+        #expect(model.proxy.port == 9123)
     }
 
     @Test
-    func statusLineUnderTheTitle() {
-        let model = AppModel(listening: false)
+    func statusLineUnderTheTitle() throws {
+        let model = try AppModel.test()
         [Flow.fixture(sequence: 1, status: 200), .fixture(sequence: 2, status: 500)]
-            .forEach { model.enqueue(.added($0)) }
-        model.flushEvents()
+            .forEach { model.list.enqueue(.added($0)) }
+        model.list.flushEvents()
         #expect(model.statusLine == "Not recording · 2 requests")
-        model.sidebar = .errors
+        model.list.sidebar = .errors
         #expect(model.statusLine == "Not recording · 1 of 2 requests")
         model.proxy.proxyError = "port in use"
         #expect(model.statusLine == "Failed to start · see Settings")

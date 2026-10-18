@@ -25,7 +25,7 @@ public extension AppDependencies {
         return AppDependencies(
             engine: engine,
             clipboard: clipboard ?? ClipboardSpy(),
-            sleep: sleep ?? sleepUntilCancelled,
+            sleep: sleep ?? liveSleep,
             announce: (announcer ?? AnnouncerSpy()).announce,
             panels: panels ?? FilePanelsStub(),
             files: files.access,

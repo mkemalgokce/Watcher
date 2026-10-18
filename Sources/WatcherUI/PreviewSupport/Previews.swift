@@ -37,11 +37,11 @@ extension AppModel {
     extension AppModel {
         /// A model filled with demo traffic for Xcode previews.
         @MainActor static func preview() -> AppModel {
-            let model = AppModel(listening: false)
+            let model = AppModel(dependencies: .preview())
             model.preferences.showBody(.preview) // previews share defaults; start from the app's default view
             model.loadDemoData()
-            model.syncFromStore()
-            model.selection = model.flows.first?.id
+            model.list.syncFromStore()
+            model.list.selection = model.list.flows.first?.id
             return model
         }
     }
@@ -60,19 +60,19 @@ extension AppModel {
 
 #if DEBUG
     #Preview("Large JSON", traits: .fixedLayout(width: 1320, height: 780)) {
-        let model = AppModel(listening: false)
+        let model = AppModel(dependencies: .preview())
         model.preferences.showBody(.preview)
         let item = #"{"id":12345,"name":"Ada Lovelace","tags":["a","b",null,true],"score":-1.5e3,"avatar":"https://example.com/a.png"},"#
         let body = "[" + String(repeating: item, count: 300_000) + #"{"end":true}]"# // ~33 MB
         var flow = Flow(sequence: 1, request: RequestRecord(method: "GET", scheme: "https", host: "api.example.com", port: 443, path: "/v1/export", clientApp: "curl"))
         flow.response = ResponseRecord(status: 200, headers: [Header("Content-Type", "application/json")], body: Data(body.utf8))
         flow.state = .completed; flow.duration = 1.2
-        model.engine.store.load([flow]); model.syncFromStore(); model.selection = model.flows.first?.id
+        model.engine.store.load([flow]); model.list.syncFromStore(); model.list.selection = model.list.flows.first?.id
         return ContentView().environment(model)
     }
 
     #Preview("Form data", traits: .fixedLayout(width: 1320, height: 780)) {
-        let model = AppModel(listening: false)
+        let model = AppModel(dependencies: .preview())
         model.preferences.showBody(.preview)
         // A 2×2 red PNG, uploaded next to an ordinary field.
         let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAEAAAAAoCAIAAADBrGu+AAAAWElEQVR4nO3PwQkAIBDAsJvLv/uPpEP4CEKhA6Rz9vq64YIGtKABLWhACxrQgga0oAEtaEALGtCCBrSgAS1oQAsa0IIGtKABLWhACxrQgga0oAEtaEALHrtwRezT21HipwAAAABJRU5ErkJggg==")!
@@ -90,7 +90,7 @@ extension AppModel {
         ))
         flow.response = ResponseRecord(status: 201, headers: [Header("Content-Type", "application/json")], body: Data(#"{"id":"p_42","url":"https://cdn.example.com/p_42.png"}"#.utf8))
         flow.state = .completed; flow.duration = 0.31
-        model.engine.store.load([flow]); model.syncFromStore(); model.selection = model.flows.first?.id
+        model.engine.store.load([flow]); model.list.syncFromStore(); model.list.selection = model.list.flows.first?.id
         return ContentView().environment(model)
     }
 
@@ -116,7 +116,7 @@ extension AppModel {
     }
 
     #Preview("Insights", traits: .fixedLayout(width: 1320, height: 900)) {
-        let model = AppModel(listening: false)
+        let model = AppModel(dependencies: .preview())
         model.preferences.showBody(.preview)
         let png = "iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAAQUlEQVR4nO3OMQ0AIBAAsZ/RjW9wwTE0qYDO2ucrkw+EhISE6oGQkJBQPRASEhKqB0JCQkL1QEhISKgeCAkJPXYBFEP1xJNEZhsAAAAASUVORK5CYII="
         func part(_ s: String) -> String {
@@ -137,7 +137,7 @@ extension AppModel {
             body: Data(#"{"name":"Ada","avatar":"data:image/png;base64,\#(png)"}"#.utf8)
         )
         flow.state = .completed
-        model.engine.store.load([flow]); model.syncFromStore(); model.selection = model.flows.first?.id
+        model.engine.store.load([flow]); model.list.syncFromStore(); model.list.selection = model.list.flows.first?.id
         return ContentView().environment(model)
     }
 
@@ -176,7 +176,7 @@ extension AppModel {
     }
 
     #Preview("First run", traits: .fixedLayout(width: 1320, height: 780)) {
-        ContentView().environment(AppModel(listening: false))
+        ContentView().environment(AppModel(dependencies: .preview()))
     }
 
     #Preview("Help") { HelpView() }

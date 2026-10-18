@@ -18,24 +18,26 @@ public struct SettingsView: View {
 
 private struct GeneralSettings: View {
     @Environment(AppModel.self) private var model
+    @Environment(ProxyController.self) private var proxy
     var body: some View {
         @Bindable var model = model
         Form {
             Section("Listening") {
                 LabeledContent("Status") {
                     HStack(spacing: 8) {
-                        if model.isSwitchingProxy {
+                        if proxy.isSwitchingProxy {
                             ProgressView().controlSize(.small)
                         }
                         Label(
-                            model.isRunning
-                                ? "Listening on 127.0.0.1:\(String(model.proxyPort))"
-                                : model.proxyError == nil ? "Stopped" : "Failed to start",
+                            proxy.isRunning
+                                ? "Listening on 127.0.0.1:\(String(proxy.port))"
+                                : proxy.proxyError == nil ? "Stopped" : "Failed to start",
                             systemImage: "circle.fill"
                         )
                         .labelStyle(.titleAndIcon).imageScale(.small)
-                        .foregroundStyle(model.isRunning ? Palette.done : model.proxyError == nil ? Color.secondary : Palette.error)
-                        Button(model.isRunning ? "Stop" : "Start") { model.toggleRunning() }.disabled(model.isSwitchingProxy)
+                        .foregroundStyle(proxy.isRunning ? Palette.done : proxy.proxyError == nil ? Color.secondary : Palette.error)
+                        Button(proxy.isRunning ? "Stop" : "Start") { proxy.toggleRunning() }
+                            .disabled(proxy.isSwitchingProxy)
                     }
                 }
                 TextField("Port", value: $model.settings.port, format: .number.grouping(.never))
@@ -87,7 +89,7 @@ private struct GeneralSettings: View {
 
 /// macOS owns the login item, so its status is read back after every change instead of being stored in settings.
 private struct OpenAtLoginToggle: View {
-    @Environment(AppModel.self) private var model
+    @Environment(NoticeCenter.self) private var notices
     @State private var isOn = SMAppService.mainApp.status == .enabled
     var body: some View {
         Toggle("Open Watcher at login", isOn: Binding(get: { isOn }, set: { on in
@@ -95,7 +97,7 @@ private struct OpenAtLoginToggle: View {
             catch {
                 let message = "Cannot change the login item: \(error.localizedDescription). "
                     + "This works only in the packaged Watcher.app."
-                model.notices.notify(message, .error)
+                notices.notify(message, .error)
             }
             isOn = SMAppService.mainApp.status == .enabled
         }))
@@ -129,6 +131,8 @@ private struct AppearanceSettings: View {
 
 private struct ProxySettings: View {
     @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
+    @Environment(RequestActions.self) private var actions
     var body: some View {
         @Bindable var model = model
         Form {
@@ -139,8 +143,8 @@ private struct ProxySettings: View {
                 TextField("TLS key log file", text: $model.settings.tlsKeyLogFile, prompt: Text("Optional path for Wireshark"))
             }
             Section("Certificate") {
-                Button("Set Up a Device…", systemImage: "iphone.gen3") { model.show(.devices) }
-                Button("Show Root Certificate in Finder", systemImage: "folder") { model.revealCertificate() }
+                Button("Set Up a Device…", systemImage: "iphone.gen3") { router.show(.devices) }
+                Button("Show Root Certificate in Finder", systemImage: "folder") { actions.revealCertificate() }
             }
         }
         .formStyle(.grouped)

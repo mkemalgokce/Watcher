@@ -5,13 +5,14 @@ import WatcherCore
 
 /// The inspector: what the selected request was and the facts about it, then the request and response together.
 struct FlowDetailView: View {
-    @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
+    @Environment(FlowListViewModel.self) private var list
 
     /// Below this width request and response no longer fit side by side and share the space instead.
     static let sideBySideWidth: CGFloat = 760
 
     var body: some View {
-        if let flow = model.selectedFlow {
+        if let flow = list.selectedFlow {
             VStack(alignment: .leading, spacing: 0) {
                 InspectorHeader(flow: flow)
                     .padding(.horizontal, Metrics.gutter).padding(.top, 12).padding(.bottom, 10)
@@ -36,7 +37,7 @@ struct FlowDetailView: View {
                     MessagePanel(flow: flow, side: .response).frame(minWidth: 300)
                 }
             } else {
-                MessagePanel(flow: flow, side: model.exchangeSide, switchesSide: true).id(model.exchangeSide)
+                MessagePanel(flow: flow, side: router.exchangeSide, switchesSide: true).id(router.exchangeSide)
             }
         }
     }
@@ -47,6 +48,8 @@ struct FlowDetailView: View {
 /// Method, status and URL with the actions people repeat most, then the facts about the exchange.
 private struct InspectorHeader: View {
     @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
+    @Environment(SessionFilesViewModel.self) private var sessionFiles
     let flow: Flow
 
     var body: some View {
@@ -104,25 +107,34 @@ private struct InspectorHeader: View {
     private var actions: some View {
         GlassGroup {
             HStack(spacing: 2) {
-                IconButton("Repeat", symbol: "arrow.clockwise", shortcut: "⌘R") { model.repeatRequest(flow.request) }
-                IconButton("Edit & Repeat", symbol: "square.and.pencil", shortcut: "⌥⌘R") { model.editAndRepeat(flow) }
+                IconButton("Repeat", symbol: "arrow.clockwise", shortcut: "⌘R") {
+                    model.actions.repeatRequest(flow.request)
+                }
+                IconButton("Edit & Repeat", symbol: "square.and.pencil", shortcut: "⌥⌘R") {
+                    model.actions.editAndRepeat(flow)
+                }
                 IconButton(
                     flow.isStarred ? "Remove Star" : "Star",
                     symbol: "star",
                     shortcut: "⌘D",
                     tint: flow.isStarred ? Palette.starred : nil,
                     isOn: flow.isStarred
-                ) { model.toggleStar([flow.id]) }
-                IconButton("Copy as cURL", symbol: "terminal", shortcut: "⇧⌘C") { model.copy(model.code(for: flow.request, as: .curl), "cURL copied") }
+                ) { model.actions.toggleStar([flow.id]) }
+                IconButton("Copy as cURL", symbol: "terminal", shortcut: "⇧⌘C") {
+                    model.actions.copy(model.actions.code(for: flow.request, as: .curl), "cURL copied")
+                }
                 Menu {
-                    Button("Copy URL", systemImage: "link") { model.copy(flow.request.url, "URL copied") }
+                    Button("Copy URL", systemImage: "link") { model.actions.copy(flow.request.url, "URL copied") }
                     Button("Save Response Body…", systemImage: "square.and.arrow.down") {
-                        model.sessionFiles.saveBody(of: flow, side: .response)
+                        sessionFiles.saveBody(of: flow, side: .response)
                     }
                     .disabled(flow.response?.body.isEmpty ?? true)
                     Divider()
-                    Button("Mock This Response", systemImage: "theatermasks") { model.mockResponse(flow) }.disabled(flow.response == nil)
-                    Button("Set as Compare Base", systemImage: "arrow.left.arrow.right") { model.compare(withBase: flow) }
+                    Button("Mock This Response", systemImage: "theatermasks") { model.actions.mockResponse(flow) }
+                        .disabled(flow.response == nil)
+                    Button("Set as Compare Base", systemImage: "arrow.left.arrow.right") {
+                        router.compare(withBase: flow)
+                    }
                 } label: {
                     Image(systemName: "ellipsis").font(.system(size: 15, weight: .regular)).frame(width: Metrics.iconButton, height: Metrics.iconButton)
                 }

@@ -12,6 +12,8 @@ enum BodyMode: String, CaseIterable {
 /// The body of one side: rendered (image, HTML, PDF, media, events), pretty-printed with colours, raw, or hex.
 struct BodyViewer: View {
     @Environment(AppModel.self) private var model
+    @Environment(RequestActions.self) private var actions
+    @Environment(NoticeCenter.self) private var notices
     @Environment(\.filePanels) private var filePanels
     let flow: Flow
     let side: MessageSide
@@ -164,7 +166,7 @@ struct BodyViewer: View {
                     if effectiveMode != .preview {
                         IconButton(wraps ? "Don't Wrap Long Lines" : "Wrap Long Lines", symbol: "arrow.turn.down.left", shortcut: "⌥⌘L", isOn: wraps) { wraps.toggle() }
                     }
-                    IconButton("Copy Body", symbol: "doc.on.doc") { model.copy(fullText(), "Body copied") }
+                    IconButton("Copy Body", symbol: "doc.on.doc") { actions.copy(fullText(), "Body copied") }
                     Menu {
                         if prepared?.language == .json {
                             Toggle("Sort Keys", isOn: $sortKeys)
@@ -172,9 +174,9 @@ struct BodyViewer: View {
                         Stepper("Font Size: \(Int(fontSize))", value: $fontSize, in: 9 ... 20)
                         Divider()
                         if prepared?.language == .json {
-                            Button("Copy as Minified JSON") { model.copy(BodyFormatter.minified(fullText(), language: .json), "Minified JSON copied") }
+                            Button("Copy as Minified JSON") { actions.copy(BodyFormatter.minified(fullText(), language: .json), "Minified JSON copied") }
                         }
-                        Button("Copy as Base64") { model.copy(decoded.base64EncodedString(), "Base64 copied") }
+                        Button("Copy as Base64") { actions.copy(decoded.base64EncodedString(), "Base64 copied") }
                         OpenWithMenu(data: decoded, name: fileName, contentType: contentType)
                         Button("Save Body…", systemImage: "square.and.arrow.down") { save() }
                     } label: {
@@ -289,7 +291,7 @@ struct BodyViewer: View {
         guard let url = filePanels.chooseSaveLocation(suggestedName: fileName, contentTypes: []) else { return }
         do {
             try decoded.write(to: url)
-            model.notices.notify("Saved \(url.lastPathComponent)", .success)
-        } catch { model.notices.notify("Cannot save \(url.lastPathComponent): \(error)", .error) }
+            notices.notify("Saved \(url.lastPathComponent)", .success)
+        } catch { notices.notify("Cannot save \(url.lastPathComponent): \(error)", .error) }
     }
 }

@@ -4,7 +4,9 @@ import WatcherCore
 /// Builds a request from scratch or from a captured one (Edit & Repeat), sends it through the proxy and shows the answer
 /// with the same panel the inspector uses. State and rules live in `ComposeViewModel`.
 struct ComposeView: View {
-    @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
+    @Environment(ProxyController.self) private var proxy
+    @Environment(RequestActions.self) private var actions
     @Environment(\.dismiss) private var dismiss
     @Environment(\.filePanels) private var filePanels
     @State private var viewModel = ComposeViewModel()
@@ -12,7 +14,7 @@ struct ComposeView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if let source = model.composeSource, viewModel.original != nil {
+            if let source = router.composeSource, viewModel.original != nil {
                 editingBanner(source)
             }
             urlBar.padding(Metrics.gutter)
@@ -42,8 +44,10 @@ struct ComposeView: View {
             }
             Spacer()
             if case .received = viewModel.phase, let sent = try? viewModel.build() {
-                Button("Compare with Original", systemImage: "arrow.left.arrow.right") { model.compareWithOriginal(source, sent: sent) }
-                    .help("Open Compare with the original response as the base")
+                Button("Compare with Original", systemImage: "arrow.left.arrow.right") {
+                    actions.compareWithOriginal(source, sent: sent)
+                }
+                .help("Open Compare with the original response as the base")
             }
             Button("Reset to Original", systemImage: "arrow.uturn.backward") { viewModel.resetToOriginal() }
                 .disabled(changes.isEmpty).help("Throw away your edits")
@@ -183,19 +187,19 @@ struct ComposeView: View {
             } description: {
                 Text(message)
             } actions: {
-                if !model.isRunning {
-                    Button("Start Proxy") { model.toggleRunning() }.buttonStyle(.borderedProminent)
+                if !proxy.isRunning {
+                    Button("Start Proxy") { proxy.toggleRunning() }.buttonStyle(.borderedProminent)
                 }
             }
         case .idle:
             ContentUnavailableView {
                 Label("No Response Yet", systemImage: "paperplane")
             } description: {
-                Text(model.isRunning ? "Press ⌘↩ to send. The answer appears here and in the request list." : "Start the proxy first: requests are sent through Watcher so your tools apply.")
+                Text(proxy.isRunning ? "Press ⌘↩ to send. The answer appears here and in the request list." : "Start the proxy first: requests are sent through Watcher so your tools apply.")
                 Text("Tip: paste a curl command into the address field to fill in the method, headers and body.")
             } actions: {
-                if !model.isRunning {
-                    Button("Start Proxy") { model.toggleRunning() }
+                if !proxy.isRunning {
+                    Button("Start Proxy") { proxy.toggleRunning() }
                 }
             }
         }
@@ -209,23 +213,25 @@ struct ComposeView: View {
             }
             Spacer()
             Button("Copy as cURL", systemImage: "terminal") {
-                do { try model.copy(model.code(for: viewModel.build(), as: .curl), "cURL copied") } catch { viewModel.problem = "\(error)" }
+                do { try actions.copy(actions.code(for: viewModel.build(), as: .curl), "cURL copied") } catch { viewModel.problem = "\(error)" }
             }
-            Button("Close") { model.composeSource = nil; dismiss() }.keyboardShortcut(.cancelAction)
+            Button("Close") { router.composeSource = nil; dismiss() }.keyboardShortcut(.cancelAction)
         }
     }
 
     private func loadDraft() {
-        guard let draft = model.composeDraft else { return }
-        model.composeDraft = nil
-        viewModel.load(draft, asOriginal: model.composeSource != nil)
+        guard let draft = router.composeDraft else { return }
+        router.composeDraft = nil
+        viewModel.load(draft, asOriginal: router.composeSource != nil)
     }
 
     private func send() {
         if let session = viewModel.webSocketSession {
-            model.composeWebSocket(url: session.url, headers: session.headers, messages: session.messages)
+            actions.composeWebSocket(url: session.url, headers: session.headers, messages: session.messages)
             return dismiss()
         }
-        Task { await viewModel.send(isProxyRunning: model.isRunning) { await model.perform($0, followRedirects: $1) } }
+        Task {
+            await viewModel.send(isProxyRunning: proxy.isRunning) { await actions.perform($0, followRedirects: $1) }
+        }
     }
 }

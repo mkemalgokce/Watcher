@@ -4,7 +4,8 @@ import WatcherCore
 
 /// An image from a response or a Base64 field, on a checkerboard so transparency is visible, with size info and save/copy.
 struct ImagePreview: View {
-    @Environment(AppModel.self) private var model
+    @Environment(RequestActions.self) private var actions
+    @Environment(NoticeCenter.self) private var notices
     @Environment(\.filePanels) private var filePanels
     let data: Data
     var mime: String?
@@ -23,7 +24,7 @@ struct ImagePreview: View {
                     Picker("Size", selection: $actualSize) { Text("Fit").tag(false); Text("Actual").tag(true) }
                         .pickerStyle(.segmented).labelsHidden().frame(width: 120).accessibilityLabel("Image size")
                     Button("Copy Image", systemImage: "doc.on.doc") {
-                        model.copy(image: image)
+                        actions.copy(image: image)
                     }.labelStyle(.iconOnly).help("Copy image")
                     Button("Save Image…", systemImage: "square.and.arrow.down") { save() }.labelStyle(.iconOnly).help("Save image…")
                     OpenWithMenu(data: data, name: "image", contentType: mime).labelStyle(.iconOnly).menuStyle(.borderlessButton).fixedSize()
@@ -61,8 +62,8 @@ struct ImagePreview: View {
         guard let url = filePanels.chooseSaveLocation(suggestedName: "image.\(ext)", contentTypes: []) else { return }
         do {
             try data.write(to: url)
-            model.notices.notify("Saved \(url.lastPathComponent)", .success)
-        } catch { model.notices.notify("Cannot save the image: \(error)", .error) }
+            notices.notify("Saved \(url.lastPathComponent)", .success)
+        } catch { notices.notify("Cannot save the image: \(error)", .error) }
     }
 }
 

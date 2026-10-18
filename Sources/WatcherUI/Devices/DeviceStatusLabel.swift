@@ -2,10 +2,10 @@ import SwiftUI
 
 /// Outcome of the last device action: in progress, done, or failed.
 struct DeviceStatusLabel: View {
-    @Environment(AppModel.self) private var model
+    @Environment(DevicesViewModel.self) private var devices
 
     var body: some View {
-        if let status = model.devices.status {
+        if let status = devices.status {
             HStack(spacing: 6) {
                 switch status {
                 case .working: ProgressView().controlSize(.small)

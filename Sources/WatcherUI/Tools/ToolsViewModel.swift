@@ -13,8 +13,8 @@ final class ToolsViewModel {
     }
 
     var selection: ToolsView.Tool {
-        get { model.toolsSelection }
-        set { model.toolsSelection = newValue }
+        get { model.router.toolsSelection }
+        set { model.router.toolsSelection = newValue }
     }
 
     func activeCount(_ tool: ToolsView.Tool) -> Int {
@@ -38,7 +38,7 @@ final class ToolsViewModel {
         case .protobuf: return matching(s.protobuf) { $0.matching }
         case .dns: return s.dnsSpoofing.rules.filter(\.isEnabled).flatMap { ToolValidation.problems($0) }
         case .reverse:
-            let port = model.proxyPort
+            let port = model.proxy.port
             return s.reverseProxy.rules.enumerated().filter(\.element.isEnabled).flatMap { index, rule in
                 ToolValidation.problems(rule, proxyPort: port, others: s.reverseProxy.rules.enumerated().filter { $0.offset != index }.map(\.element))
             }

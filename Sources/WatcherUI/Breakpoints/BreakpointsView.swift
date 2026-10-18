@@ -5,6 +5,9 @@ import WatcherCore
 /// The rules themselves are listed beside them, so a breakpoint that keeps firing can be switched off or removed right here.
 struct BreakpointsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
+    @Environment(BreakpointsViewModel.self) private var breakpoints
+    @Environment(NoticeCenter.self) private var notices
     @Environment(\.dismiss) private var dismiss
     @State private var selection: UUID?
 
@@ -20,10 +23,10 @@ struct BreakpointsView: View {
         .frame(minWidth: 860, minHeight: 560)
         .onAppear {
             if selection == nil {
-                selection = model.hits.first?.id
+                selection = breakpoints.hits.first?.id
             }
         }
-        .onChange(of: model.hits.map(\.id)) {
+        .onChange(of: breakpoints.hits.map(\.id)) {
             _, ids in if selection.map({ !ids.contains($0) }) ?? true {
                 selection = ids.first
             }
@@ -33,11 +36,11 @@ struct BreakpointsView: View {
     private var header: some View {
         @Bindable var model = model
         return HStack(spacing: 10) {
-            Image(systemName: model.hits.isEmpty ? "pause.circle" : "pause.circle.fill").font(.title2)
-                .foregroundStyle(model.hits.isEmpty ? Color.secondary : Palette.paused)
+            Image(systemName: breakpoints.hits.isEmpty ? "pause.circle" : "pause.circle.fill").font(.title2)
+                .foregroundStyle(breakpoints.hits.isEmpty ? Color.secondary : Palette.paused)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Breakpoints").font(.headline)
-                Text(model.hits.isEmpty ? "Nothing is waiting." : "\(model.hits.count) paused. The client waits until you continue or abort.")
+                Text(breakpoints.hits.isEmpty ? "Nothing is waiting." : "\(breakpoints.hits.count) paused. The client waits until you continue or abort.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
@@ -45,12 +48,12 @@ struct BreakpointsView: View {
                 .help("Turn every breakpoint off without deleting the rules")
             GlassGroup {
                 HStack(spacing: 2) {
-                    IconButton("Continue All", symbol: "play.fill") { model.breakpoints.continueAll() }
-                        .disabled(model.hits.isEmpty)
-                    IconButton("Abort All", symbol: "xmark.octagon", tint: model.hits.isEmpty ? nil : Palette.error) {
-                        model.breakpoints.abortAll()
+                    IconButton("Continue All", symbol: "play.fill") { breakpoints.continueAll() }
+                        .disabled(breakpoints.hits.isEmpty)
+                    IconButton("Abort All", symbol: "xmark.octagon", tint: breakpoints.hits.isEmpty ? nil : Palette.error) {
+                        breakpoints.abortAll()
                     }
-                    .disabled(model.hits.isEmpty)
+                    .disabled(breakpoints.hits.isEmpty)
                 }
             }
             Button("Done") { dismiss() }.keyboardShortcut(.cancelAction)
@@ -61,10 +64,10 @@ struct BreakpointsView: View {
         @Bindable var model = model
         return List(selection: $selection) {
             Section("Paused") {
-                if model.hits.isEmpty {
+                if breakpoints.hits.isEmpty {
                     Text("No paused requests").foregroundStyle(.secondary)
                 } else {
-                    ForEach(model.hits) { hit in
+                    ForEach(breakpoints.hits) { hit in
                         HStack(spacing: 8) {
                             PhaseBadge(phase: hit.phase)
                             VStack(alignment: .leading, spacing: 2) {
@@ -90,7 +93,7 @@ struct BreakpointsView: View {
                     })) {
                         guard model.settings.breakpoints.rules.indices.contains(index) else { return }
                         model.settings.breakpoints.rules.remove(at: index)
-                        model.notices.notify("Breakpoint “\(rule.displayName)” removed", .success)
+                        notices.notify("Breakpoint “\(rule.displayName)” removed", .success)
                     }
                     .selectionDisabled()
                 }
@@ -98,8 +101,11 @@ struct BreakpointsView: View {
                 HStack {
                     Text("Rules")
                     Spacer()
-                    Button("Edit in Tools", systemImage: "slider.horizontal.3") { model.toolsSelection = .breakpoint; model.show(.tools) }
-                        .labelStyle(.iconOnly).buttonStyle(.borderless).help("Edit match patterns in Tools ▸ Breakpoints")
+                    Button("Edit in Tools", systemImage: "slider.horizontal.3") {
+                        router.toolsSelection = .breakpoint
+                        router.show(.tools)
+                    }
+                    .labelStyle(.iconOnly).buttonStyle(.borderless).help("Edit match patterns in Tools ▸ Breakpoints")
                 }
             }
         }
@@ -107,7 +113,7 @@ struct BreakpointsView: View {
     }
 
     @ViewBuilder private var detail: some View {
-        if let hit = model.hits.first(where: { $0.id == selection }) ?? model.hits.first {
+        if let hit = breakpoints.hits.first(where: { $0.id == selection }) ?? breakpoints.hits.first {
             HitEditor(hit: hit).id(hit.id)
         } else {
             ContentUnavailableView {
@@ -153,6 +159,8 @@ private struct PhaseBadge: View {
 
 private struct HitEditor: View {
     @Environment(AppModel.self) private var model
+    @Environment(BreakpointsViewModel.self) private var breakpoints
+    @Environment(NoticeCenter.self) private var notices
     @State private var viewModel: HitEditorViewModel
 
     init(hit: BreakpointCenter.Hit) {
@@ -218,23 +226,23 @@ private struct HitEditor: View {
             Text("⌘↩ send with your changes · ⇧⌘↩ continue unchanged · ⇧⌘⌫ abort").font(.caption).foregroundStyle(.secondary)
             HStack {
                 Button("Abort", systemImage: "xmark.octagon", role: .destructive) {
-                    model.resolve(hit, with: .abort)
-                    model.notices.notify("Aborted \(hit.request.host)")
+                    breakpoints.resolve(hit, with: .abort)
+                    notices.notify("Aborted \(hit.request.host)")
                 }
                 .keyboardShortcut(.delete, modifiers: [.command, .shift]).help("Fail this request (⇧⌘⌫)")
-                Button("Remove Breakpoint", systemImage: "trash") { model.removeBreakpoints(for: hit) }
+                Button("Remove Breakpoint", systemImage: "trash") { breakpoints.removeBreakpoints(for: hit) }
                     .help("Delete the rule that stopped this request and let it continue, so it stops pausing")
-                    .disabled(model.breakpointRules(matching: hit.request).isEmpty)
+                    .disabled(breakpoints.rules(matching: hit.request).isEmpty)
                 Spacer()
                 Button("Continue Unchanged") {
-                    model.resolve(hit, with: .proceed(request: hit.request, response: hit.response))
-                    model.notices.notify("Continued unchanged", .success)
+                    breakpoints.resolve(hit, with: .proceed(request: hit.request, response: hit.response))
+                    notices.notify("Continued unchanged", .success)
                 }
                 .keyboardShortcut(.return, modifiers: [.command, .shift]).help("Let the original through (⇧⌘↩)")
                 Button("Execute Edited", systemImage: "play.fill") {
                     guard let resolution = viewModel.resolution() else { return }
-                    model.resolve(hit, with: resolution)
-                    model.notices.notify("Sent edited \(viewModel.isResponse ? "response" : "request")", .success)
+                    breakpoints.resolve(hit, with: resolution)
+                    notices.notify("Sent edited \(viewModel.isResponse ? "response" : "request")", .success)
                 }
                 .buttonStyle(.borderedProminent).keyboardShortcut(.return, modifiers: .command)
                 .disabled(!viewModel.canExecute).help("Send with your changes (⌘↩)")

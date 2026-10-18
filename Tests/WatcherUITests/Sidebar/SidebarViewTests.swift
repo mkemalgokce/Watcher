@@ -13,7 +13,7 @@ struct SidebarViewTests {
     /// Starred in the running app; that could not be reproduced here, so this checks the behaviour, not that cause.)
     @Test
     func sidebarKeepsItsSelectionWhenTrafficArrives() async throws {
-        let model = AppModel(listening: false)
+        let model = try AppModel.test()
         let window = NSWindow.hosting(SidebarView().environment(model), size: CGSize(width: 260, height: 600))
         defer { window.close() }
         window.orderFront(nil) // the outline view only shifts its selection while it is really on screen
@@ -23,10 +23,10 @@ struct SidebarViewTests {
         model.observeEngine()
         model.loadDemoData() // through store events, as live traffic arrives
         #expect(
-            await eventually { model.visibleFlows.count == 5 && outline.numberOfRows > rowsBeforeTraffic },
+            await eventually { model.list.visibleFlows.count == 5 && outline.numberOfRows > rowsBeforeTraffic },
             "the Apps and Domains sections never appeared"
         )
-        #expect(model.sidebar == .all)
-        #expect(model.visibleFlows.count == 5)
+        #expect(model.list.sidebar == .all)
+        #expect(model.list.visibleFlows.count == 5)
     }
 }

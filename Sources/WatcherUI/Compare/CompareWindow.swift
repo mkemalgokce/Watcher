@@ -3,13 +3,14 @@ import WatcherCore
 
 /// Its own window, so comparing never squeezes the inspector: the base stays put while the list selection is compared with it.
 public struct CompareWindow: View {
-    @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
+    @Environment(FlowListViewModel.self) private var list
 
     public init() {}
 
     public var body: some View {
         Group {
-            if let current = model.selectedFlow {
+            if let current = list.selectedFlow {
                 DiffView(current: current)
             } else {
                 ContentUnavailableView(
@@ -21,26 +22,27 @@ public struct CompareWindow: View {
         }
         .frame(minWidth: 640, minHeight: 420)
         .navigationTitle("Compare")
-        .navigationSubtitle(model.diffBase.map { "Base #\($0.sequence) \($0.request.method) \($0.request.path)" } ?? "No base")
+        .navigationSubtitle(router.diffBase.map { "Base #\($0.sequence) \($0.request.method) \($0.request.path)" } ?? "No base")
     }
 }
 
 struct DiffView: View {
-    @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
+    @Environment(FlowListViewModel.self) private var list
     let current: Flow
     @State private var viewModel = DiffViewModel()
 
     var body: some View {
         @Bindable var viewModel = viewModel
         VStack(alignment: .leading, spacing: 0) {
-            if let base = model.diffBase, base.id != current.id {
+            if let base = router.diffBase, base.id != current.id {
                 header(base: base, viewModel: viewModel).padding(Metrics.gutter)
                 Divider()
             }
             content.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .task(id: TaskKey(base: model.diffBase?.id, current: current.id, size: current.response?.body.count, subject: viewModel.subject)) {
-            await viewModel.update(base: model.diffBase, current: current)
+        .task(id: TaskKey(base: router.diffBase?.id, current: current.id, size: current.response?.body.count, subject: viewModel.subject)) {
+            await viewModel.update(base: router.diffBase, current: current)
         }
     }
 
@@ -59,12 +61,12 @@ struct DiffView: View {
                     Pill(text: "−\(result.removed)", tint: .red, monospaced: true)
                 }
                 Menu {
-                    if let suggested = DiffViewModel.suggestedBase(for: current, in: model.flows), suggested.id != base.id {
-                        Button("Earlier Call to This Endpoint (#\(suggested.sequence))") { model.diffBase = suggested }
+                    if let suggested = DiffViewModel.suggestedBase(for: current, in: list.flows), suggested.id != base.id {
+                        Button("Earlier Call to This Endpoint (#\(suggested.sequence))") { router.diffBase = suggested }
                     }
-                    Button("Use This Request as Base") { model.diffBase = current }
+                    Button("Use This Request as Base") { router.diffBase = current }
                     Divider()
-                    Button("Stop Comparing", role: .destructive) { model.diffBase = nil }
+                    Button("Stop Comparing", role: .destructive) { router.diffBase = nil }
                 } label: { Label("Base", systemImage: "arrow.left.arrow.right") }
                     .menuStyle(.borderlessButton).fixedSize().help("Change what this request is compared with")
             }
@@ -83,14 +85,15 @@ struct DiffView: View {
     private var content: some View {
         switch viewModel.state {
         case .noBase:
-            let suggested = DiffViewModel.suggestedBase(for: current, in: model.flows)
+            let suggested = DiffViewModel.suggestedBase(for: current, in: list.flows)
             ContentUnavailableView {
                 Label("Nothing to Compare With", systemImage: "arrow.left.arrow.right")
             } description: {
                 Text(suggested == nil ? "Right-click a request in the list and choose Set as Compare Base (⇧⌘B)." : "Compare with the earlier call to the same endpoint, or right-click any request and choose Set as Compare Base (⇧⌘B).")
             } actions: {
                 if let suggested {
-                    Button("Compare with #\(suggested.sequence)") { model.diffBase = suggested }.buttonStyle(.borderedProminent)
+                    Button("Compare with #\(suggested.sequence)") { router.diffBase = suggested }
+                        .buttonStyle(.borderedProminent)
                 }
             }
         case .sameFlow:

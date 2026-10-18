@@ -5,7 +5,8 @@ import WatcherCore
 /// Watcher ▸ About Watcher: what this build is, who makes it and how to support it, where its files live, and the
 /// open-source work it stands on.
 public struct AboutView: View {
-    @Environment(AppModel.self) private var model
+    @Environment(RequestActions.self) private var actions
+    @Environment(DevicesViewModel.self) private var devices
     public init() {}
 
     static let libraries: [(name: String, use: String)] = [
@@ -50,7 +51,7 @@ public struct AboutView: View {
             VStack(spacing: 10) {
                 Card("Files", symbol: "folder") {
                     fileRow("Settings, mocks, workspaces", url: WatcherPaths.supportDirectory)
-                    fileRow("Root certificate", url: model.devices.certificateURL)
+                    fileRow("Root certificate", url: devices.certificateURL)
                 }
                 Card("Built with", symbol: "shippingbox") {
                     Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 5) {
@@ -74,8 +75,10 @@ public struct AboutView: View {
             HStack {
                 Text("MIT License · © 2026 \(ProjectLinks.authorName)").font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Button("Copy Version Info", systemImage: "doc.on.doc") { model.copy(Self.diagnostics, "Version info copied") }
-                    .help("Version, build and macOS version, for bug reports")
+                Button("Copy Version Info", systemImage: "doc.on.doc") {
+                    actions.copy(Self.diagnostics, "Version info copied")
+                }
+                .help("Version, build and macOS version, for bug reports")
             }
             .padding(20)
         }

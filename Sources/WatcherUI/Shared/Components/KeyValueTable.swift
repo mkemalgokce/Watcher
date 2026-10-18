@@ -5,7 +5,7 @@ import WatcherCore
 /// The shared read-only table for headers, parameters and cookies: names in the syntax "key" colour, values selectable,
 /// each row copyable, with a filter once the list gets long.
 struct KeyValueTable: View {
-    @Environment(AppModel.self) private var model
+    @Environment(RequestActions.self) private var actions
     let rows: [KeyValueRow]
     var emptyText = "None"
     @State private var filter = ""
@@ -55,8 +55,10 @@ struct KeyValueTable: View {
                                         OpenWithMenu(data: data, name: file.filename ?? row.name, contentType: file.contentType)
                                             .labelStyle(.iconOnly).menuStyle(.borderlessButton).fixedSize().help("Open the file in another app")
                                     }
-                                    Button("Copy \(row.name)", systemImage: "doc.on.doc") { model.copy(row.value, "\(row.name) copied") }
-                                        .labelStyle(.iconOnly).buttonStyle(.borderless).help("Copy value")
+                                    Button("Copy \(row.name)", systemImage: "doc.on.doc") {
+                                        actions.copy(row.value, "\(row.name) copied")
+                                    }
+                                    .labelStyle(.iconOnly).buttonStyle(.borderless).help("Copy value")
                                 }
                             }
                             .padding(.vertical, 4)

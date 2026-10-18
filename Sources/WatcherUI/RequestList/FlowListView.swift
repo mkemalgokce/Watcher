@@ -3,6 +3,8 @@ import WatcherCore
 
 struct FlowListView: View {
     @Environment(AppModel.self) private var model
+    @Environment(FlowListViewModel.self) private var list
+    @Environment(RequestActions.self) private var actions
     @State private var commenting: Flow?
     @State private var commentText = ""
     /// Which columns are shown and in what order; right-click a column header to change it.
@@ -10,10 +12,10 @@ struct FlowListView: View {
 
     var body: some View {
         @Bindable var model = model
-        let flows = model.visibleFlows
+        let flows = list.visibleFlows
         // Bars in the Duration column are relative to the slowest request on screen.
         let slowest = flows.lazy.compactMap(\.duration).max() ?? 0
-        Table(flows, selection: $model.selection, sortOrder: $model.sortOrder, columnCustomization: $columns) {
+        Table(flows, selection: Bindable(list).selection, sortOrder: Bindable(list).sortOrder, columnCustomization: $columns) {
             TableColumn("#", value: \.sequence) { Text("\($0.sequence)").monospacedDigit().foregroundStyle(.secondary) }
                 .width(min: 22, ideal: 30).customizationID("sequence")
             TableColumn("Date", value: \.startedAt) { flow in
@@ -44,17 +46,17 @@ struct FlowListView: View {
         .contextMenu(forSelectionType: Flow.ID.self) { ids in
             FlowActions(ids: ids, onComment: { flow in commentText = flow.comment ?? ""; commenting = flow })
         } primaryAction: { ids in
-            if let flow = model.flows.first(where: { ids.contains($0.id) }) {
-                model.editAndRepeat(flow)
+            if let flow = list.flows.first(where: { ids.contains($0.id) }) {
+                actions.editAndRepeat(flow)
             }
         }
         // Plain rows like Mail: striping the empty space below a short list only adds noise.
         .alternatingRowBackgrounds(.disabled)
-        .onDeleteCommand { model.delete(model.selection.map { [$0] } ?? []) }
+        .onDeleteCommand { actions.delete(list.selection.map { [$0] } ?? []) }
         .safeAreaInset(edge: .top, spacing: 0) { FilterSummary() }
         .overlay {
             if flows.isEmpty {
-                if model.flows.isEmpty {
+                if list.flows.isEmpty {
                     GettingStarted()
                 } else {
                     NoMatches()
@@ -69,7 +71,7 @@ struct FlowListView: View {
             TextField("Comment", text: $commentText)
             Button("Save") {
                 if let commenting {
-                    model.setComment(commentText, for: commenting.id)
+                    actions.setComment(commentText, for: commenting.id)
                 }; commenting = nil
             }
             Button("Cancel", role: .cancel) { commenting = nil }
@@ -150,52 +152,57 @@ private struct TimeCell: View {
 
 /// Requests exist but none pass the search, quick filters or sidebar choice.
 private struct NoMatches: View {
-    @Environment(AppModel.self) private var model
+    @Environment(FlowListViewModel.self) private var list
 
     var body: some View {
         ContentUnavailableView {
-            Label(model.query.text.isEmpty ? "No matching requests" : "No results for “\(model.query.text)”", systemImage: "line.3.horizontal.decrease.circle")
+            Label(list.query.text.isEmpty ? "No matching requests" : "No results for “\(list.query.text)”", systemImage: "line.3.horizontal.decrease.circle")
         } description: {
-            Text("\(model.flows.count) requests are hidden by the current filters.")
+            Text("\(list.flows.count) requests are hidden by the current filters.")
         } actions: {
-            Button("Clear Filters") { model.query.reset(); model.sidebar = .all }
+            Button("Clear Filters") { list.query.reset(); list.sidebar = .all }
         }
     }
 }
 
 /// The empty list on a first run: the three things that have to happen before traffic shows up.
 private struct GettingStarted: View {
-    @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
+    @Environment(ProxyController.self) private var proxy
+    @Environment(DevicesViewModel.self) private var devices
     private var port: Int {
-        model.proxyPort
+        proxy.port
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
                 WatcherLogo(size: 48)
-                Text(model.isRunning ? "Waiting for traffic" : "Capture your first request").font(.title3.weight(.semibold))
+                Text(proxy.isRunning ? "Waiting for traffic" : "Capture your first request")
+                    .font(.title3.weight(.semibold))
             }
-            if let error = model.proxyError {
+            if let error = proxy.proxyError {
                 Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Palette.error).font(.callout)
                     .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
             }
-            step(1, done: model.isRunning, "Start the proxy", detail: "Watcher listens on 127.0.0.1:\(port).", shortcut: "⇧⌘P") {
+            step(1, done: proxy.isRunning, "Start the proxy", detail: "Watcher listens on 127.0.0.1:\(port).", shortcut: "⇧⌘P") {
                 HStack {
-                    Button(model.proxyError == nil ? "Start Proxy" : "Try Again") { model.toggleRunning() }.buttonStyle(.borderedProminent)
-                        .disabled(model.isRunning || model.isSwitchingProxy)
-                    if model.isSwitchingProxy {
+                    Button(proxy.proxyError == nil ? "Start Proxy" : "Try Again") { proxy.toggleRunning() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(proxy.isRunning || proxy.isSwitchingProxy)
+                    if proxy.isSwitchingProxy {
                         ProgressView().controlSize(.small).accessibilityLabel("Starting the proxy")
                     }
                 }
             }
-            step(2, done: model.systemProxyOn, "Send this Mac's traffic through it", detail: "Or set the proxy in one app or on a phone instead.", shortcut: "⇧⌘Y") {
-                Button("Turn On System Proxy") { model.setSystemProxy(true) }.disabled(!model.isRunning || model.systemProxyOn)
+            step(2, done: proxy.systemProxyOn, "Send this Mac's traffic through it", detail: "Or set the proxy in one app or on a phone instead.", shortcut: "⇧⌘Y") {
+                Button("Turn On System Proxy") { proxy.setSystemProxy(true) }
+                    .disabled(!proxy.isRunning || proxy.systemProxyOn)
             }
-            step(3, done: model.devices.macTrusted, "Trust the certificate to read HTTPS", detail: "Without it you still see hosts, but not what is inside HTTPS requests.", shortcut: "⇧⌘D") {
+            step(3, done: devices.macTrusted, "Trust the certificate to read HTTPS", detail: "Without it you still see hosts, but not what is inside HTTPS requests.", shortcut: "⇧⌘D") {
                 HStack {
-                    Button("Trust on This Mac…") { Task { await model.devices.trustOnMac() } }.disabled(model.devices.macTrusted)
-                    Button("Phone or Simulator…") { model.show(.devices) }
+                    Button("Trust on This Mac…") { Task { await devices.trustOnMac() } }.disabled(devices.macTrusted)
+                    Button("Phone or Simulator…") { router.show(.devices) }
                 }
             }
             // String(port): interpolating the Int straight into Text would format it as "9.090" in some locales.
@@ -204,7 +211,7 @@ private struct GettingStarted: View {
         }
         .padding(24).frame(maxWidth: 460, alignment: .leading)
         .frame(maxWidth: .infinity, maxHeight: .infinity).background(.background)
-        .task { await model.devices.refreshMacTrust() }
+        .task { await devices.refreshMacTrust() }
     }
 
     private func step(_ number: Int, done: Bool, _ title: String, detail: String, shortcut: String, @ViewBuilder action: () -> some View) -> some View {
@@ -228,17 +235,17 @@ private struct GettingStarted: View {
 /// Shown only while something narrows the list: how many requests are left, and one click to see them all again.
 /// The filters themselves are tokens in the search field.
 private struct FilterSummary: View {
-    @Environment(AppModel.self) private var model
+    @Environment(FlowListViewModel.self) private var list
 
     var body: some View {
-        if model.query.isActive || model.sidebar != .all {
+        if list.query.isActive || list.sidebar != .all {
             HStack(spacing: 8) {
                 Image(systemName: "line.3.horizontal.decrease.circle.fill")
                     .foregroundStyle(.tint).accessibilityHidden(true)
-                Text("\(model.visibleFlows.count) of \(model.flows.count) requests").font(.callout.monospacedDigit())
+                Text("\(list.visibleFlows.count) of \(list.flows.count) requests").font(.callout.monospacedDigit())
                 Spacer(minLength: 8)
                 Button("Clear Filters") {
-                    withAnimation(.easeOut(duration: 0.15)) { model.query.reset(); model.sidebar = .all }
+                    withAnimation(.easeOut(duration: 0.15)) { list.query.reset(); list.sidebar = .all }
                 }
                 .buttonStyle(.link).help("Show every request (⇧⌘L)")
             }

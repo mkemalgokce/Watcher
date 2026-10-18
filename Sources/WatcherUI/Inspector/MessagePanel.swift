@@ -5,6 +5,7 @@ import WatcherCore
 /// Headers, Params (request only), Body, Cookies and the Raw message.
 struct MessagePanel: View {
     @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
     let flow: Flow
     let side: MessageSide
     /// In a narrow inspector the title becomes the Request / Response switch, so switching costs no extra row.
@@ -106,7 +107,7 @@ struct MessagePanel: View {
                     TabStrip(items: [
                         TabItem(id: MessageSide.request, title: "Request", symbol: "arrow.up.circle", shortcut: "⌥⌘["),
                         TabItem(id: MessageSide.response, title: "Response", symbol: "arrow.down.circle", shortcut: "⌥⌘]"),
-                    ], selection: $model.exchangeSide)
+                    ], selection: Bindable(router).exchangeSide)
                 } else {
                     Label(side == .request ? "Request" : "Response", systemImage: side == .request ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
                         .font(.headline).foregroundStyle(side == .request ? Palette.request : Palette.response)
@@ -161,7 +162,7 @@ private struct PendingResponse: View {
 
 /// The message as it travels: request or status line, headers, blank line, body.
 private struct RawMessage: View {
-    @Environment(AppModel.self) private var model
+    @Environment(RequestActions.self) private var actions
     let flow: Flow
     let side: MessageSide
 
@@ -184,7 +185,8 @@ private struct RawMessage: View {
     var body: some View {
         let raw = text
         VStack(alignment: .trailing, spacing: 4) {
-            Button("Copy Raw Message", systemImage: "doc.on.doc") { model.copy(raw, "Raw message copied") }.controlSize(.small)
+            Button("Copy Raw Message", systemImage: "doc.on.doc") { actions.copy(raw, "Raw message copied") }
+                .controlSize(.small)
             SyntaxTextView(raw, language: .http, wraps: true).background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 6))
         }
     }

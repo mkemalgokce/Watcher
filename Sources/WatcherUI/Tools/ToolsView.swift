@@ -5,6 +5,7 @@ import WatcherCore
 /// Listening, caching and other app-wide switches live in Settings (⌘,), not here.
 struct ToolsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
 
     enum Tool: String, CaseIterable, Identifiable {
@@ -85,7 +86,7 @@ struct ToolsView: View {
             .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 240)
         } detail: {
             VStack(spacing: 0) {
-                detail.id(model.toolsSelection)
+                detail.id(router.toolsSelection)
                 Divider()
                 HStack {
                     Text("Changes apply right away.").font(.caption).foregroundStyle(.secondary)
@@ -118,7 +119,7 @@ struct ToolsView: View {
 
     @ViewBuilder private var detail: some View {
         @Bindable var model = model
-        let tool = model.toolsSelection
+        let tool = router.toolsSelection
         switch tool {
         case .sslProxying:
             SSLProxyingTab(settings: $model.settings.sslProxying, tool: tool)
@@ -224,7 +225,7 @@ struct ToolsView: View {
                 problems: { rule in
                     ToolValidation.problems(
                         rule,
-                        proxyPort: model.proxyPort,
+                        proxyPort: model.proxy.port,
                         others: model.settings.reverseProxy.rules.filter { $0.localPort != rule.localPort || $0.remoteHost != rule.remoteHost }
                     )
                 }
@@ -593,7 +594,9 @@ private func commaList(_ values: Binding<[String]>) -> Binding<String> {
 // MARK: - Single-purpose pages
 
 private struct SSLProxyingTab: View {
-    @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
+    @Environment(RequestActions.self) private var actions
+    @Environment(DevicesViewModel.self) private var devices
     @Binding var settings: SSLProxyingSettings
     let tool: ToolsView.Tool
 
@@ -618,9 +621,9 @@ private struct SSLProxyingTab: View {
                 }
                 Section("Certificate") {
                     HStack {
-                        Button("Trust on This Mac…") { Task { await model.devices.trustOnMac() } }
-                        Button("Set Up a Device…") { model.show(.devices) }
-                        Button("Show in Finder") { model.revealCertificate() }
+                        Button("Trust on This Mac…") { Task { await devices.trustOnMac() } }
+                        Button("Set Up a Device…") { router.show(.devices) }
+                        Button("Show in Finder") { actions.revealCertificate() }
                     }
                 }
             }
@@ -756,7 +759,7 @@ private extension String {
             MapLocalRule(name: "Users fixture", matching: MatchingRule(pattern: "api.example.com/v1/users*"), source: .file("~/mocks/users.json")),
             MapLocalRule(matching: MatchingRule(pattern: "*/config.json"), source: .file("~/mocks/config.json")),
         ])
-        model.toolsSelection = .sslProxying
+        model.router.toolsSelection = .sslProxying
         return ToolsView().environment(model)
     }
 #endif

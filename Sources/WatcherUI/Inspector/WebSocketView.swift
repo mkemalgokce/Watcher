@@ -3,16 +3,17 @@ import WatcherCore
 
 struct WebSocketView: View {
     @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
     let messages: [WebSocketMessage]
 
     var body: some View {
         @Bindable var model = model
-        let shown = messages.filter { !model.hidePingPong || ($0.kind != .ping && $0.kind != .pong) }
+        let shown = messages.filter { !router.hidePingPong || ($0.kind != .ping && $0.kind != .pong) }
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("\(shown.count) of \(messages.count) messages").font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Toggle("Hide ping/pong", isOn: $model.hidePingPong).toggleStyle(.switch).controlSize(.mini)
+                Toggle("Hide ping/pong", isOn: Bindable(router).hidePingPong).toggleStyle(.switch).controlSize(.mini)
             }
             .padding(.horizontal, Metrics.gutter).padding(.vertical, 8)
             Divider()

@@ -36,7 +36,7 @@ extension InteractionTests {
             try await withWindow(showing: BreakpointsView().environment(model), width: 900, height: 600) { window in
                 try await window.press("Remove Breakpoint")
                 #expect(model.settings.breakpoints.rules.isEmpty, "the rule that kept pausing is gone")
-                #expect(model.sheet == nil, "nothing else was opened")
+                #expect(model.router.sheet == nil, "nothing else was opened")
             }
         }
     }

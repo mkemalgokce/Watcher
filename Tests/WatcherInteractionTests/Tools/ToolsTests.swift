@@ -8,8 +8,8 @@ extension InteractionTests {
     struct ToolsTests {
         @Test
         func toolsAddsARuleAndSwitchesTheToolOn() async throws {
-            let model = AppModel(listening: false)
-            model.toolsSelection = .block
+            let model = try AppModel.test()
+            model.router.toolsSelection = .block
             try await withWindow(showing: ToolsView().environment(model), width: 920, height: 620) { window in
                 #expect(model.settings.blockList.rules.isEmpty)
                 try await window.press("Add Rule")

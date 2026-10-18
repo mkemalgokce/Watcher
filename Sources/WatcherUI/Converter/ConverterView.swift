@@ -4,6 +4,7 @@ import WatcherCore
 /// Encode and decode snippets without leaving the app: paste, pick what to do, copy the result.
 struct ConverterView: View {
     @Environment(AppModel.self) private var model
+    @Environment(RequestActions.self) private var actions
     @Environment(\.dismiss) private var dismiss
     @State private var input = ""
     @State private var operation = Converter.Operation.base64Decode
@@ -27,7 +28,8 @@ struct ConverterView: View {
                 }
                 Spacer()
                 Button("Use Result as Input", systemImage: "arrow.up.arrow.down") { input = output }.disabled(output.isEmpty)
-                Button("Copy Result", systemImage: "doc.on.doc") { model.copy(output, "Result copied") }.disabled(output.isEmpty)
+                Button("Copy Result", systemImage: "doc.on.doc") { actions.copy(output, "Result copied") }
+                    .disabled(output.isEmpty)
             }
             pane("Result") { SyntaxTextView(output, language: BodyLanguage.detect(contentType: nil, data: Data(output.utf8))) }
             HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.cancelAction) }

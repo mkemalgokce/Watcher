@@ -3,13 +3,16 @@ import WatcherCore
 
 public struct ContentView: View {
     @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
+    @Environment(FlowListViewModel.self) private var list
+    @Environment(WorkspacesViewModel.self) private var workspaces
     @Environment(\.openWindow) private var openWindow
     @State private var workspaceName = ""
 
     public init() {}
 
     private var filterTokens: Binding<[FilterToken]> {
-        Binding(get: { FilterToken.tokens(in: model.query) }, set: { FilterToken.apply($0, to: &model.query) })
+        Binding(get: { FilterToken.tokens(in: list.query) }, set: { FilterToken.apply($0, to: &list.query) })
     }
 
     public var body: some View {
@@ -23,20 +26,20 @@ public struct ContentView: View {
         }
         .navigationTitle("Watcher")
         // Every filter lives in the search field as a token; typing offers where to look and the quick filters it names.
-        .searchable(text: $model.query.text, tokens: filterTokens, placement: .toolbar, prompt: "Filter requests") {
+        .searchable(text: Bindable(list).query.text, tokens: filterTokens, placement: .toolbar, prompt: "Filter requests") {
             Label($0.title, systemImage: $0.symbol)
         }
         .searchSuggestions {
-            let present = FilterToken.tokens(in: model.query)
-            let hosts = model.counts.domains.map(\.name)
-            ForEach(FilterToken.suggestions(for: model.query.text, hosts: hosts, excluding: present)) {
+            let present = FilterToken.tokens(in: list.query)
+            let hosts = list.counts.domains.map(\.name)
+            ForEach(FilterToken.suggestions(for: list.query.text, hosts: hosts, excluding: present)) {
                 Label($0.title, systemImage: $0.symbol).searchCompletion($0)
             }
         }
-        .modifier(SearchFocus(request: model.searchFocusRequest))
+        .modifier(SearchFocus(request: router.searchFocusRequest))
         .toolbar { WatcherToolbar() }
         .safeAreaInset(edge: .bottom, spacing: 0) { StatusBar() }
-        .sheet(item: $model.sheet) { sheet in
+        .sheet(item: Bindable(router).sheet) { sheet in
             switch sheet {
             case .tools: ToolsView()
             case .breakpoints: BreakpointsView()
@@ -47,17 +50,17 @@ public struct ContentView: View {
             case .help: HelpView()
             }
         }
-        .alert("Save Workspace", isPresented: $model.askWorkspaceName) {
+        .alert("Save Workspace", isPresented: Bindable(router).askWorkspaceName) {
             TextField("Name", text: $workspaceName)
-            Button("Save") { model.workspaces.save(named: workspaceName); workspaceName = "" }
+            Button("Save") { workspaces.save(named: workspaceName); workspaceName = "" }
             Button("Cancel", role: .cancel) { workspaceName = "" }
         } message: { Text("Saves the current requests and all tool settings.") }
         .overlay(alignment: .bottom) { NoticeBanner().padding(.bottom, 34) } // above the status bar, clear of the filter bar
-        .onChange(of: model.compareWindowRequest) { _, _ in openWindow(id: "compare") }
+        .onChange(of: router.compareWindowRequest) { _, _ in openWindow(id: "compare") }
         .task {
             // Nothing is captured until Record is pressed.
             if !model.onboardingDone {
-                model.sheet = .welcome
+                router.sheet = .welcome
             }
         }
     }
@@ -67,41 +70,50 @@ public struct ContentView: View {
 /// Record starts the proxy and Pause stops it, so capturing has one switch.
 private struct WatcherToolbar: ToolbarContent {
     @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
+    @Environment(FlowListViewModel.self) private var list
+    @Environment(ProxyController.self) private var proxy
+    @Environment(BreakpointsViewModel.self) private var breakpoints
+    @Environment(RequestActions.self) private var actions
 
     /// Native toolbar buttons: macOS draws them as Liquid Glass and groups each ToolbarItemGroup into one capsule, as in Xcode.
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
-            Button { model.toggleRunning() } label: {
+            Button { proxy.toggleRunning() } label: {
                 Label(
-                    model.isRunning ? "Pause" : "Record",
-                    systemImage: model.isRunning ? "pause.fill" : "record.circle"
+                    proxy.isRunning ? "Pause" : "Record",
+                    systemImage: proxy.isRunning ? "pause.fill" : "record.circle"
                 )
             }
-            .disabled(model.isSwitchingProxy)
-            .help(model.isRunning ? "Recording. Click to stop the proxy (⌘E)" : "Start the proxy and record (⌘E)")
-            Button { model.show(.compose) } label: { Label("Compose", systemImage: "square.and.pencil") }
+            .disabled(proxy.isSwitchingProxy)
+            .help(proxy.isRunning ? "Recording. Click to stop the proxy (⌘E)" : "Start the proxy and record (⌘E)")
+            Button { router.show(.compose) } label: { Label("Compose", systemImage: "square.and.pencil") }
                 .help("New request (⌘N)")
-            Button { model.clear() } label: { Label("Clear", systemImage: "trash") }
-                .disabled(model.flows.isEmpty)
+            Button { actions.clear() } label: { Label("Clear", systemImage: "trash") }
+                .disabled(list.flows.isEmpty)
                 .help("Remove every request from the list; Undo brings them back (⌘K)")
         }
         ToolbarItemGroup(placement: .primaryAction) {
             let settings = model.settings.value
             let activeTools = ToolsView.Tool.allCases
                 .reduce(0) { $0 + ($1 == .sslProxying ? 0 : $1.activeCount(in: settings)) }
-            Button { model.show(.breakpoints) } label: { Label("Breakpoints", systemImage: model.hits.isEmpty ? "pause.circle" : "pause.circle.fill") }
-                .badge(model.hits.count)
-                .help(model.hits.isEmpty ? "Breakpoints (⌘B)" : "\(model.hits.count) paused at a breakpoint (⌘B)")
-            Button { model.show(.tools) } label: { Label("Tools", systemImage: "wrench.and.screwdriver") }
+            Button { router.show(.breakpoints) } label: {
+                Label("Breakpoints", systemImage: breakpoints.hits.isEmpty ? "pause.circle" : "pause.circle.fill")
+            }
+            .badge(breakpoints.hits.count)
+            .help(
+                breakpoints.hits.isEmpty ? "Breakpoints (⌘B)" : "\(breakpoints.hits.count) paused at a breakpoint (⌘B)"
+            )
+            Button { router.show(.tools) } label: { Label("Tools", systemImage: "wrench.and.screwdriver") }
                 .badge(activeTools)
                 .help(activeTools > 0 ? "\(activeTools) tool rules are changing traffic (⌘T)" : "Map Local, Block List, Scripting and the other tools (⌘T)")
         }
         ToolbarItem(placement: .primaryAction) {
             Menu {
-                Button("Converter…", systemImage: "arrow.left.arrow.right.square") { model.show(.converter) }
-                Button("Set Up a Device…", systemImage: "iphone.gen3") { model.show(.devices) }
+                Button("Converter…", systemImage: "arrow.left.arrow.right.square") { router.show(.converter) }
+                Button("Set Up a Device…", systemImage: "iphone.gen3") { router.show(.devices) }
                 Divider()
-                Button("Keyboard Shortcuts", systemImage: "keyboard") { model.show(.help) }
+                Button("Keyboard Shortcuts", systemImage: "keyboard") { router.show(.help) }
             } label: {
                 Label("More", systemImage: "ellipsis.circle")
             }

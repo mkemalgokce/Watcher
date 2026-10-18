@@ -3,7 +3,7 @@ import WatcherCore
 
 /// One place for every way of getting the root certificate onto a client: this Mac, iOS Simulators, real iPhones/iPads and Android.
 struct DeviceSetupView: View {
-    @Environment(AppModel.self) private var model
+    @Environment(DevicesViewModel.self) private var devices
     @Environment(\.dismiss) private var dismiss
     @State private var target: Target
 
@@ -43,7 +43,7 @@ struct DeviceSetupView: View {
         }
         .frame(minWidth: 640, idealWidth: 780, minHeight: 480, idealHeight: 580)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.keyboardShortcut(.defaultAction) } }
-        .task { await model.devices.refresh() }
+        .task { await devices.refresh() }
     }
 }
 
@@ -65,28 +65,33 @@ private struct Step: View {
 }
 
 private struct MacPane: View {
-    @Environment(AppModel.self) private var model
+    @Environment(RequestActions.self) private var actions
+    @Environment(DevicesViewModel.self) private var devices
     var body: some View {
         Heading(title: "This Mac", detail: "Trust the Watcher root certificate so Safari, Chrome and other Mac apps accept decrypted HTTPS.")
         Card {
             HStack(spacing: 12) {
-                Image(systemName: model.devices.macTrusted ? "checkmark.seal.fill" : "exclamationmark.shield.fill").font(.system(size: 28))
-                    .foregroundStyle(model.devices.macTrusted ? Palette.done : Palette.warning)
+                Image(systemName: devices.macTrusted ? "checkmark.seal.fill" : "exclamationmark.shield.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(devices.macTrusted ? Palette.done : Palette.warning)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(model.devices.macTrusted ? "Trusted" : "Not trusted yet").font(.headline)
-                    Text(model.devices.macTrusted ? "The certificate is in your login keychain. HTTPS from Mac apps can be read."
+                    Text(devices.macTrusted ? "Trusted" : "Not trusted yet").font(.headline)
+                    Text(devices.macTrusted ? "The certificate is in your login keychain. HTTPS from Mac apps can be read."
                         : "Without it, HTTPS from this Mac passes through encrypted.").font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer()
-                if model.devices.macTrusted {
-                    Button("Remove", systemImage: "trash", role: .destructive) { Task { await model.devices.removeMacTrust() } }
+                if devices.macTrusted {
+                    Button("Remove", systemImage: "trash", role: .destructive) {
+                        Task { await devices.removeMacTrust() }
+                    }
                 } else {
-                    Button("Install & Trust…", systemImage: "lock.shield") { Task { await model.devices.trustOnMac() } }.buttonStyle(.borderedProminent)
+                    Button("Install & Trust…", systemImage: "lock.shield") { Task { await devices.trustOnMac() } }
+                        .buttonStyle(.borderedProminent)
                 }
             }
         }
         HStack {
-            Button("Show Certificate in Finder", systemImage: "folder") { model.revealCertificate() }
+            Button("Show Certificate in Finder", systemImage: "folder") { actions.revealCertificate() }
             Spacer()
         }
         Text("macOS asks for your password to change trust settings. Firefox keeps its own certificate store and needs the file imported by hand.").font(.caption).foregroundStyle(.secondary)
@@ -94,25 +99,25 @@ private struct MacPane: View {
 }
 
 private struct SimulatorPane: View {
-    @Environment(AppModel.self) private var model
+    @Environment(DevicesViewModel.self) private var devices
     var body: some View {
         Heading(title: "iOS Simulator", detail: "Installs the root certificate into a simulator's keychain with simctl. Restart apps that were already running.")
-        if model.devices.simulators.isEmpty, model.devices.isScanning {
+        if devices.simulators.isEmpty, devices.isScanning {
             ProgressView("Looking for simulators…").controlSize(.small).frame(maxWidth: .infinity, minHeight: 120)
-        } else if model.devices.simulators.isEmpty {
+        } else if devices.simulators.isEmpty {
             ContentUnavailableView(
                 "No simulators found",
                 systemImage: "iphone.slash",
                 description: Text("Install Xcode and create a simulator, then reopen this window.")
             )
         } else {
-            List(model.devices.simulators) { simulator in
+            List(devices.simulators) { simulator in
                 HStack {
                     Image(systemName: simulator.isBooted ? "circle.fill" : "circle").foregroundStyle(simulator.isBooted ? Palette.done : .secondary).font(.caption)
                         .accessibilityLabel(simulator.isBooted ? "Running" : "Shut down")
                     VStack(alignment: .leading) { Text(simulator.name); Text(simulator.runtime).font(.caption).foregroundStyle(.secondary) }
                     Spacer()
-                    Button("Install Certificate") { Task { await model.devices.install(on: simulator) } }
+                    Button("Install Certificate") { Task { await devices.install(on: simulator) } }
                 }
             }
             .frame(minHeight: 200)
@@ -123,13 +128,16 @@ private struct SimulatorPane: View {
 
 private struct IPhonePane: View {
     @Environment(AppModel.self) private var model
+    @Environment(ProxyController.self) private var proxy
+    @Environment(RequestActions.self) private var actions
+    @Environment(DevicesViewModel.self) private var devices
 
     private var pageURL: String {
         "http://watcher.cert"
     }
 
     private var directURL: String? {
-        model.lanProxyAddress.map { "http://\($0)" }
+        devices.lanProxyAddress.map { "http://\($0)" }
     }
 
     var body: some View {
@@ -142,8 +150,8 @@ private struct IPhonePane: View {
         HStack(alignment: .top, spacing: 20) {
             VStack(alignment: .leading, spacing: 10) {
                 Step(number: 1, text: "Settings → Wi-Fi → (i) → Configure Proxy → Manual")
-                let server = model.lanProxyAddress?.split(separator: ":").first.map(String.init) ?? "—"
-                Step(number: 2, text: "Server \(server), Port \(model.proxyPort)")
+                let server = devices.lanProxyAddress?.split(separator: ":").first.map(String.init) ?? "—"
+                Step(number: 2, text: "Server \(server), Port \(proxy.port)")
                 Step(number: 3, text: "Open \(pageURL) in Safari and tap the profile button")
                 Step(number: 4, text: "Settings → Profile Downloaded → Install")
                 Step(number: 5, text: "Settings → General → About → Certificate Trust Settings → enable Watcher Root CA")
@@ -156,39 +164,40 @@ private struct IPhonePane: View {
                 }
             }
         }
-        if !model.isRunning {
+        if !proxy.isRunning {
             Label("Start the proxy first — the page is served by Watcher.", systemImage: "play.circle").foregroundStyle(.secondary)
         }
-        Button("Show Certificate File in Finder", systemImage: "folder") { model.revealCertificate() }
+        Button("Show Certificate File in Finder", systemImage: "folder") { actions.revealCertificate() }
     }
 }
 
 private struct AndroidPane: View {
-    @Environment(AppModel.self) private var model
+    @Environment(DevicesViewModel.self) private var devices
     var body: some View {
         Heading(title: "Android", detail: "Works with emulators and USB devices that adb can see. Apps only trust user certificates if they opt in; browsers and debug builds do.")
-        if model.devices.androidDevices.isEmpty, model.devices.isScanning {
+        if devices.androidDevices.isEmpty, devices.isScanning {
             ProgressView("Looking for devices…").controlSize(.small).frame(maxWidth: .infinity, minHeight: 120)
-        } else if model.devices.androidDevices.isEmpty {
+        } else if devices.androidDevices.isEmpty {
             ContentUnavailableView("No Android device found", systemImage: "smartphone", description: Text("Start an emulator or connect a phone with USB debugging, and install adb (brew install android-platform-tools)."))
         } else {
-            List(model.devices.androidDevices) { device in
+            List(devices.androidDevices) { device in
                 HStack {
                     VStack(alignment: .leading) { Text(device.model ?? device.serial); Text(device.isEmulator ? "Emulator · \(device.serial)" : device.serial).font(.caption).foregroundStyle(.secondary) }
                     Spacer()
-                    Button("Copy Certificate") { Task { await model.devices.pushCertificate(to: device) } }
+                    Button("Copy Certificate") { Task { await devices.pushCertificate(to: device) } }
                     Menu("Proxy") {
-                        Button("Set Proxy to Watcher") { model.setAndroidProxy(device, enabled: true) }
-                        Button("Clear Proxy") { model.setAndroidProxy(device, enabled: false) }
+                        Button("Set Proxy to Watcher") { Task { await devices.setProxy(on: device, enabled: true) } }
+                        Button("Clear Proxy") { Task { await devices.setProxy(on: device, enabled: false) } }
                     }.fixedSize()
                 }
             }
             .frame(minHeight: 180)
         }
-        Button("Refresh", systemImage: "arrow.clockwise") { Task { await model.devices.refresh() } }.disabled(model.devices.isScanning)
+        Button("Refresh", systemImage: "arrow.clockwise") { Task { await devices.refresh() } }
+            .disabled(devices.isScanning)
     }
 }
 
 #if DEBUG
-    #Preview("iPhone setup") { DeviceSetupView(target: .iPhone).environment(AppModel(listening: false)) }
+    #Preview("iPhone setup") { DeviceSetupView(target: .iPhone).environment(AppModel(dependencies: .preview())) }
 #endif

@@ -4,6 +4,14 @@ import WatcherCore
 /// The bottom bar: what Watcher is doing right now, each item clickable for the obvious action.
 struct StatusBar: View {
     @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
+    @Environment(FlowListViewModel.self) private var list
+    @Environment(ProxyController.self) private var proxy
+    @Environment(BreakpointsViewModel.self) private var breakpoints
+    @Environment(RequestActions.self) private var actions
+    @Environment(DevicesViewModel.self) private var devices
+    @Environment(NoticeCenter.self) private var notices
+    @Environment(SessionFilesViewModel.self) private var sessionFiles
     @State private var showLegend = false
 
     private var activeTools: [String] {
@@ -11,7 +19,7 @@ struct StatusBar: View {
     }
 
     private var stateTint: Color {
-        switch model.proxy.state {
+        switch proxy.state {
         case .failed: Palette.error
         case .switching: Palette.warning
         case .running: Palette.done
@@ -29,20 +37,20 @@ struct StatusBar: View {
             .padding(.horizontal, 6)
             .accessibilityElement(children: .combine)
             separator
-            if model.isRunning, model.settings.listenOnAllInterfaces, let lan = model.lanProxyAddress {
-                item(symbol: "iphone", tint: .secondary, text: lan, help: "Address for phones and tablets on this network. Click to copy.") { model.copy(lan, "Device address copied") }
+            if proxy.isRunning, model.settings.listenOnAllInterfaces, let lan = devices.lanProxyAddress {
+                item(symbol: "iphone", tint: .secondary, text: lan, help: "Address for phones and tablets on this network. Click to copy.") { actions.copy(lan, "Device address copied") }
                 separator
             }
             item(
                 symbol: "network",
-                tint: model.systemProxyOn ? Palette.done : .secondary,
-                text: model.systemProxyOn ? "System proxy on" : "System proxy off",
-                help: model.systemProxyOn ? "Mac traffic goes through Watcher. Click to turn off (⇧⌘Y)." : "Only apps set to use Watcher are captured. Click to capture the whole Mac (⇧⌘Y)."
+                tint: proxy.systemProxyOn ? Palette.done : .secondary,
+                text: proxy.systemProxyOn ? "System proxy on" : "System proxy off",
+                help: proxy.systemProxyOn ? "Mac traffic goes through Watcher. Click to turn off (⇧⌘Y)." : "Only apps set to use Watcher are captured. Click to capture the whole Mac (⇧⌘Y)."
             ) {
-                if model.isRunning {
-                    model.setSystemProxy(!model.systemProxyOn)
+                if proxy.isRunning {
+                    proxy.setSystemProxy(!proxy.systemProxyOn)
                 } else {
-                    model.notices.notify("Start the proxy first.", .error)
+                    notices.notify("Start the proxy first.", .error)
                 }
             }
             let decryptsAll = model.settings.sslProxying.include.contains("*") && model.settings.sslProxying.exclude.isEmpty
@@ -51,25 +59,25 @@ struct StatusBar: View {
                 tint: decryptsAll ? Palette.done : .secondary,
                 text: decryptsAll ? "HTTPS decrypted" : "HTTPS: \(model.settings.sslProxying.include.count) hosts",
                 help: "Which HTTPS hosts Watcher decrypts (SSL Proxying in Tools). Apps must trust the Watcher certificate."
-            ) { model.toolsSelection = .sslProxying; model.show(.tools) }
+            ) { router.toolsSelection = .sslProxying; router.show(.tools) }
             if !activeTools.isEmpty {
                 item(
                     symbol: "wrench.adjustable.fill",
                     tint: Palette.modified,
                     text: activeTools.count == 1 ? activeTools[0] : "\(activeTools.count) tools on",
                     help: "Changing traffic: \(activeTools.joined(separator: ", ")). Click to open Tools (⌘T)."
-                ) { model.show(.tools) }
+                ) { router.show(.tools) }
             }
-            if !model.hits.isEmpty {
+            if !breakpoints.hits.isEmpty {
                 item(
                     symbol: "pause.circle.fill",
                     tint: Palette.paused,
-                    text: "\(model.hits.count) paused",
+                    text: "\(breakpoints.hits.count) paused",
                     help: "Requests waiting at a breakpoint. Click to review (⌘B)."
-                ) { model.show(.breakpoints) }
+                ) { router.show(.breakpoints) }
             }
             Spacer(minLength: 8)
-            if let busy = model.sessionFiles.busyMessage {
+            if let busy = sessionFiles.busyMessage {
                 HStack(spacing: 4) { ProgressView().controlSize(.mini); Text(busy).lineLimit(1) }.accessibilityElement(children: .combine)
             }
             Text(summary).foregroundStyle(.secondary).lineLimit(1).help("Requests shown with the current filters, and their response sizes")
@@ -82,7 +90,7 @@ struct StatusBar: View {
     }
 
     private var summary: String {
-        "\(model.visibleFlows.count) of \(model.flows.count) · \(Format.bytes(model.visibleBytes))"
+        "\(list.visibleFlows.count) of \(list.flows.count) · \(Format.bytes(list.visibleBytes))"
     }
 
     private var separator: some View {

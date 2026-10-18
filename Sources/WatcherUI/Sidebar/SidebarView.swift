@@ -4,13 +4,16 @@ import WatcherCore
 /// Source-list sidebar like Mail's mailboxes: smart groups first, then the apps and domains seen so far.
 struct SidebarView: View {
     @Environment(AppModel.self) private var model
+    @Environment(FlowListViewModel.self) private var list
+    @Environment(RequestActions.self) private var actions
+    @Environment(NoticeCenter.self) private var notices
 
     var body: some View {
         @Bindable var model = model
-        let counts = model.counts
-        List(selection: $model.sidebar) {
+        let counts = list.counts
+        List(selection: Bindable(list).sidebar) {
             Section("Requests") {
-                row("All Requests", symbol: "tray.full", count: model.flows.count, tag: .all)
+                row("All Requests", symbol: "tray.full", count: list.flows.count, tag: .all)
                 row("Starred", symbol: "star", count: counts.starred, tag: .starred)
                 row("Errors", symbol: "exclamationmark.triangle", count: counts.errors, tag: .errors)
                 row("WebSocket", symbol: "bubble.left.and.bubble.right", count: counts.webSocket, tag: .webSocket)
@@ -35,9 +38,11 @@ struct SidebarView: View {
                                     model.settings.blockList.isEnabled = true
                                     model.settings.blockList.rules.append(BlockRule(name: group.name, matching: MatchingRule(pattern: "*\(group.name)/*")))
                                     let message = "Requests to \(group.name) are now blocked (Tools ▸ Block List)"
-                                    model.notices.notify(message, .success)
+                                    notices.notify(message, .success)
                                 }
-                                Button("Copy Domain", systemImage: "doc.on.doc") { model.copy(group.name, "Domain copied") }
+                                Button("Copy Domain", systemImage: "doc.on.doc") {
+                                    actions.copy(group.name, "Domain copied")
+                                }
                             }
                     }
                 }

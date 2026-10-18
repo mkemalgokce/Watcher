@@ -18,24 +18,24 @@ extension InteractionTests {
         /// running Watcher or change the Mac's network.
         @Test
         func recordStartsAndPauseStopsTheProxy() async throws {
-            let model = AppModel(listening: false)
+            let model = try AppModel.test()
             model.onboardingDone = true
             try model.useFreePort(searchingFrom: 20000, fallback: 29999)
             try await withWindow(showing: ContentView().environment(model), width: 1320, height: 780) { window in
                 await settle(1)
-                #expect(!model.isRunning, "the proxy waits for Record")
+                #expect(!model.proxy.isRunning, "the proxy waits for Record")
 
                 try await window.press("Record")
-                #expect(await eventually { model.isRunning && !model.isSwitchingProxy })
-                #expect(model.isRunning)
+                #expect(await eventually { model.proxy.isRunning && !model.proxy.isSwitchingProxy })
+                #expect(model.proxy.isRunning)
                 #expect(model.notices.notice?.kind == .success)
                 await settle()
                 let address = "127.0.0.1:\(model.engine.boundPort ?? 0)"
                 #expect(model.statusLine.hasPrefix("Recording on \(address)"), "the status bar shows the address")
 
                 try await window.press("Pause")
-                #expect(await eventually { !model.isRunning && !model.isSwitchingProxy })
-                #expect(!model.isRunning, "pausing stops the proxy")
+                #expect(await eventually { !model.proxy.isRunning && !model.proxy.isSwitchingProxy })
+                #expect(!model.proxy.isRunning, "pausing stops the proxy")
                 #expect(model.notices.notice?.message == "Recording paused; the proxy is off")
                 #expect(model.statusLine.hasPrefix("Not recording"))
             }
@@ -49,10 +49,10 @@ extension InteractionTests {
         func toolbarOpensTheScreen(label: String, sheet: AppModel.Sheet) async throws {
             let model = mainWindowModel()
             try await withWindow(showing: ContentView().environment(model), width: 1320, height: 780) { window in
-                model.sheet = nil
+                model.router.sheet = nil
                 await settle(0.3)
                 try await window.press(label)
-                #expect(model.sheet == sheet, "\(label)")
+                #expect(model.router.sheet == sheet, "\(label)")
             }
         }
 
@@ -60,7 +60,7 @@ extension InteractionTests {
         func moreMenuHoldsTheRestOfTheToolbar() async {
             let model = mainWindowModel()
             await withWindow(showing: ContentView().environment(model), width: 1320, height: 780) { window in
-                model.sheet = nil
+                model.router.sheet = nil
                 await settle(0.3)
                 #expect(
                     !window.elements("More").isEmpty,
@@ -78,10 +78,10 @@ extension InteractionTests {
                 #expect(!before.isEmpty)
 
                 try await window.press("Clear")
-                #expect(await eventually { model.flows.isEmpty })
+                #expect(await eventually { model.list.flows.isEmpty })
                 #expect(model.engine.store.all.isEmpty)
                 try await window.press("Undo")
-                #expect(await eventually { model.flows.count == before.count })
+                #expect(await eventually { model.list.flows.count == before.count })
                 #expect(model.engine.store.all.map(\.id) == before)
             }
         }

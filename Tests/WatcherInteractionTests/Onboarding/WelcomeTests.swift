@@ -9,31 +9,31 @@ extension InteractionTests {
     struct WelcomeTests {
         @Test
         func skippingClosesTheWelcomeWithoutCapturing() async throws {
-            let skipping = AppModel(listening: false)
+            let skipping = try AppModel.test()
             skipping.onboardingDone = false
-            skipping.sheet = .welcome
+            skipping.router.sheet = .welcome
             try await withWindow(showing: WelcomeView().environment(skipping), width: 560, height: 460) { window in
                 try await window.press("Skip for Now")
                 #expect(skipping.onboardingDone)
-                #expect(skipping.sheet == nil)
-                #expect(!skipping.isRunning, "skipping does not start capturing")
+                #expect(skipping.router.sheet == nil)
+                #expect(!skipping.proxy.isRunning, "skipping does not start capturing")
             }
         }
 
         @Test
         func startCapturingRemembersTheChoiceAndStartsTheProxy() async throws {
-            let starting = AppModel(listening: false)
+            let starting = try AppModel.test()
             try starting.useFreePort(searchingFrom: 21000, fallback: 29998)
             starting.onboardingDone = false
-            starting.sheet = .welcome
+            starting.router.sheet = .welcome
             try await withWindow(showing: WelcomeView().environment(starting), width: 560, height: 460) { window in
                 try await window.press("Start Capturing")
-                #expect(await eventually { starting.isRunning })
+                #expect(await eventually { starting.proxy.isRunning })
                 #expect(starting.onboardingDone)
-                #expect(starting.sheet == nil)
-                #expect(starting.isRunning)
-                starting.toggleRunning()
-                _ = await eventually { !starting.isRunning }
+                #expect(starting.router.sheet == nil)
+                #expect(starting.proxy.isRunning)
+                starting.proxy.toggleRunning()
+                _ = await eventually { !starting.proxy.isRunning }
             }
         }
     }

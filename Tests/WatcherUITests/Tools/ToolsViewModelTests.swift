@@ -8,8 +8,8 @@ import WatcherTestSupport
 @Suite(.tags(.unit))
 struct ToolsViewModelTests {
     @Test
-    func summariesCountRulesAndFlagTheOnesThatNeedAttention() {
-        let model = AppModel(listening: false)
+    func summariesCountRulesAndFlagTheOnesThatNeedAttention() throws {
+        let model = try AppModel.test()
         let tools = ToolsViewModel(model: model)
         #expect(tools.summary(.block) == "Off")
 
@@ -31,6 +31,6 @@ struct ToolsViewModelTests {
         #expect(tools.problems(.reverse).count == 2, "both rules on one port are flagged")
 
         tools.selection = .dns
-        #expect(model.toolsSelection == .dns, "the page choice is the model's, so menus can open Tools on a page")
+        #expect(model.router.toolsSelection == .dns, "the page choice is the router's, so menus can open Tools on it")
     }
 }

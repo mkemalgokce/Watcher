@@ -28,16 +28,14 @@ public final class AppModel {
         didSet { preferences.onboardingDone = onboardingDone }
     }
 
+    /// The app's model: the real services, following the engine from the start.
     public convenience init() {
-        self.init(listening: true)
+        self.init(dependencies: .live())
+        observeEngine()
     }
 
-    /// `listening: false` leaves the model static, for previews that fill it by hand.
-    convenience init(listening: Bool) {
-        self.init(dependencies: listening ? .live() : .preview(), listening: listening)
-    }
-
-    init(dependencies: AppDependencies, listening: Bool = false) {
+    /// A model that stays as it is until `observeEngine()`, so previews and tests can fill it by hand.
+    init(dependencies: AppDependencies) {
         let engine = dependencies.engine
         self.engine = engine
         clipboard = dependencies.clipboard
@@ -67,9 +65,6 @@ public final class AppModel {
             proxy.port
         }
         connect(dependencies)
-        if listening {
-            observeEngine()
-        }
     }
 
     private func connect(_ dependencies: AppDependencies) {

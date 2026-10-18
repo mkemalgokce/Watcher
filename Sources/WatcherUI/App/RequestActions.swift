@@ -1,9 +1,10 @@
 import AppKit
+import Observation
 import WatcherCore
 
 /// What the list, inspector and menus do with captured requests: star, comment, delete, repeat, copy, mock and
 /// compare them.
-@MainActor
+@MainActor @Observable
 final class RequestActions {
     private let store: FlowStore
     private let sender: any RequestSending

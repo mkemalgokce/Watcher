@@ -2,10 +2,10 @@ import SwiftUI
 
 /// Floating feedback for the last thing that happened. Uses Liquid Glass where the system has it and a material before that.
 struct NoticeBanner: View {
-    @Environment(AppModel.self) private var model
+    @Environment(NoticeCenter.self) private var notices
 
     var body: some View {
-        if let notice = model.notices.notice {
+        if let notice = notices.notice {
             HStack(spacing: 10) {
                 Image(systemName: icon(notice.kind)).foregroundStyle(tint(notice.kind)).imageScale(.large).accessibilityHidden(true)
                 Text(notice.message).font(.callout).lineLimit(3).textSelection(.enabled)
@@ -13,7 +13,7 @@ struct NoticeBanner: View {
                     Button(action.title) { action.perform() }.buttonStyle(.borderless).fontWeight(.semibold)
                 }
                 if notice.kind == .error {
-                    Button("Dismiss", systemImage: "xmark") { model.notices.dismiss() }
+                    Button("Dismiss", systemImage: "xmark") { notices.dismiss() }
                         .labelStyle(.iconOnly).buttonStyle(.plain).help("Dismiss")
                 }
             }
