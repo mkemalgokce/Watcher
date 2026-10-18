@@ -18,20 +18,22 @@ public enum CharlesConverter {
 
     public static let defaultExecutable = URL(fileURLWithPath: "/Applications/Charles.app/Contents/MacOS/Charles")
 
-    public static func flows(from session: URL, charles: URL = defaultExecutable) async throws -> [Flow] {
-        guard FileManager.default.isExecutableFile(atPath: charles.path) else { throw ConversionError.charlesNotFound(charles.path) }
-        let output = FileManager.default.temporaryDirectory.appendingPathComponent("watcher-\(UUID().uuidString).har")
-        defer { try? FileManager.default.removeItem(at: output) }
+    public static func flows(
+        from session: URL,
+        charles: URL = defaultExecutable,
+        runner: CommandRunner = LiveCommandRunner.run,
+        files: FileAccess = .live
+    ) async throws -> [Flow] {
+        guard files.isExecutable(charles.path) else { throw ConversionError.charlesNotFound(charles.path) }
+        let output = files.temporaryFile("har")
+        defer { try? files.remove(output) }
 
-        let process = Process()
-        process.executableURL = charles
-        process.arguments = ["convert", session.path, output.path]
-        let pipe = Pipe()
-        process.standardOutput = pipe; process.standardError = pipe
-        try process.run()
-        let log = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        process.waitUntilExit()
-        guard process.terminationStatus == 0, FileManager.default.fileExists(atPath: output.path) else { throw ConversionError.failed(log) }
-        return try HAR.flows(from: Data(contentsOf: output))
+        let result = try runner(Command(
+            executable: charles,
+            arguments: ["convert", session.path, output.path],
+            mergesErrorOutput: true
+        ))
+        guard result.status == 0, files.fileExists(output.path) else { throw ConversionError.failed(result.text) }
+        return try HAR.flows(from: files.read(output))
     }
 }
