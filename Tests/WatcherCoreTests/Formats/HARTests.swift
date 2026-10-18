@@ -14,4 +14,21 @@ struct HARTests {
         #expect(flow.response?.status == 201)
         #expect(abs((flow.duration ?? 0) - 0.25) <= 0.001)
     }
+
+    @Test(arguments: [nil, "yesterday"] as [String?])
+    func aMissingOrUnreadableStartTimeIsTheImportTime(start: String?) throws {
+        let importTime = Date(timeIntervalSinceReferenceDate: 5)
+        var entry: [String: Any] = ["request": ["method": "GET", "url": "http://h/"]]
+        entry["startedDateTime"] = start
+        let data = try JSONSerialization.data(withJSONObject: ["log": ["entries": [entry]]])
+        #expect(try HAR.flows(from: data, now: importTime).first?.startedAt == importTime)
+    }
+
+    @Test
+    func headersWithoutANameOrValueAreSkipped() throws {
+        let headers = [["name": "A", "value": "1"], ["name": "B"], ["value": "2"]]
+        let entry: [String: Any] = ["request": ["method": "GET", "url": "http://h/", "headers": headers]]
+        let data = try JSONSerialization.data(withJSONObject: ["log": ["entries": [entry]]])
+        #expect(try HAR.flows(from: data).first?.request.headers == [Header("A", "1")])
+    }
 }

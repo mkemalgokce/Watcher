@@ -4,14 +4,8 @@ import Foundation
 public enum HAR {
     public enum ImportError: Error { case invalidDocument }
 
-    private static var dateFormatter: ISO8601DateFormatter {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }
-
     public static func export(_ flows: [Flow]) throws -> Data {
-        let formatter = dateFormatter
+        let formatter = ISO8601DateFormatter.withFractionalSeconds()
         let document: [String: Any] = ["log": [
             "version": "1.2",
             "creator": ["name": "Watcher", "version": "0.1.0"],
@@ -20,12 +14,15 @@ public enum HAR {
         return try JSONSerialization.data(withJSONObject: document, options: [.prettyPrinted, .sortedKeys])
     }
 
-    public static func flows(from data: Data) throws -> [Flow] {
+    /// `now` stands in for entries without a readable start time.
+    public static func flows(from data: Data, now: Date = Date()) throws -> [Flow] {
         guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let log = root["log"] as? [String: Any],
               let entries = log["entries"] as? [[String: Any]] else { throw ImportError.invalidDocument }
-        let formatter = dateFormatter
-        return entries.enumerated().compactMap { index, entry in flow(from: entry, sequence: index + 1, formatter: formatter) }
+        let formatter = ISO8601DateFormatter.withFractionalSeconds()
+        return entries.enumerated().compactMap { index, entry in
+            flow(from: entry, sequence: index + 1, formatter: formatter, now: now)
+        }
     }
 
     // MARK: Export
@@ -82,7 +79,12 @@ public enum HAR {
 
     // MARK: Import
 
-    private static func flow(from entry: [String: Any], sequence: Int, formatter: ISO8601DateFormatter) -> Flow? {
+    private static func flow(
+        from entry: [String: Any],
+        sequence: Int,
+        formatter: ISO8601DateFormatter,
+        now: Date
+    ) -> Flow? {
         guard let request = entry["request"] as? [String: Any],
               let method = request["method"] as? String,
               let urlString = request["url"] as? String,
@@ -90,30 +92,25 @@ public enum HAR {
         let scheme = url.scheme ?? "http"
         let path = (url.percentEncodedPath.isEmpty ? "/" : url.percentEncodedPath) + (url.percentEncodedQuery.map { "?\($0)" } ?? "")
 
-        var flow = Flow(sequence: sequence, request: RequestRecord(
+        let record = RequestRecord(
             method: method, scheme: scheme, host: host,
             port: url.port ?? RequestRecord.defaultPort(for: scheme), path: path,
-            headers: headers(request["headers"]), body: Data(((request["postData"] as? [String: Any])?["text"] as? String ?? "").utf8)
-        ))
-        flow.startedAt = (entry["startedDateTime"] as? String).flatMap(formatter.date) ?? Date()
+            headers: [Header](jsonList: request["headers"]),
+            body: Data(((request["postData"] as? [String: Any])?["text"] as? String ?? "").utf8)
+        )
+        let startedAt = (entry["startedDateTime"] as? String).flatMap(formatter.date) ?? now
+        var flow = Flow(sequence: sequence, request: record, startedAt: startedAt)
         flow.duration = (entry["time"] as? Double).map { $0 / 1000 }
 
         if let response = entry["response"] as? [String: Any], let status = response["status"] as? Int, status > 0 {
             let content = response["content"] as? [String: Any]
             let raw = content?["text"] as? String ?? ""
             let body = content?["encoding"] as? String == "base64" ? Data(base64Encoded: raw) ?? Data() : Data(raw.utf8)
-            flow.response = ResponseRecord(status: status, headers: headers(response["headers"]), body: body)
+            flow.response = ResponseRecord(status: status, headers: [Header](jsonList: response["headers"]), body: body)
             flow.state = .completed
         } else {
             flow.state = .failed
         }
         return flow
-    }
-
-    private static func headers(_ value: Any?) -> [Header] {
-        (value as? [[String: Any]] ?? []).compactMap {
-            guard let name = $0["name"] as? String, let value = $0["value"] as? String else { return nil }
-            return Header(name, value)
-        }
     }
 }
