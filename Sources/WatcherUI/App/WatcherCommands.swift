@@ -40,10 +40,11 @@ public struct WatcherCommands: Commands {
                 Button("Export CSV…") { model.sessionFiles.exportCSV() }
             }
             CommandGroup(replacing: .textEditing) {
-                Button("Find…") { Find.show { model.router.requestSearchFocus() } }.keyboardShortcut("f")
-                Button("Find in Body") { Find.findInBody() }.keyboardShortcut("f", modifiers: [.command, .option])
-                Button("Find Next") { Find.perform(.nextMatch) }.keyboardShortcut("g")
-                Button("Find Previous") { Find.perform(.previousMatch) }.keyboardShortcut("g", modifiers: [.command, .shift])
+                Button("Find…") { Find.live.show { model.router.requestSearchFocus() } }.keyboardShortcut("f")
+                Button("Find in Body") { Find.live.findInBody() }.keyboardShortcut("f", modifiers: [.command, .option])
+                Button("Find Next") { Find.live.perform(.nextMatch) }.keyboardShortcut("g")
+                Button("Find Previous") { Find.live.perform(.previousMatch) }
+                    .keyboardShortcut("g", modifiers: [.command, .shift])
             }
             CommandGroup(after: .pasteboard) {
                 Divider()
