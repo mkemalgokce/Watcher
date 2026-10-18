@@ -1,0 +1,345 @@
+{
+  "id" : 1,
+  "jsonrpc" : "2.0",
+  "result" : {
+    "tools" : [
+      {
+        "description" : "Whether Watcher is running and on which port.",
+        "inputSchema" : {
+          "properties" : {
+
+          },
+          "required" : [
+
+          ],
+          "type" : "object"
+        },
+        "name" : "get_proxy_status"
+      },
+      {
+        "description" : "Every tool and its rules.",
+        "inputSchema" : {
+          "properties" : {
+
+          },
+          "required" : [
+
+          ],
+          "type" : "object"
+        },
+        "name" : "list_rules"
+      },
+      {
+        "description" : "Hosts that are decrypted or excluded.",
+        "inputSchema" : {
+          "properties" : {
+
+          },
+          "required" : [
+
+          ],
+          "type" : "object"
+        },
+        "name" : "get_ssl_proxying_list"
+      },
+      {
+        "description" : "Location of the root certificate to trust.",
+        "inputSchema" : {
+          "properties" : {
+
+          },
+          "required" : [
+
+          ],
+          "type" : "object"
+        },
+        "name" : "get_certificate_status"
+      },
+      {
+        "description" : "List captured requests (newest last).",
+        "inputSchema" : {
+          "properties" : {
+            "filter" : {
+              "description" : "Only URLs containing this text",
+              "type" : "string"
+            },
+            "limit" : {
+              "description" : "Maximum rows, default 50",
+              "type" : "string"
+            }
+          },
+          "required" : [
+
+          ],
+          "type" : "object"
+        },
+        "name" : "get_flows"
+      },
+      {
+        "description" : "Headers and body of one request and its response.",
+        "inputSchema" : {
+          "properties" : {
+            "sequence" : {
+              "description" : "Request number from get_flows",
+              "type" : "string"
+            }
+          },
+          "required" : [
+            "sequence"
+          ],
+          "type" : "object"
+        },
+        "name" : "get_flow_detail"
+      },
+      {
+        "description" : "Messages of a WebSocket connection.",
+        "inputSchema" : {
+          "properties" : {
+            "sequence" : {
+              "description" : "Request number",
+              "type" : "string"
+            }
+          },
+          "required" : [
+            "sequence"
+          ],
+          "type" : "object"
+        },
+        "name" : "get_websocket_messages"
+      },
+      {
+        "description" : "A cURL command that repeats a captured request.",
+        "inputSchema" : {
+          "properties" : {
+            "sequence" : {
+              "description" : "Request number",
+              "type" : "string"
+            }
+          },
+          "required" : [
+            "sequence"
+          ],
+          "type" : "object"
+        },
+        "name" : "export_flow_curl"
+      },
+      {
+        "description" : "Remove every captured request.",
+        "inputSchema" : {
+          "properties" : {
+
+          },
+          "required" : [
+
+          ],
+          "type" : "object"
+        },
+        "name" : "clear_session"
+      },
+      {
+        "description" : "Block requests whose URL matches a pattern (* and ?).",
+        "inputSchema" : {
+          "properties" : {
+            "pattern" : {
+              "description" : "URL pattern",
+              "type" : "string"
+            }
+          },
+          "required" : [
+            "pattern"
+          ],
+          "type" : "object"
+        },
+        "name" : "create_blacklist"
+      },
+      {
+        "description" : "Allow only requests matching a pattern.",
+        "inputSchema" : {
+          "properties" : {
+            "pattern" : {
+              "description" : "URL pattern",
+              "type" : "string"
+            }
+          },
+          "required" : [
+            "pattern"
+          ],
+          "type" : "object"
+        },
+        "name" : "create_allow_list"
+      },
+      {
+        "description" : "Answer matching requests from a local file.",
+        "inputSchema" : {
+          "properties" : {
+            "file_path" : {
+              "description" : "Local file",
+              "type" : "string"
+            },
+            "pattern" : {
+              "description" : "URL pattern",
+              "type" : "string"
+            }
+          },
+          "required" : [
+            "pattern",
+            "file_path"
+          ],
+          "type" : "object"
+        },
+        "name" : "create_map_local"
+      },
+      {
+        "description" : "Redirect matching requests to another host\/path.",
+        "inputSchema" : {
+          "properties" : {
+            "host" : {
+              "description" : "New host",
+              "type" : "string"
+            },
+            "path" : {
+              "description" : "New path",
+              "type" : "string"
+            },
+            "pattern" : {
+              "description" : "URL pattern",
+              "type" : "string"
+            }
+          },
+          "required" : [
+            "pattern"
+          ],
+          "type" : "object"
+        },
+        "name" : "create_map_remote"
+      },
+      {
+        "description" : "Pause matching requests and responses for editing in the app.",
+        "inputSchema" : {
+          "properties" : {
+            "pattern" : {
+              "description" : "URL pattern",
+              "type" : "string"
+            }
+          },
+          "required" : [
+            "pattern"
+          ],
+          "type" : "object"
+        },
+        "name" : "create_breakpoint"
+      },
+      {
+        "description" : "Send a host name to another address.",
+        "inputSchema" : {
+          "properties" : {
+            "address" : {
+              "description" : "IP address or host",
+              "type" : "string"
+            },
+            "host" : {
+              "description" : "Host name",
+              "type" : "string"
+            }
+          },
+          "required" : [
+            "host",
+            "address"
+          ],
+          "type" : "object"
+        },
+        "name" : "create_dns_spoofing"
+      },
+      {
+        "description" : "Throttle the network with a preset (3G, Edge, LTE, Wi-Fi, very_bad_network, 100_percent_loss) or a saved custom profile.",
+        "inputSchema" : {
+          "properties" : {
+            "preset" : {
+              "description" : "Preset or saved profile name",
+              "type" : "string"
+            }
+          },
+          "required" : [
+            "preset"
+          ],
+          "type" : "object"
+        },
+        "name" : "create_network_condition"
+      },
+      {
+        "description" : "Listen on a local port and forward to a remote host.",
+        "inputSchema" : {
+          "properties" : {
+            "local_port" : {
+              "description" : "Local port",
+              "type" : "string"
+            },
+            "remote_host" : {
+              "description" : "Remote host",
+              "type" : "string"
+            },
+            "remote_port" : {
+              "description" : "Remote port, default 443",
+              "type" : "string"
+            }
+          },
+          "required" : [
+            "local_port",
+            "remote_host"
+          ],
+          "type" : "object"
+        },
+        "name" : "create_reverse_proxy"
+      },
+      {
+        "description" : "Run JavaScript (onRequest\/onResponse) on matching traffic.",
+        "inputSchema" : {
+          "properties" : {
+            "pattern" : {
+              "description" : "URL pattern",
+              "type" : "string"
+            },
+            "source" : {
+              "description" : "JavaScript source",
+              "type" : "string"
+            }
+          },
+          "required" : [
+            "pattern",
+            "source"
+          ],
+          "type" : "object"
+        },
+        "name" : "create_scripting_rule"
+      },
+      {
+        "description" : "Send an HTTP request through Watcher and return the response.",
+        "inputSchema" : {
+          "properties" : {
+            "body" : {
+              "description" : "Request body",
+              "type" : "string"
+            },
+            "headers" : {
+              "description" : "Lines of `Name: value`",
+              "type" : "string"
+            },
+            "method" : {
+              "description" : "HTTP method",
+              "type" : "string"
+            },
+            "url" : {
+              "description" : "Absolute URL",
+              "type" : "string"
+            }
+          },
+          "required" : [
+            "url"
+          ],
+          "type" : "object"
+        },
+        "name" : "create_compose_http"
+      }
+    ]
+  }
+}

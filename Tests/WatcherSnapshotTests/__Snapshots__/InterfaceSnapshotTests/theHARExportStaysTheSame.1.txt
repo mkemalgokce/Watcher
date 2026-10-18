@@ -1,0 +1,114 @@
+{
+  "log" : {
+    "creator" : {
+      "name" : "Watcher",
+      "version" : "0.1.0"
+    },
+    "entries" : [
+      {
+        "cache" : {
+
+        },
+        "request" : {
+          "bodySize" : 2,
+          "cookies" : [
+
+          ],
+          "headers" : [
+
+          ],
+          "headersSize" : -1,
+          "httpVersion" : "HTTP\/1.1",
+          "method" : "POST",
+          "postData" : {
+            "mimeType" : "",
+            "text" : "{}"
+          },
+          "queryString" : [
+            {
+              "name" : "page",
+              "value" : "2"
+            }
+          ],
+          "url" : "https:\/\/api.example.com\/v1\/users?page=2"
+        },
+        "response" : {
+          "bodySize" : 8,
+          "content" : {
+            "mimeType" : "application\/json",
+            "size" : 8,
+            "text" : "{\"id\":7}"
+          },
+          "cookies" : [
+
+          ],
+          "headers" : [
+            {
+              "name" : "Content-Type",
+              "value" : "application\/json"
+            }
+          ],
+          "headersSize" : -1,
+          "httpVersion" : "HTTP\/1.1",
+          "redirectURL" : "",
+          "status" : 201,
+          "statusText" : "Created"
+        },
+        "startedDateTime" : "2023-11-14T22:13:20.000Z",
+        "time" : 250,
+        "timings" : {
+          "receive" : 0,
+          "send" : 0,
+          "wait" : 250
+        }
+      },
+      {
+        "cache" : {
+
+        },
+        "request" : {
+          "bodySize" : 0,
+          "cookies" : [
+
+          ],
+          "headers" : [
+
+          ],
+          "headersSize" : -1,
+          "httpVersion" : "HTTP\/1.1",
+          "method" : "GET",
+          "queryString" : [
+
+          ],
+          "url" : "http:\/\/example.com\/=cmd"
+        },
+        "response" : {
+          "bodySize" : 0,
+          "content" : {
+            "mimeType" : "",
+            "size" : 0
+          },
+          "cookies" : [
+
+          ],
+          "headers" : [
+
+          ],
+          "headersSize" : -1,
+          "httpVersion" : "HTTP\/1.1",
+          "redirectURL" : "",
+          "status" : 0,
+          "statusText" : ""
+        },
+        "startedDateTime" : "2023-11-14T22:13:21.000Z",
+        "time" : 0,
+        "timings" : {
+          "receive" : 0,
+          "send" : 0,
+          "wait" : 0
+        }
+      }
+    ],
+    "version" : "1.2"
+  }
+}

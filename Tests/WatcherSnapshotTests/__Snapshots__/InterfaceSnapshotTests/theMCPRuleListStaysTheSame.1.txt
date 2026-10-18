@@ -1,0 +1,13 @@
+{
+  "id" : 1,
+  "jsonrpc" : "2.0",
+  "result" : {
+    "content" : [
+      {
+        "text" : "block-list: off, 0 rule(s)\nallow-list: off, 0 rule(s)\nmap-local: off, 0 rule(s)\nmap-remote: off, 0 rule(s)\nbreakpoint: off, 0 rule(s)\nscripting: off, 0 rule(s)\ndns-spoofing: off, 0 rule(s)\nreverse-proxy: off, 0 rule(s)\nnetwork-condition: off\nno-caching: off\nexternal-proxy: off",
+        "type" : "text"
+      }
+    ],
+    "isError" : false
+  }
+}
