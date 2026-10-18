@@ -9,6 +9,7 @@ struct KeyValueEditor: View {
     @Binding var rows: [KeyValue]
     var title: String
     var allowsFiles = false
+    var textStyle = BulkKeyValueText.Style.headers
     var suggestions: [String] = []
     @State private var bulk = false
     @State private var bulkText = ""
@@ -25,12 +26,12 @@ struct KeyValueEditor: View {
                     }.fixedSize().controlSize(.small)
                 }
                 Toggle("Bulk Edit", isOn: $bulk).toggleStyle(.button).controlSize(.small)
-                    .help("Edit as text, one “name: value” per line")
+                    .help("Edit as text, one “\(textStyle.example)” per line")
                     .onChange(of: bulk) { _, on in
                         if on {
-                            bulkText = BulkKeyValueText.text(for: rows)
+                            bulkText = BulkKeyValueText.text(for: rows, style: textStyle)
                         } else {
-                            rows = BulkKeyValueText.apply(bulkText, to: rows)
+                            rows = BulkKeyValueText.apply(bulkText, to: rows, style: textStyle)
                         }
                     }
             }

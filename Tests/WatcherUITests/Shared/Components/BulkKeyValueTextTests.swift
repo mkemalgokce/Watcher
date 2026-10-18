@@ -66,4 +66,31 @@ struct BulkKeyValueTextTests {
         #expect(BulkKeyValueText.apply("a: 1", to: rows).map(\.name) == ["a"])
         #expect(BulkKeyValueText.apply("", to: rows).isEmpty)
     }
+
+    @Test(arguments: [
+        ("a:b=c", ["a:b", "c", "on"]),
+        ("next=https://a.com", ["next", "https://a.com", "on"]),
+        ("// k:1=2", ["k:1", "2", "off"]),
+        ("lonely:", ["lonely:", "", "on"]),
+        ("  pad = v ", ["pad", "v", "on"]),
+    ])
+    func aFormLineSplitsOnTheFirstEqualsSignOnly(line: String, expected: [String]) {
+        #expect(pairs(BulkKeyValueText.parse(line, style: .form)) == [expected])
+    }
+
+    @Test
+    func formRowsAreWrittenAsNameEqualsValueAndRoundTripWithColonsInNames() {
+        let rows = [KeyValue("a:b", "x: y"), KeyValue("c", "1", isEnabled: false)]
+        let text = BulkKeyValueText.text(for: rows, style: .form)
+        #expect(text == "a:b=x: y\n// c=1")
+        #expect(pairs(BulkKeyValueText.parse(text, style: .form)) == pairs(rows))
+    }
+
+    @Test
+    func applyingFormTextKeepsRowIdentity() {
+        let row = KeyValue("a:b", "1")
+        let edited = BulkKeyValueText.apply("a:b=2", to: [row], style: .form)
+        #expect(edited.map(\.id) == [row.id])
+        #expect(edited[0].value == "2")
+    }
 }

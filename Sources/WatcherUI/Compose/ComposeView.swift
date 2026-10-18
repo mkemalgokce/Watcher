@@ -93,7 +93,7 @@ struct ComposeView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     switch viewModel.tab {
                     case .params:
-                        KeyValueEditor(rows: $viewModel.params, title: "Query parameters")
+                        KeyValueEditor(rows: $viewModel.params, title: "Query parameters", textStyle: .form)
                         hint("Parameters stay in sync with the URL above.")
                     case .headers:
                         KeyValueEditor(rows: $viewModel.headers, title: "Headers", suggestions: KeyValueEditor.commonHeaders)
@@ -152,9 +152,9 @@ struct ComposeView: View {
                 Label("This is not valid JSON yet; it will be sent as typed.", systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(Palette.warning)
             }
         case .form:
-            KeyValueEditor(rows: $viewModel.formRows, title: "Form fields")
+            KeyValueEditor(rows: $viewModel.formRows, title: "Form fields", textStyle: .form)
         case .multipart:
-            KeyValueEditor(rows: $viewModel.formRows, title: "Parts", allowsFiles: true)
+            KeyValueEditor(rows: $viewModel.formRows, title: "Parts", allowsFiles: true, textStyle: .form)
             hint("Use the type menu on a row to attach a file.")
         case .graphQL:
             Text("Query").font(.subheadline.weight(.medium))
