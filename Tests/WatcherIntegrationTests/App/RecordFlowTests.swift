@@ -6,7 +6,7 @@ import WatcherTestSupport
 
 /// Record starts the proxy and Pause stops it; the system proxy follows without freezing the window.
 @MainActor
-@Suite(.serialized, .tags(.network))
+@Suite(.serialized, .tags(.integration, .network))
 struct RecordFlowTests {
     private let backup: TemporaryDirectory
 
@@ -14,18 +14,18 @@ struct RecordFlowTests {
         backup = try TemporaryDirectory()
     }
 
-    private func makeModel(_ networkSetup: NetworkSetupSpy) -> AppModel {
+    private func makeModel(_ networkSetup: NetworkSetupSpy) throws -> AppModel {
         let systemProxy = SystemProxy(run: { networkSetup.run($0) }, backupURL: backup.appending("backup.json"))
         let model = AppModel(listening: false, systemProxy: systemProxy)
-        model.settings.port = PortFinder.firstAvailable(from: 21000) ?? 29998
         model.settings.autoSystemProxy = true
+        try model.useFreePort(searchingFrom: 21000, fallback: 29998)
         return model
     }
 
     @Test
-    func recordTurnsTheSystemProxyOnOffTheMainThreadAtTheBoundPort() async {
+    func recordTurnsTheSystemProxyOnOffTheMainThreadAtTheBoundPort() async throws {
         let networkSetup = NetworkSetupSpy()
-        let model = makeModel(networkSetup)
+        let model = try makeModel(networkSetup)
 
         model.toggleRunning()
         #expect(await eventually { model.isRunning && model.systemProxyOn && !model.isSwitchingProxy })
@@ -47,8 +47,8 @@ struct RecordFlowTests {
     /// Record and Pause answer at once; the slow system-proxy switch finishes in the background, and the proxy keeps
     /// serving until the Mac's own settings are back so no request hits a closed port.
     @Test(.tags(.timing))
-    func recordAndPauseDoNotWaitForTheSystemProxy() async {
-        let model = makeModel(NetworkSetupSpy(delay: 0.1))
+    func recordAndPauseDoNotWaitForTheSystemProxy() async throws {
+        let model = try makeModel(NetworkSetupSpy(delay: 0.1))
 
         var started = Date()
         model.toggleRunning()
@@ -70,8 +70,8 @@ struct RecordFlowTests {
     }
 
     @Test
-    func theProxyDoesNotStartUntilRecordIsPressed() async {
-        let model = makeModel(NetworkSetupSpy())
+    func theProxyDoesNotStartUntilRecordIsPressed() async throws {
+        let model = try makeModel(NetworkSetupSpy())
         model.onboardingDone = true
         try? await Task.sleep(for: .milliseconds(300))
         #expect(!model.isRunning)
