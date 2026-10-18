@@ -8,11 +8,8 @@ public struct AccessControlSettings: Codable, Equatable, Sendable {
         self.isEnabled = isEnabled; self.allowedAddresses = allowedAddresses
     }
 
-    public func allows(_ address: String?) -> Bool {
-        guard let address else { return false }
-        if address == "127.0.0.1" || address == "::1" {
-            return true
-        }
-        return !isEnabled || HostList(allowedAddresses).matches(address)
+    /// Compiles the patterns once; checking a connection against the result builds no regular expressions.
+    public func compile() -> AccessControl {
+        AccessControl(self)
     }
 }

@@ -40,10 +40,10 @@ public enum Base64Finder {
             found.append(Base64Segment(range: range, data: data, kind: kind, text: decodedText, label: label))
         }
 
-        for match in matches(#"data:([\w.+/-]+);base64,([A-Za-z0-9+/_=-]+)"#, in: text) {
+        for match in matches(dataURI, in: text) {
             add(match.range(at: 2), encoded: ns.substring(with: match.range(at: 2)), label: ns.substring(with: match.range(at: 1)), mime: ns.substring(with: match.range(at: 1)))
         }
-        for match in matches(#""([A-Za-z0-9_.-]+)"\s*:\s*"([A-Za-z0-9+/_-]{\#(minimumLength),}={0,2})""#, in: text) {
+        for match in matches(jsonValue, in: text) {
             add(match.range(at: 2), encoded: ns.substring(with: match.range(at: 2)), label: ns.substring(with: match.range(at: 1)))
         }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -101,7 +101,12 @@ public enum Base64Finder {
         return .binary
     }
 
-    private static func matches(_ pattern: String, in text: String) -> [NSTextCheckingResult] {
-        (try? NSRegularExpression(pattern: pattern))?.matches(in: text, range: NSRange(location: 0, length: (text as NSString).length)) ?? []
+    private static let dataURI = try? NSRegularExpression(pattern: #"data:([\w.+/-]+);base64,([A-Za-z0-9+/_=-]+)"#)
+    private static let jsonValue = try? NSRegularExpression(
+        pattern: #""([A-Za-z0-9_.-]+)"\s*:\s*"([A-Za-z0-9+/_-]{\#(minimumLength),}={0,2})""#
+    )
+
+    private static func matches(_ regex: NSRegularExpression?, in text: String) -> [NSTextCheckingResult] {
+        regex?.matches(in: text, range: NSRange(location: 0, length: (text as NSString).length)) ?? []
     }
 }
