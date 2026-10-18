@@ -36,54 +36,41 @@ struct MessagePanel: View {
         side == .request ? $requestSection : $responseSection
     }
 
-    /// The chosen section, except that a request without a body shows its parameters (or headers) instead of an empty Body,
-    /// and a section this exchange does not have (Messages on plain HTTP) falls back to Body.
+    private var content: MessagePanelViewModel {
+        MessagePanelViewModel(
+            flow: flow,
+            side: side,
+            previewersActive: !model.settings.previewers.active.isEmpty,
+            embedded: EmbeddedDataIndex.shared.segments(in: flow, side: side)
+        )
+    }
+
     private var section: Section {
-        var chosen = Section(rawValue: sectionBinding.wrappedValue) ?? .body
-        if !available.contains(chosen) {
-            chosen = .body
-        }
-        guard side == .request, chosen == .body, flow.request.body.isEmpty else { return chosen }
-        return fields.isEmpty ? .headers : .params
+        content.section(chosen: sectionBinding.wrappedValue)
     }
 
     private var headers: [Header] {
-        flow.headers(side)
+        content.headers
     }
 
     private var fields: [FormField] {
-        side == .request ? FormFields.parse(flow.request) : []
+        content.fields
     }
 
     private var cookies: [CookieEntry] {
-        Cookies.entries(for: flow).filter { $0.source == (side == .request ? .request : .response) }
+        content.cookies
     }
 
     private var embedded: [Base64Segment] {
-        EmbeddedDataIndex.shared.segments(in: flow, side: side)
+        content.embedded
     }
 
     private var available: [Section] {
-        Section.allCases.filter { section in
-            switch section {
-            case .params: side == .request
-            case .messages: side == .response && flow.isWebSocket
-            case .previewers: side == .response && !model.settings.previewers.active.isEmpty
-            case .decoded: !embedded.isEmpty
-            default: true
-            }
-        }
+        content.available
     }
 
     private func count(_ section: Section) -> Int? {
-        switch section {
-        case .headers: headers.count
-        case .params: fields.count
-        case .cookies: cookies.count
-        case .messages: flow.webSocketMessages.count
-        case .decoded: embedded.count
-        case .body, .raw, .previewers: nil
-        }
+        content.count(section)
     }
 
     var body: some View {
@@ -140,11 +127,7 @@ struct MessagePanel: View {
     }
 
     private var detail: String {
-        let body = flow.body(side)
-        let type = headers.value(for: "content-type")?.split(separator: ";").first.map(String.init)
-        // A response always states its size, so an empty one reads "0 B" instead of looking unloaded.
-        let size = side == .response || !body.isEmpty ? Format.bytes(body.count) : nil
-        return [type, size].compactMap(\.self).joined(separator: " · ")
+        content.detail
     }
 }
 
