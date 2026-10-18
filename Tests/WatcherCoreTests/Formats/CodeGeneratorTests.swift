@@ -55,4 +55,17 @@ struct CodeGeneratorTests {
                 == "curl 'https://api.example.com/v1' -H 'Accept: */*' --compressed --data-raw 'x=1'"
         )
     }
+
+    @Test
+    func swiftEscapesControlCharactersInItsOwnSyntax() {
+        let request = RequestRecord.fixture(
+            method: "POST",
+            host: "a",
+            headers: [Header("X", "a\u{1}b")],
+            body: Data("t\u{8}\u{C}\u{7F}\\u0001\"\n".utf8)
+        )
+        let swift = CodeGenerator.generate(request, as: .swift)
+        #expect(swift.contains(#"request.setValue("a\u{1}b", forHTTPHeaderField: "X")"#), "\(swift)")
+        #expect(swift.contains(#"Data("t\u{8}\u{C}\u{7F}\\u0001\"\n".utf8)"#), "\(swift)")
+    }
 }

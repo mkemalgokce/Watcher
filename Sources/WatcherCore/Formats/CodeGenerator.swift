@@ -92,6 +92,22 @@ public enum CodeGenerator {
     }
 
     private static func swift(_ request: RequestRecord, _ headers: [Header], _ body: Body) -> String {
+        /// Shadows the JSON `literal`: Swift has no `\b`, `\f` or `\u0001`, so control characters become `\u{…}`.
+        func literal(_ text: String) -> String {
+            let escaped = text.unicodeScalars.map { scalar in
+                switch scalar {
+                case "\"": "\\\""
+                case "\\": "\\\\"
+                case "\n": "\\n"
+                case "\r": "\\r"
+                case "\t": "\\t"
+                case _ where scalar.value < 0x20 || scalar.value == 0x7F:
+                    "\\u{\(String(scalar.value, radix: 16, uppercase: true))}"
+                default: String(scalar)
+                }
+            }
+            return "\"" + escaped.joined() + "\""
+        }
         var lines = ["var request = URLRequest(url: URL(string: \(literal(request.url)))!)", "request.httpMethod = \(literal(request.method))"]
         lines += headers.map { "request.setValue(\(literal($0.value)), forHTTPHeaderField: \(literal($0.name)))" }
         switch body {
