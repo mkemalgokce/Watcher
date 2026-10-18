@@ -167,29 +167,46 @@ final class RequestActions {
     /// Pauses this URL from now on: the host and path, any query.
     func addBreakpoint(for request: RequestRecord) {
         settings.breakpoints.isEnabled = true
-        let matching = MatchingRule(pattern: Self.breakpointPattern(for: request))
+        let matching = Self.breakpointMatching(for: request)
         settings.breakpoints.rules.append(BreakpointRule(name: request.host, matching: matching))
     }
 
-    static func breakpointPattern(for request: RequestRecord) -> String {
-        let path = request.path.prefix { $0 != "?" }
-        return request.host + (path.isEmpty ? "/" : path)
+    static func breakpointMatching(for request: RequestRecord) -> MatchingRule {
+        let path = String(request.path.prefix { $0 != "?" })
+        let escapedPath = path.isEmpty || path == "/" ? "/?" : NSRegularExpression.escapedPattern(for: path)
+        let tail = escapedPath + #"(\?.*)?"#
+        return MatchingRule(pattern: anchored(host: escapedHost(request.host), tail: tail), mode: .regex)
     }
 
     /// Blocks this host only.
     func blockHost(_ host: String) {
-        addBlockRule(name: host, pattern: "\(host)/*")
+        addBlockRule(name: host, matching: Self.hostMatching(host, subdomains: false))
     }
 
     /// Blocks a sidebar domain and its subdomains.
     func blockDomain(_ domain: String) {
-        addBlockRule(name: domain, pattern: "*\(domain)/*")
+        addBlockRule(name: domain, matching: Self.hostMatching(domain, subdomains: true))
         notices.notify("Requests to \(domain) are now blocked (Tools ▸ Block List)", .success)
     }
 
-    private func addBlockRule(name: String, pattern: String) {
+    private func addBlockRule(name: String, matching: MatchingRule) {
         settings.blockList.isEnabled = true
-        settings.blockList.rules.append(BlockRule(name: name, matching: MatchingRule(pattern: pattern)))
+        guard !settings.blockList.rules.contains(where: { $0.matching == matching }) else { return }
+        settings.blockList.rules.append(BlockRule(name: name, matching: matching))
+    }
+
+    /// The host is anchored at both ends, so a look-alike name or a URL that only mentions it never matches.
+    private static func hostMatching(_ host: String, subdomains: Bool) -> MatchingRule {
+        let name = (subdomains ? #"([^/?:]+\.)?"# : "") + escapedHost(host)
+        return MatchingRule(pattern: anchored(host: name, tail: #"([/?].*)?"#), mode: .regex)
+    }
+
+    private static func escapedHost(_ host: String) -> String {
+        NSRegularExpression.escapedPattern(for: host)
+    }
+
+    private static func anchored(host: String, tail: String) -> String {
+        #"^([A-Za-z][A-Za-z0-9+.-]*://)?"# + host + #"(:\d+)?"# + tail + "$"
     }
 
     /// Output of every enabled previewer whose URL pattern matches this request.
