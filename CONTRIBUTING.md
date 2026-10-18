@@ -14,6 +14,16 @@ Watcher uses GitHub flow on `main`; changes arrive as pull requests from forks.
 `main` is protected: a pull request needs passing `checks`, `swift` and `pr-title` checks (`swift` is skipped when only docs change) and a review from the
 code owner (@mkemalgokce, see `.github/CODEOWNERS`) before it can be merged.
 
+## Project layout
+
+| Path | Contents |
+| --- | --- |
+| `Sources/WatcherCore` | proxy (SwiftNIO), TLS, rules and tools, scripting, settings, export; the engine both front ends use |
+| `Sources/WatcherUI` | SwiftUI views and view models; every screen has a `#Preview` |
+| `Sources/Watcher` | the app entry point |
+| `Sources/watcher-cli` | the command line tool |
+| `Sources/TreeSitterScanners` | external scanners of tree-sitter-css and -javascript 0.25.0, which their packages skip as dependencies |
+
 ## Make targets
 
 | Target | Does |
