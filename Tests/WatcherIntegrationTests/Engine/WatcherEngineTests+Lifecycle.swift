@@ -17,6 +17,7 @@ extension WatcherEngineTests {
                 throw PACEvaluator.LoadError(description: "no PAC in this test")
             },
             pacTimeout: Duration = .seconds(10),
+            sleep: @escaping Sleep = { _ in try await Task.sleep(for: .milliseconds(5)) },
             makeServer: @escaping @Sendable (FlowStore, CertificateAuthority) -> ProxyServer = {
                 ProxyServer(store: $0, authority: $1, clientApp: { _ in nil })
             }
@@ -26,7 +27,7 @@ extension WatcherEngineTests {
                 files: (files ?? self.files).access,
                 pacLoader: pacLoader,
                 pacTimeout: pacTimeout,
-                sleep: { _ in try await Task.sleep(for: .milliseconds(5)) },
+                sleep: sleep,
                 makeServer: makeServer
             )
             engine.onLog = { [logged] line in logged.mutate { $0.append(line) } }
@@ -108,7 +109,10 @@ extension WatcherEngineTests {
                     try await sleepUntilCancelled(.zero)
                     throw PACEvaluator.LoadError(description: "cancelled")
                 },
-                pacTimeout: .milliseconds(50)
+                pacTimeout: .seconds(3),
+                sleep: { duration in
+                    guard duration == .seconds(3) else { return try await sleepUntilCancelled(duration) }
+                }
             )
             try engine.settings.update {
                 $0.externalProxy.isEnabled = true; $0.externalProxy.kind = .pac
@@ -122,17 +126,14 @@ extension WatcherEngineTests {
 
         @Test
         func theSettingsWatcherEndsWhenTheEngineGoesAway() async throws {
-            let ticks = LockedBox(0)
+            let gate = SleepGate()
             let servers = LockedBox<[ProxyServer]>([])
             weak var gone: WatcherEngine?
             do {
                 let engine = try WatcherEngine(
                     directory: URL(fileURLWithPath: "/fake-home/.watcher"),
                     files: files.access,
-                    sleep: { _ in
-                        ticks.mutate { $0 += 1 }
-                        try await Task.sleep(for: .milliseconds(5))
-                    },
+                    sleep: gate.sleep,
                     makeServer: {
                         let server = ProxyServer(store: $0, authority: $1, clientApp: { _ in nil })
                         servers.mutate { $0.append(server) }
@@ -142,14 +143,11 @@ extension WatcherEngineTests {
                 gone = engine
                 try await engine.start(port: 0)
             }
+            #expect(await eventually { gate.waitingCount == 1 }, "the watcher never started waiting")
             #expect(await eventually { gone == nil }, "something still holds the engine")
-            var stopped = false
-            for _ in 0 ..< 100 where !stopped {
-                let before = ticks.value
-                try await Task.sleep(for: .milliseconds(60))
-                stopped = ticks.value == before
-            }
-            #expect(stopped, "the watcher keeps waking up after the engine is gone")
+            gate.releaseAll()
+            #expect(await eventually { gate.returnedCount == 1 })
+            #expect(await !eventually(timeout: 0.5) { gate.waitingCount > 0 }, "the watcher kept waiting")
             for server in servers.value {
                 try await server.stop()
             }

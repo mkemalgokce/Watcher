@@ -10,15 +10,17 @@ struct TimedOut: Error, CustomStringConvertible {
 }
 
 /// Runs `work`, cancelling it and throwing `TimedOut` if it has not finished within `limit`.
+/// `work` must honour cancellation: the group still waits for it to end.
 func withTimeout<T: Sendable>(
     _ limit: Duration,
     _ what: String,
+    sleep: @escaping Sleep,
     _ work: @escaping @Sendable () async throws -> T
 ) async throws -> T {
     try await withThrowingTaskGroup(of: T.self) { group in
         group.addTask { try await work() }
         group.addTask {
-            try await Task.sleep(for: limit)
+            try await sleep(limit)
             throw TimedOut(what: what, limit: limit)
         }
         defer { group.cancelAll() }

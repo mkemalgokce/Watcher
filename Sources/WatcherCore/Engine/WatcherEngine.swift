@@ -260,7 +260,9 @@ public final class WatcherEngine: @unchecked Sendable {
         }
         do {
             let (loader, location) = (pacLoader, external.pacURL)
-            let evaluator = try await withTimeout(pacTimeout, "PAC download") { try await loader(location) }
+            let evaluator = try await withTimeout(pacTimeout, "PAC download", sleep: sleep) {
+                try await loader(location)
+            }
             lock.withLock { loadedPAC = (external.pacURL, evaluator) }
             return evaluator
         } catch {

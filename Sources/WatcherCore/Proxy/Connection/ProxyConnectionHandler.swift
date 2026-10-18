@@ -215,7 +215,9 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
     /// WebSocket and other upgrades: swap the HTTP codecs for a raw relay once the upstream is connected.
     private func upgrade(_ client: Channel, head: HTTPRequestHead, record: RequestRecord) {
         let server = server
-        Task {
+        let previous = inFlight
+        inFlight = Task {
+            await previous?.value
             var record = record
             record.clientApp = await self.clientApp.app(for: client)
             switch await server.prepareUpgrade(record) {
