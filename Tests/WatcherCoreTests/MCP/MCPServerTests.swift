@@ -5,13 +5,11 @@ import WatcherTestSupport
 
 @Suite(.tags(.unit))
 struct MCPServerTests {
-    private let directory: TemporaryDirectory
     private let engine: WatcherEngine
     private let server: MCPServer
 
     init() throws {
-        directory = try TemporaryDirectory()
-        engine = try WatcherEngine(directory: directory.url)
+        engine = try WatcherEngine.inMemory()
         server = MCPServer(engine: engine)
     }
 

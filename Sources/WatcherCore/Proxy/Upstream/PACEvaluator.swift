@@ -41,11 +41,14 @@ public final class PACEvaluator: @unchecked Sendable {
         }
     }
 
-    public static func load(from location: String) async throws -> PACEvaluator {
+    public static func load(
+        from location: String,
+        fetch: @Sendable (URL) async throws -> Data = { try await URLSession.shared.data(from: $0).0 }
+    ) async throws -> PACEvaluator {
         guard let url = URL(string: location), ["http", "https", "file"].contains(url.scheme ?? "") else {
             throw LoadError(description: "PAC location must be an http(s) or file URL")
         }
-        let (data, _) = try await URLSession.shared.data(from: url)
+        let data = try await fetch(url)
         return try PACEvaluator(script: String(decoding: data, as: UTF8.self))
     }
 

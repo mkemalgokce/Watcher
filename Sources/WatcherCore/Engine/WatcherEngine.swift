@@ -18,19 +18,31 @@ public final class WatcherEngine: @unchecked Sendable {
     private let previewers = PreviewerRunner()
     private var protobufSchema: (files: [String], schema: ProtobufSchema?) = ([], nil)
     private var loadedPAC: (location: String, evaluator: PACEvaluator)?
+    private let files: FileAccess
+    private let pacLoader: @Sendable (String) async throws -> PACEvaluator
+    private let sleep: Sleep
     private let makeServer: @Sendable (FlowStore, CertificateAuthority) -> ProxyServer
 
     /// `makeServer` builds the proxy for each start; tests pass one with their own TLS trust or app lookup.
+    /// `sleep` paces the check for settings edited outside the engine.
     public init(
         directory: URL = WatcherPaths.supportDirectory,
+        files: FileAccess = .live,
+        pacLoader: @escaping @Sendable (String) async throws -> PACEvaluator = {
+            try await PACEvaluator.load(from: $0)
+        },
+        sleep: @escaping Sleep = { try await Task.sleep(for: $0) },
         makeServer: @escaping @Sendable (FlowStore, CertificateAuthority) -> ProxyServer = {
             ProxyServer(store: $0, authority: $1)
         }
     ) throws {
-        self.makeServer = makeServer
-        authority = try CertificateAuthority(directory: directory)
-        settings = SettingsStore(url: directory.appendingPathComponent("settings.json"))
-        workspaces = WorkspaceStore(directory: directory.appendingPathComponent("workspaces", isDirectory: true))
+        self.files = files; self.pacLoader = pacLoader; self.sleep = sleep; self.makeServer = makeServer
+        authority = try CertificateAuthority(directory: directory, files: files)
+        settings = SettingsStore(url: directory.appendingPathComponent("settings.json"), files: files)
+        workspaces = WorkspaceStore(
+            directory: directory.appendingPathComponent("workspaces", isDirectory: true),
+            files: files
+        )
     }
 
     /// Starts listening on the configured port (or `port`) and returns the bound port.
@@ -58,9 +70,9 @@ public final class WatcherEngine: @unchecked Sendable {
         }
         appliedReverseProxies = nil; appliedSocks = nil
         await apply(settings.value)
-        watcher = Task { [weak self] in
+        watcher = Task { [weak self, sleep] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
+                try? await sleep(.seconds(1))
                 if let self, settings.reloadIfChanged() {
                     await apply(settings.value)
                 }
@@ -182,19 +194,19 @@ public final class WatcherEngine: @unchecked Sendable {
     }
 
     /// Reads all `.desc` files into one schema; unreadable files are reported and skipped.
-    private func loadProtobufSchemas(_ files: [String], log: @Sendable (String) -> Void) {
-        guard files != protobufSchema.files else { return }
+    private func loadProtobufSchemas(_ paths: [String], log: @Sendable (String) -> Void) {
+        guard paths != protobufSchema.files else { return }
         var combined = Data()
-        for file in files {
-            do { try combined.append(Data(contentsOf: URL(fileURLWithPath: (file as NSString).expandingTildeInPath)))
+        for file in paths {
+            do { try combined.append(files.read(URL(fileURLWithPath: (file as NSString).expandingTildeInPath)))
                 // A FileDescriptorSet is a repeated field, so concatenated sets are themselves a valid set.
             } catch { log("Protobuf schema \(file): \(error)") }
         }
         let schema = combined.isEmpty ? nil : try? ProtobufSchema(descriptorSet: combined)
-        if !files.isEmpty, schema == nil {
+        if !paths.isEmpty, schema == nil {
             log("Protobuf schemas could not be parsed")
         }
-        protobufSchema = (files, schema)
+        protobufSchema = (paths, schema)
     }
 
     /// Body text for display: a schema-decoded protobuf when a rule names the message type, else the generic preview.
@@ -220,7 +232,7 @@ public final class WatcherEngine: @unchecked Sendable {
             return loaded.evaluator
         }
         do {
-            let evaluator = try await PACEvaluator.load(from: external.pacURL)
+            let evaluator = try await pacLoader(external.pacURL)
             loadedPAC = (external.pacURL, evaluator)
             return evaluator
         } catch {
