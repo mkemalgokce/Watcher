@@ -18,15 +18,8 @@ public final class AppModel {
     private(set) var flows: [Flow] = []
     /// Settable inside the module so previews can show paused traffic.
     internal(set) var hits: [BreakpointCenter.Hit] = []
-    private(set) var isRunning = false
-    /// Set while the proxy is starting or stopping, so the toolbar and empty list can say so instead of looking frozen.
-    private(set) var isSwitchingProxy = false
-    /// Why the last start failed; shown in the empty list until the next attempt.
-    internal(set) var proxyError: String?
+    let proxy: ProxyController
     private(set) var workspaces: [String] = []
-    private(set) var systemProxyOn = false
-    /// The system-proxy change still running in the background; the next Record or Pause waits for it.
-    @ObservationIgnored private var systemProxySwitch: Task<Void, Never>?
     var selection: Flow.ID?
     var query = FlowFilter() {
         didSet {
@@ -108,14 +101,11 @@ public final class AppModel {
     }
 
     /// `listening: false` leaves the model static, for previews that fill it by hand.
-    /// Turns the Mac's own proxy setting on and off; tests pass one with a fake `networksetup`.
-    let systemProxy: SystemProxy
-
-    convenience init(listening: Bool, systemProxy: SystemProxy? = nil) {
-        self.init(dependencies: listening ? .live() : .preview(), listening: listening, systemProxy: systemProxy)
+    convenience init(listening: Bool) {
+        self.init(dependencies: listening ? .live() : .preview(), listening: listening)
     }
 
-    init(dependencies: AppDependencies, listening: Bool = false, systemProxy: SystemProxy? = nil) {
+    init(dependencies: AppDependencies, listening: Bool = false) {
         engine = dependencies.engine
         clipboard = dependencies.clipboard
         preferences = dependencies.preferences
@@ -129,32 +119,23 @@ public final class AppModel {
             store: dependencies.engine.store,
             notices: notices
         )
-        let directory = engine.authority.certificateURL.deletingLastPathComponent()
         devices = DevicesViewModel(probe: listening ? .live : .none, certificateURL: WatcherPaths.supportDirectory.appendingPathComponent("watcher-ca.pem"))
-        settings = SettingsEditor(engine: engine, sleep: dependencies.sleep, notices: notices)
+        let settings = SettingsEditor(engine: engine, sleep: dependencies.sleep, notices: notices)
+        self.settings = settings
         workspaces = engine.workspaces.list()
-        // Never the real one off the app: a preview or test must not change the Mac's network settings.
-        let inertBackup = directory.appendingPathComponent("system-proxy-backup.json")
-        let inert = SystemProxy(run: { _ in "" }, backupURL: inertBackup)
-        self.systemProxy = systemProxy ?? (listening ? .shared : inert)
+        proxy = ProxyController(runner: dependencies.runner, systemProxy: dependencies.systemProxy, notices: notices) {
+            settings.value
+        }
+        proxy.restoreLeftoverSystemProxy()
+        dependencies.onTerminate { [proxy] in proxy.applicationWillTerminate() }
 
         settings.onChange = { [weak self] old, new in
             if old.hideAppleTraffic != new.hideAppleTraffic {
                 self?.refreshDerived()
             }
         }
-        guard listening else { return }
-        observeEngine()
-        // A proxy setting left behind by a crashed run would cut the Mac off from the network.
-        if self.systemProxy.hasPendingRestore {
-            try? self.systemProxy.disable()
-        }
-        NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated {
-                if let self, self.systemProxyOn {
-                    try? self.systemProxy.disable()
-                }
-            }
+        if listening {
+            observeEngine()
         }
     }
 
@@ -231,16 +212,31 @@ public final class AppModel {
     /// The line under the window title: starting, listening (with the address), stopped, or that starting failed.
     var statusLine: String {
         let count = visibleFlows.count == flows.count ? "\(flows.count) requests" : "\(visibleFlows.count) of \(flows.count) requests"
-        if isSwitchingProxy {
-            return isRunning ? "Stopping…" : "Starting…"
-        }
-        if proxyError != nil {
-            return "Failed to start · see Settings"
-        }
-        if isRunning {
-            return "Recording on 127.0.0.1:\(String(proxyPort)) · \(count)"
-        }
-        return "Not recording · \(count)"
+        return proxy.status(listing: count)
+    }
+
+    var isRunning: Bool {
+        proxy.isRunning
+    }
+
+    var isSwitchingProxy: Bool {
+        proxy.isSwitchingProxy
+    }
+
+    var proxyError: String? {
+        proxy.proxyError
+    }
+
+    var systemProxyOn: Bool {
+        proxy.systemProxyOn
+    }
+
+    func toggleRunning() {
+        proxy.toggleRunning()
+    }
+
+    func setSystemProxy(_ on: Bool) {
+        proxy.setSystemProxy(on)
     }
 
     /// Code for a request; with "Add the proxy to copied cURL commands" on, cURL goes through Watcher again and trusts its certificate.
@@ -251,68 +247,11 @@ public final class AppModel {
 
     /// The port the proxy listens on: the one it bound while running, otherwise the configured one.
     var proxyPort: Int {
-        engine.boundPort ?? settings.port
+        proxy.port
     }
 
     var selectedFlow: Flow? {
         selection.flatMap { indexByID[$0] }.map { flows[$0] }
-    }
-
-    // MARK: Proxy lifecycle
-
-    func toggleRunning() {
-        guard !isSwitchingProxy else { return }
-        if !isRunning, !PortRange.isValid(settings.port) {
-            let error = "Port \(settings.port) is not valid. Choose a port from 1 to 65535 in Settings."
-            proxyError = error
-            notices.notify(error, .error)
-            return
-        }
-        isSwitchingProxy = true
-        proxyError = nil
-        let pending = systemProxySwitch
-        Task {
-            defer { isSwitchingProxy = false }
-            await pending?.value
-            if isRunning {
-                await pause()
-            } else {
-                await record()
-            }
-        }
-    }
-
-    /// Starts the proxy and shows it at once; the slow system-proxy switch follows in the background.
-    private func record() async {
-        do {
-            try await engine.start(port: settings.port)
-            isRunning = true
-            if settings.autoSystemProxy {
-                systemProxySwitch = Task { await switchSystemProxy(true) }
-            }
-            notices.notify("Recording on 127.0.0.1:\(proxyPort)", .success)
-        } catch {
-            isRunning = engine.isRunning
-            let message = "Cannot start the proxy: \(error). Another app may be using port \(settings.port); "
-                + "pick a different port in Settings."
-            proxyError = message
-            notices.notify(message, .error)
-        }
-    }
-
-    /// Shows recording as stopped at once. Mac traffic still points here until the original settings are back, so with
-    /// the system proxy on the proxy stops only after that.
-    private func pause() async {
-        isRunning = false
-        if systemProxyOn {
-            systemProxySwitch = Task {
-                await switchSystemProxy(false)
-                try? await engine.stop()
-            }
-        } else {
-            try? await engine.stop()
-        }
-        notices.notify("Recording paused; the proxy is off")
     }
 
     /// End of the welcome screen: remember the choice, then start capturing.
@@ -321,33 +260,6 @@ public final class AppModel {
         sheet = nil
         if !isRunning {
             toggleRunning()
-        }
-    }
-
-    func setSystemProxy(_ on: Bool) {
-        Task { await switchSystemProxy(on) }
-    }
-
-    /// networksetup runs once per setting and service, so it runs off the main thread to keep the window responsive.
-    private func switchSystemProxy(_ enable: Bool) async {
-        let proxy = systemProxy, port = proxyPort
-        do {
-            try await Task.detached {
-                if enable {
-                    try proxy.enable(port: port)
-                } else {
-                    try proxy.disable()
-                }
-            }.value
-            systemProxyOn = enable
-            let message = enable
-                ? "System proxy on. Mac traffic now goes through Watcher."
-                : "System proxy off. Your original settings are back."
-            notices.notify(message, .success)
-        } catch {
-            let message = "Cannot change the system proxy: \(error). "
-                + "macOS may need your permission in System Settings → Privacy & Security."
-            notices.notify(message, .error)
         }
     }
 

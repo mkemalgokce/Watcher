@@ -12,7 +12,7 @@ struct SessionFilesViewModelTests {
     private static let saved = URL(fileURLWithPath: "/fake-home/out/session.watcher")
     private let files = FileAccessFake()
     private let store = FlowStore()
-    private let notices = NoticeCenter(sleep: SleepSpy().sleep) { _ in }
+    private let notices = NoticeCenter(sleep: sleepUntilCancelled) { _ in }
     private let flows = [Flow.fixture(sequence: 1, status: 200), .fixture(sequence: 2, status: 404)]
 
     private func viewModel(

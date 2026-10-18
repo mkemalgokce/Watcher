@@ -160,6 +160,40 @@ struct AppModelTests {
     }
 
     @Test
+    func finishingOnboardingRemembersItClosesTheSheetAndStartsRecording() async throws {
+        let preferences = PreferencesFake()
+        let runner = ProxyRunnerStub()
+        let model = try AppModel(dependencies: .test(preferences: preferences, runner: runner))
+        model.show(.welcome)
+        model.finishOnboarding()
+        #expect(preferences.onboardingDone)
+        #expect(model.sheet == nil)
+        #expect(await eventually { model.isRunning && !model.isSwitchingProxy })
+
+        model.finishOnboarding()
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(runner.calls.count == 1, "an already running proxy is not toggled off")
+    }
+
+    @Test
+    func quittingTheAppTurnsTheSystemProxyOff() async throws {
+        let lifecycle = AppLifecycleSpy()
+        let systemProxy = SystemProxySpy()
+        let model = try AppModel(dependencies: .test(systemProxy: systemProxy, lifecycle: lifecycle))
+        model.setSystemProxy(true)
+        #expect(await eventually { model.systemProxyOn })
+        lifecycle.terminate()
+        #expect(systemProxy.calls.last == "disable")
+    }
+
+    @Test
+    func aProxyLeftOnByACrashIsRestoredWhenTheModelIsBuilt() throws {
+        let systemProxy = SystemProxySpy(hasPendingRestore: true)
+        _ = try AppModel(dependencies: .test(systemProxy: systemProxy))
+        #expect(systemProxy.calls == ["disable"])
+    }
+
+    @Test
     func theProxyPortIsTheConfiguredOneUntilAPortIsBound() {
         let model = AppModel(listening: false)
         model.settings.port = 9123
@@ -175,7 +209,7 @@ struct AppModelTests {
         #expect(model.statusLine == "Not recording · 2 requests")
         model.sidebar = .errors
         #expect(model.statusLine == "Not recording · 1 of 2 requests")
-        model.proxyError = "port in use"
+        model.proxy.proxyError = "port in use"
         #expect(model.statusLine == "Failed to start · see Settings")
     }
 }

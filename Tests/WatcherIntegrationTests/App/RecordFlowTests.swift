@@ -16,7 +16,8 @@ struct RecordFlowTests {
 
     private func makeModel(_ networkSetup: NetworkSetupSpy) throws -> AppModel {
         let systemProxy = SystemProxy(run: { networkSetup.run($0) }, backupURL: backup.appending("backup.json"))
-        let model = AppModel(listening: false, systemProxy: systemProxy)
+        let engine = try WatcherEngine.inMemory()
+        let model = try AppModel(dependencies: .test(engine: engine, runner: engine, systemProxy: systemProxy))
         model.settings.autoSystemProxy = true
         try model.useFreePort(searchingFrom: 21000, fallback: 29998)
         return model

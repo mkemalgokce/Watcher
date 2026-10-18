@@ -13,4 +13,7 @@ public struct AppDependencies {
     var files: FileAccess
     var commands: CommandRunner
     var preferences: any Preferences
+    var runner: any ProxyRunning
+    var systemProxy: any SystemProxying
+    var onTerminate: OnTerminate
 }

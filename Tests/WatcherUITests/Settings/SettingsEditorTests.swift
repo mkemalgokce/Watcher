@@ -9,7 +9,7 @@ import WatcherTestSupport
 @Suite(.tags(.unit))
 struct SettingsEditorTests {
     private let gate = SleepGate()
-    private let notices = NoticeCenter(sleep: SleepSpy().sleep) { _ in }
+    private let notices = NoticeCenter(sleep: sleepUntilCancelled) { _ in }
     private let saved = LockedBox<[WatcherSettings]>([])
     private let applied = LockedBox<[WatcherSettings]>([])
 
@@ -82,7 +82,7 @@ extension SettingsEditorTests {
     /// Fields read and written straight on the editor go through its value.
     @MainActor
     struct Fields {
-        private let notices = NoticeCenter(sleep: SleepSpy().sleep) { _ in }
+        private let notices = NoticeCenter(sleep: sleepUntilCancelled) { _ in }
 
         @Test
         func aFieldWrittenOnTheEditorChangesTheValue() {

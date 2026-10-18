@@ -13,18 +13,25 @@ public extension AppDependencies {
         panels: FilePanelsStub? = nil,
         files: FileAccessFake? = nil,
         commands: CommandRunnerSpy? = nil,
-        preferences: PreferencesFake? = nil
+        preferences: PreferencesFake? = nil,
+        runner: (any ProxyRunning)? = nil,
+        systemProxy: (any SystemProxying)? = nil,
+        lifecycle: AppLifecycleSpy? = nil
     ) throws -> AppDependencies {
         let files = files ?? FileAccessFake()
-        return try AppDependencies(
-            engine: engine ?? .inMemory(files: files),
+        let engine = try engine ?? .inMemory(files: files)
+        return AppDependencies(
+            engine: engine,
             clipboard: clipboard ?? ClipboardSpy(),
-            sleep: sleep ?? liveSleep,
+            sleep: sleep ?? sleepUntilCancelled,
             announce: (announcer ?? AnnouncerSpy()).announce,
             panels: panels ?? FilePanelsStub(),
             files: files.access,
             commands: (commands ?? CommandRunnerSpy()).runner,
-            preferences: preferences ?? PreferencesFake()
+            preferences: preferences ?? PreferencesFake(),
+            runner: runner ?? ProxyRunnerStub(),
+            systemProxy: systemProxy ?? SystemProxySpy(),
+            onTerminate: (lifecycle ?? AppLifecycleSpy()).onTerminate
         )
     }
 }
