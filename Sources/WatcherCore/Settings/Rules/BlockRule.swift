@@ -1,5 +1,3 @@
-import Foundation
-
 public struct BlockRule: ToolRule {
     public var name: String
     public var isEnabled: Bool

@@ -1,5 +1,3 @@
-import Foundation
-
 /// The debugging tools that can be switched on and off, with the name each is known by outside the app.
 public enum ToolKind: String, CaseIterable, Sendable {
     case blockList = "block-list"

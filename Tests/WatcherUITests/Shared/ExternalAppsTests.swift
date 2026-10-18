@@ -1,4 +1,3 @@
-import AppKit
 import Testing
 import UniformTypeIdentifiers
 import WatcherTestSupport

@@ -1,5 +1,3 @@
-import Foundation
-
 /// A canned response a held breakpoint can be turned into with one click.
 public struct BreakpointTemplate: Codable, Equatable, Sendable {
     public var name: String

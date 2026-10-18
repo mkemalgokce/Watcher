@@ -1,5 +1,4 @@
 import SwiftUI
-import WatcherCore
 
 /// The bottom bar: what Watcher is doing right now, each item clickable for the obvious action.
 struct StatusBar: View {

@@ -1,5 +1,3 @@
-import Foundation
-import SnapshotTesting
 import SwiftUI
 import Testing
 @testable import WatcherCore

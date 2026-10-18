@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 import WatcherCore
 
@@ -43,10 +42,6 @@ struct BodyViewer: View {
 
     private var contentType: String? {
         headers.value(for: "content-type")
-    }
-
-    private var encoding: String? {
-        headers.value(for: "content-encoding")
     }
 
     private var unpackKey: BodyRendering.UnpackKey {

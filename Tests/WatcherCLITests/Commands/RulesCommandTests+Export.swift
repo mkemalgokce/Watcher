@@ -1,5 +1,4 @@
 import ArgumentParser
-import Foundation
 import Testing
 @testable import watcher_cli
 import WatcherCore

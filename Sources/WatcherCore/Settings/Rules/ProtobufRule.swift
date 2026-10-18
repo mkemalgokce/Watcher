@@ -1,5 +1,3 @@
-import Foundation
-
 /// Which message type a request/response body is, per URL pattern.
 public struct ProtobufRule: ToolRule {
     public var name: String

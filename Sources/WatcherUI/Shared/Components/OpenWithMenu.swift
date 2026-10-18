@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 /// "Open With" for a body, an uploaded file, an image or a decoded Base64 payload.

@@ -1,5 +1,3 @@
-import Foundation
-
 struct BreakpointTool: Tool {
     let name = "Breakpoint"
     var needsRequestBody: Bool {

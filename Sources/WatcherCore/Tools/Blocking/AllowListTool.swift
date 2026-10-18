@@ -1,5 +1,3 @@
-import Foundation
-
 /// Only lets matching requests through; everything else is blocked.
 struct AllowListTool: Tool {
     let name = "Allow List"

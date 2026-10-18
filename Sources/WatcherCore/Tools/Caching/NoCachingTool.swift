@@ -1,5 +1,3 @@
-import Foundation
-
 /// Forces fresh responses by stripping validators and disabling caches.
 struct NoCachingTool: Tool {
     let name = "No Caching"

@@ -1,5 +1,3 @@
-import WatcherCore
-
 /// One page of the Tools window: its name, icon, what it does and which group it sits in.
 enum ToolPage: String, CaseIterable, Identifiable {
     case sslProxying = "SSL Proxying"

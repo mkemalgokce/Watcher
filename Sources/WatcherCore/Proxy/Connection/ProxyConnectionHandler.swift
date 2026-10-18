@@ -1,4 +1,3 @@
-import AsyncHTTPClient
 import Foundation
 import NIO
 import NIOHTTP1

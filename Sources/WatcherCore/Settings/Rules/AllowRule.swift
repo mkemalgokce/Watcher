@@ -1,5 +1,3 @@
-import Foundation
-
 public struct AllowRule: ToolRule {
     public var name: String
     public var isEnabled: Bool

@@ -1,6 +1,5 @@
 import AVKit
 import SwiftUI
-import UniformTypeIdentifiers
 import WatcherCore
 
 struct RichPreview: View {

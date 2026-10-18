@@ -1,5 +1,3 @@
-import Foundation
-
 /// Fixed destination for a reverse-proxy listener.
 struct ReverseOrigin: Sendable {
     let scheme: String

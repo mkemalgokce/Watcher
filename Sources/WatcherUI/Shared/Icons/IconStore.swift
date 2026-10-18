@@ -1,5 +1,4 @@
 import AppKit
-import SwiftUI
 import WatcherCore
 
 /// Icons for the apps that send requests and the websites they talk to, loaded once and cached.

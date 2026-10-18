@@ -1,5 +1,4 @@
 import ApplicationServices
-import Foundation
 
 /// The system accessibility API, pointed at this process: what UI automation and VoiceOver use. Inside one process the
 /// requests are answered directly on the calling thread, so they run on the main thread like the UI they inspect.

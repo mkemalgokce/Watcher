@@ -1,5 +1,3 @@
-import Foundation
-
 public struct MapRemoteRule: ToolRule {
     /// `nil` parts keep the original request's value.
     public struct Destination: Codable, Equatable, Sendable {

@@ -1,5 +1,3 @@
-import Foundation
-
 public struct SocksSettings: Codable, Equatable, Sendable {
     public var isEnabled: Bool
     public var port: Int

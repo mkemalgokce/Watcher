@@ -1,6 +1,5 @@
 import Testing
 @testable import WatcherCore
-import WatcherTestSupport
 @testable import WatcherUI
 
 extension ToolsModelTests {

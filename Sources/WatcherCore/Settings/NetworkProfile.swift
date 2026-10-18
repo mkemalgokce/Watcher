@@ -1,5 +1,3 @@
-import Foundation
-
 public struct NetworkProfile: Codable, Equatable, Sendable {
     public var name: String
     /// 0 means unlimited.

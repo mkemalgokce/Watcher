@@ -1,4 +1,3 @@
-import Foundation
 import JavaScriptCore
 
 /// Stops synchronous JavaScript that runs past the timeout, which no promise or queue can interrupt.

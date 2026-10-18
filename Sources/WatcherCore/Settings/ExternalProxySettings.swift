@@ -1,5 +1,3 @@
-import Foundation
-
 public struct ExternalProxySettings: Codable, Equatable, Sendable {
     public enum Kind: String, Codable, Sendable { case http, socks, pac }
 

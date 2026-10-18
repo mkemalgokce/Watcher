@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 import WatcherCore
 
 /// The shared read-only table for headers, parameters and cookies: names in the syntax "key" colour, values selectable,

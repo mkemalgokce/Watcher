@@ -1,5 +1,4 @@
 import AppKit
-import SwiftUI
 
 /// Watcher's own icon, so the Dock shows it even when the app runs unbundled from Xcode or `swift run`.
 public enum WatcherAppIcon {

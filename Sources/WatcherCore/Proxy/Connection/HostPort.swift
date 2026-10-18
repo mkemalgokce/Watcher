@@ -1,5 +1,3 @@
-import Foundation
-
 /// A `host[:port]` as it appears in a CONNECT target or a Host header, with IPv6 literals in brackets.
 struct HostPort: Equatable {
     let host: String

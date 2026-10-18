@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import UniformTypeIdentifiers
 import WatcherCore
 
 /// The Decoded section: every embedded payload with a preview and the actions a developer needs (save, open, copy).

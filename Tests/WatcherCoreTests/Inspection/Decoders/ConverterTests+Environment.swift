@@ -1,7 +1,6 @@
 import Foundation
 import Testing
 @testable import WatcherCore
-import WatcherTestSupport
 
 extension ConverterTests {
     /// Dates are written for the injected moment, language and time zone, not this Mac's.

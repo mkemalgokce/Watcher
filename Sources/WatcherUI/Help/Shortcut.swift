@@ -1,5 +1,3 @@
-import SwiftUI
-
 /// The shortcut list shown in Help; update it together with the `.keyboardShortcut`s in WatcherCommands.
 struct Shortcut {
     let keys: String

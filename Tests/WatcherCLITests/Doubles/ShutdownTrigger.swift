@@ -1,4 +1,3 @@
-import Foundation
 @testable import watcher_cli
 import WatcherTestSupport
 

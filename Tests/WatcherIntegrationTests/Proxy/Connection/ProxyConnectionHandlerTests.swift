@@ -1,6 +1,5 @@
 import AsyncHTTPClient
 import Foundation
-import NIO
 import NIOSSL
 import Testing
 @testable import WatcherCore

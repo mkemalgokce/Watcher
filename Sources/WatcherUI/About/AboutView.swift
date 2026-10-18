@@ -1,6 +1,4 @@
-import AppKit
 import SwiftUI
-import WatcherCore
 
 /// Watcher ▸ About Watcher: what this build is, who makes it and how to support it, where its files live, and the
 /// open-source work it stands on.

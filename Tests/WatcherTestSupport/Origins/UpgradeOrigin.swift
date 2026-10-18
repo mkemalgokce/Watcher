@@ -1,4 +1,3 @@
-import Foundation
 import NIO
 
 /// Raw TCP origin that answers an upgrade request with 101 and then echoes every byte.

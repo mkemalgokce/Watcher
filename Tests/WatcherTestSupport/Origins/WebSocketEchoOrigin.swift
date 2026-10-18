@@ -1,4 +1,3 @@
-import Foundation
 import NIO
 
 /// A real RFC 6455 echo server: completes the handshake (Sec-WebSocket-Accept) and answers each text frame with the same text.

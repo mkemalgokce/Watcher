@@ -1,4 +1,3 @@
-import Compression
 import Foundation
 import Testing
 @testable import WatcherCore

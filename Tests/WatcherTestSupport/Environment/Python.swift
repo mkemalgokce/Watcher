@@ -1,5 +1,3 @@
-import Foundation
-
 /// Runs a short Python script (the system `python3` has `ssl`) and returns what it printed.
 /// Throws `TestSupportError` when python3 cannot be started; check `ExternalTool.python3.isAvailable` to skip instead.
 public func runPython(_ script: String) throws -> String {
