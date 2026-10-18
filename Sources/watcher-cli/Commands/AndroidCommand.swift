@@ -56,8 +56,11 @@ struct AndroidCommand: ParsableCommand {
     /// `--serial` names the device; without it there must be exactly one.
     private func chosenDevice(from devices: [AndroidDevice]) throws -> AndroidDevice {
         if let serial {
-            guard let named = devices.first(where: { $0.serial == serial }) else { throw Self.unchosen(devices) }
-            return named
+            if let named = devices.first(where: { $0.serial == serial }) {
+                return named
+            }
+            guard devices.isEmpty else { throw ValidationError("No device with serial \(serial) is connected.") }
+            throw Self.unchosen(devices)
         }
         guard devices.count == 1, let only = devices.first else { throw Self.unchosen(devices) }
         return only

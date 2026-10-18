@@ -66,11 +66,19 @@ struct AndroidCommandTests {
         #expect(cli.commands.calls == ["adb devices -l"])
     }
 
-    @Test(arguments: [["cert"], ["cert", "--serial", "missing"]])
-    func anActionWithSeveralDevicesNeedsAKnownSerial(arguments: [String]) throws {
+    @Test
+    func anActionWithSeveralDevicesNeedsASerial() throws {
         let cli = Self.harness(devices: [Self.emulator, Self.phone])
-        let error = try Self.validationError(running: arguments, in: cli)
+        let error = try Self.validationError(running: ["cert"], in: cli)
         #expect(error?.message == "Several devices are connected; pass --serial.")
+    }
+
+    @Test(arguments: [1, 2])
+    func aSerialNoConnectedDeviceHasIsNamedInTheError(connected: Int) throws {
+        let cli = Self.harness(devices: Array([Self.phone, Self.emulator].prefix(connected)))
+        let error = try Self.validationError(running: ["cert", "--serial", "missing"], in: cli)
+        #expect(error?.message == "No device with serial missing is connected.")
+        #expect(cli.commands.calls == ["adb devices -l"])
     }
 
     @Test
