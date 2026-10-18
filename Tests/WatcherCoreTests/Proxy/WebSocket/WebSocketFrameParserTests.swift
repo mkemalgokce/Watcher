@@ -72,7 +72,9 @@ struct WebSocketFrameParserTests {
     @Test
     func aFrameOverSixteenMegabytesStopsDecodingForGood() {
         var parser = WebSocketFrameParser()
-        let header: [UInt8] = [0x82, 127] + (0 ..< 8).reversed().map { UInt8(((16 << 20) + 1) >> ($0 * 8) & 0xFF) }
+        let length = UInt64(16 << 20) + 1
+        let bytes = (0 ..< 8).reversed().map { (byte: UInt64) in UInt8(truncatingIfNeeded: length >> (byte * 8)) }
+        let header: [UInt8] = [0x82, 127] + bytes
         #expect(parser.feed(header).isEmpty)
         #expect(parser.feed(frame(opcode: 0x1, payload: Array("after".utf8))).isEmpty)
     }
