@@ -78,6 +78,6 @@ struct CLIEnvironment {
         if path.hasPrefix("~/") {
             return home.appendingPathComponent(String(path.dropFirst(2)))
         }
-        return URL(fileURLWithPath: path, relativeTo: currentDirectory).standardized.absoluteURL
+        return URL(fileURLWithPath: path, relativeTo: currentDirectory).absoluteURL.standardized
     }
 }
