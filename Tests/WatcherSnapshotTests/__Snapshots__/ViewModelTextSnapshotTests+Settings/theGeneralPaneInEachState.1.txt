@@ -1,0 +1,8 @@
+stopped: Stopped
+listening: Listening on 127.0.0.1:9123
+failed: Failed to start
+port 0: Use a port from 1 to 65535. Ports below 1024 need administrator rights.
+port 80: Ports below 1024 need administrator rights; the proxy may fail to start.
+port 1024: no warning
+port 65536: Use a port from 1 to 65535. Ports below 1024 need administrator rights.
+login item: false · website icons: true

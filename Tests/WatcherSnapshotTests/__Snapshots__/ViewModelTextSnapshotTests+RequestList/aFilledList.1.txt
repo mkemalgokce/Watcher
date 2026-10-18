@@ -1,0 +1,8 @@
+4 requests
+#1 GET api.example.com/1 200
+#2 GET api.example.com/2 404
+#3 GET cdn.example.com/3 500
+#4 GET ads.tracker.net/4 —
+starred 1 · errors 3 · websocket 0
+apps: Safari (2), Slack (1), curl (1)
+domains: example.com (3), tracker.net (1)
