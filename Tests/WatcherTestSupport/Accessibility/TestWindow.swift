@@ -76,13 +76,17 @@ public func withWindow(
     showing view: some View,
     width: CGFloat = 1000,
     height: CGFloat = 640,
+    sourceLocation: SourceLocation = #_sourceLocation,
     _ body: (TestWindow) async throws -> Void
 ) async rethrows {
     let window = TestWindow(showing: view, width: width, height: height)
     defer { window.close() }
     guard await eventually({ AccessibilityAPI.firstWindowRole() == "AXWindow" }) else {
         let role = AccessibilityAPI.firstWindowRole() ?? "none"
-        Issue.record("The window never showed up in the accessibility tree (first window role: \(role))")
+        Issue.record(
+            "The window never showed up in the accessibility tree (first window role: \(role))",
+            sourceLocation: sourceLocation
+        )
         return
     }
     // Work started on appear (focusing a field, say) shows no state to wait for, and typing before it lands is lost.
