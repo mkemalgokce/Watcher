@@ -7,7 +7,6 @@ struct HostPortTests {
     @Test(arguments: [
         ("example.com", "example.com", 443), ("example.com:8443", "example.com", 8443),
         ("example.com:", "example.com", 443), ("example.com:abc", "example.com", 443),
-        ("example.com:0", "example.com", 443), ("example.com:70000", "example.com", 443),
         ("example.com:-1", "example.com", 443), ("1.2.3.4:80", "1.2.3.4", 80),
         ("[::1]:8443", "::1", 8443), ("[::1]", "::1", 443), ("[::1]:", "::1", 443), ("[::1]:x", "::1", 443),
         ("[fe80::1]:9", "fe80::1", 9), ("::1", "::1", 443),
@@ -15,6 +14,11 @@ struct HostPortTests {
     func aTargetSplitsIntoHostAndPort(text: String, host: String, port: Int) throws {
         let parsed = try #require(HostPort(text, defaultPort: 443))
         #expect(parsed == HostPort(host: host, port: port))
+    }
+
+    @Test(arguments: ["example.com:0", "example.com:70000", "[::1]:0", "[::1]:99999", "a.test:99999999999999999999"])
+    func anExplicitPortOutOfRangeIsRefused(text: String) {
+        #expect(HostPort(text, defaultPort: 443) == nil)
     }
 
     @Test(arguments: ["", ":80", "[]", "[]:80", "[::1", "[:"])

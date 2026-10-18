@@ -9,7 +9,7 @@ struct HostPort: Equatable {
         self.host = host; self.port = port
     }
 
-    /// Nil when no host is named; an absent, empty or unreadable port becomes `defaultPort`.
+    /// Nil when no host is named or an explicit port is out of range; an absent, empty or non-numeric port becomes `defaultPort`.
     init?(_ text: String, defaultPort: Int) {
         let rest: Substring
         if text.hasPrefix("[") {
@@ -26,11 +26,12 @@ struct HostPort: Equatable {
         }
         guard !host.isEmpty else { return nil }
         let digits = rest.dropFirst()
-        port = rest.hasPrefix(":") ? Self.port(digits) ?? defaultPort : defaultPort
-    }
-
-    private static func port(_ digits: Substring) -> Int? {
-        guard digits.allSatisfy(\.isASCII), let value = Int(digits), (1 ... 65535).contains(value) else { return nil }
-        return value
+        let isNumber = !digits.isEmpty && digits.allSatisfy(\.isASCII) && digits.allSatisfy(\.isNumber)
+        guard rest.hasPrefix(":"), isNumber else {
+            port = defaultPort
+            return
+        }
+        guard let value = Int(digits), (1 ... 65535).contains(value) else { return nil }
+        port = value
     }
 }
