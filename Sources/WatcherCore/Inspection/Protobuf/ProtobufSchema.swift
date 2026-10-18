@@ -106,14 +106,19 @@ public struct ProtobufSchema: Sendable {
         for (field, value) in try entries(bytes) {
             switch (field, value) {
             case let (1, .bytes(b)): name = String(decoding: b, as: UTF8.self)
-            case let (3, .varint(value)): number = Int(truncatingIfNeeded: value)
-            case let (4, .varint(value)): label = Int(truncatingIfNeeded: value)
-            case let (5, .varint(value)): type = Int(truncatingIfNeeded: value)
+            case let (3, .varint(value)): number = try fieldValue(value)
+            case let (4, .varint(value)): label = try fieldValue(value)
+            case let (5, .varint(value)): type = try fieldValue(value)
             case let (6, .bytes(b)): typeName = String(decoding: b, as: UTF8.self)
             default: break
             }
         }
         return (number, Field(name: name, type: type, typeName: typeName, isRepeated: label == 3))
+    }
+
+    private static func fieldValue(_ value: UInt64) throws -> Int {
+        guard let value = Int(exactly: value) else { throw LoadError(description: "field value out of range") }
+        return value
     }
 
     // MARK: Wire decoding

@@ -37,12 +37,12 @@ struct ProtobufSchemaTests {
     }
 
     @Test(arguments: [3, 4, 5])
-    func aFieldVarintBeyondIntIsNotACrash(field fieldNumber: Int) throws {
+    func aFieldVarintBeyondIntIsALoadError(field fieldNumber: Int) {
         let huge = [UInt8](repeating: 0xFF, count: 9) + [0x01]
         let descriptor = field(1, Array("x".utf8)) + varint(fieldNumber << 3) + huge
         let message = field(1, Array("M".utf8)) + field(2, descriptor)
         let file = field(2, Array("demo".utf8)) + field(4, message)
-        #expect(try ProtobufSchema(descriptorSet: Data(field(1, file))).describe(Data(), as: "demo.M") == "")
+        #expect(throws: ProtobufSchema.LoadError.self) { try ProtobufSchema(descriptorSet: Data(field(1, file))) }
     }
 
     private func varint(_ value: Int) -> [UInt8] {
