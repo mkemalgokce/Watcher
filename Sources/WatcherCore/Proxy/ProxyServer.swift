@@ -56,10 +56,13 @@ public final class ProxyServer: @unchecked Sendable {
         set { lock.withLock { handshakeAbandoned = newValue } }
     }
 
-    /// Largest body buffered whole, for the tools that must read it; bigger ones are streamed.
-    static let maxBodyBytes = 64 * 1024 * 1024
+    /// Largest body buffered whole by default, for the tools that must read it; bigger ones are streamed.
+    public static let maxBodyBytes = 64 * 1024 * 1024
+    let bodyLimit: Int
     /// Uploads larger than this are streamed upstream instead of buffered.
-    static let streamingUploadThreshold = maxBodyBytes / 8
+    var streamingUploadThreshold: Int {
+        bodyLimit / 8
+    }
 
     /// A request body still arriving from the client.
     struct Upload: Sendable {
@@ -77,8 +80,10 @@ public final class ProxyServer: @unchecked Sendable {
         clientApp: @escaping @Sendable (Int) -> String? = ClientProcess.name(forLocalPort:),
         localAddresses: @escaping @Sendable () -> Set<String> = { LocalNetwork.addressSet() },
         now: @escaping @Sendable () -> Date = { Date() },
-        files: FileAccess = .live
+        files: FileAccess = .live,
+        bodyLimit: Int = ProxyServer.maxBodyBytes
     ) {
+        self.bodyLimit = bodyLimit
         self.store = store; self.tools = tools; self.authority = authority; filter = sslProxying
         certificatePage = authority.map(CertificatePage.init)
         self.clientApp = clientApp; self.localAddresses = localAddresses; self.now = now; self.files = files
@@ -260,7 +265,7 @@ extension ProxyServer {
     }
 
     /// Event streams, bodies of unknown length and very large bodies are relayed instead of buffered.
-    static func shouldStream(_ response: HTTPClientResponse) -> Bool {
+    static func shouldStream(_ response: HTTPClientResponse, limit: Int = maxBodyBytes) -> Bool {
         // The client sees these as complete at the head, so a streamed end can race its close and fail the flow.
         let code = response.status.code
         if code < 200 || code == 204 || code == 304 {
@@ -270,6 +275,6 @@ extension ProxyServer {
             return true
         }
         guard let length = response.headers.first(name: "Content-Length") else { return true }
-        return (Int(length) ?? 0) > maxBodyBytes / 8
+        return (Int(length) ?? 0) > limit / 8
     }
 }

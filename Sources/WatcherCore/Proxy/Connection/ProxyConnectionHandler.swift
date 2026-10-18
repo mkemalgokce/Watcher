@@ -53,7 +53,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
             if let upload {
                 upload.yield(buffer); return
             }
-            guard body.count + buffer.readableBytes <= ProxyServer.maxBodyBytes else { tooLarge = true; return }
+            guard body.count + buffer.readableBytes <= server.bodyLimit else { tooLarge = true; return }
             body.append(contentsOf: buffer.readBytes(length: buffer.readableBytes) ?? [])
         case .end:
             guard let head else { return }
@@ -169,7 +169,8 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
     /// Bodies above the threshold are streamed upstream as they arrive, unless a tool needs to read the body.
     private func startUploadIfLarge(_ channel: Channel, _ head: HTTPRequestHead) {
         guard head.method != .CONNECT, !head.headers.contains(name: "Upgrade"),
-              let length = head.headers.first(name: "Content-Length").flatMap(Int.init), length > ProxyServer.streamingUploadThreshold,
+              let length = head.headers.first(name: "Content-Length").flatMap(Int.init),
+              length > server.streamingUploadThreshold,
               !server.tools.needsRequestBody, let record = makeRecord(head) else { return }
         let (stream, continuation) = AsyncStream<ByteBuffer>.makeStream()
         upload = continuation
