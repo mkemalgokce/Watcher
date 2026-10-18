@@ -9,14 +9,8 @@ import WatcherTestSupport
 @Suite(.tags(.unit))
 struct BreakpointsViewModelTests {
     private let center = BreakpointCenter()
-    private let notices = NoticeCenter(sleep: sleepUntilCancelled) { _ in }
-    private let settings = SettingsEditor(
-        initial: WatcherSettings(),
-        sleep: sleepUntilCancelled,
-        notices: NoticeCenter(sleep: sleepUntilCancelled) { _ in },
-        persist: { _ in },
-        apply: { _ in }
-    )
+    private let notices = NoticeCenter.silent()
+    private let settings = SettingsEditor.inMemory()
 
     private func viewModel() -> BreakpointsViewModel {
         BreakpointsViewModel(center: center, settings: settings, notices: notices)

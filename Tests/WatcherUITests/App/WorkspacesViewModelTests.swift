@@ -9,7 +9,7 @@ import WatcherTestSupport
 @Suite(.tags(.unit))
 struct WorkspacesViewModelTests {
     private let files = FileAccessFake()
-    private let notices = NoticeCenter(sleep: sleepUntilCancelled) { _ in }
+    private let notices = NoticeCenter.silent()
 
     private func make() throws -> (WorkspacesViewModel, WatcherEngine, SettingsEditor) {
         let engine = try WatcherEngine.inMemory(files: files)

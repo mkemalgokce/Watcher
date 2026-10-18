@@ -7,7 +7,7 @@ import WatcherTestSupport
 @MainActor
 @Suite(.tags(.unit))
 struct WindowRouterTests {
-    private let notices = NoticeCenter(sleep: sleepUntilCancelled) { _ in }
+    private let notices = NoticeCenter.silent()
 
     @Test(arguments: [WindowRouter.Sheet.tools, .breakpoints, .compose, .devices, .welcome, .converter, .help])
     func showOpensTheSheet(sheet: WindowRouter.Sheet) {

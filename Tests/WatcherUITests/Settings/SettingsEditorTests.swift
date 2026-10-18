@@ -9,7 +9,7 @@ import WatcherTestSupport
 @Suite(.tags(.unit))
 struct SettingsEditorTests {
     private let gate = SleepGate()
-    private let notices = NoticeCenter(sleep: sleepUntilCancelled) { _ in }
+    private let notices = NoticeCenter.silent()
     private let saved = LockedBox<[WatcherSettings]>([])
     private let applied = LockedBox<[WatcherSettings]>([])
 

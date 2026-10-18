@@ -9,7 +9,7 @@ import WatcherTestSupport
 @Suite(.tags(.unit))
 struct RequestActionsTests {
     private let store = FlowStore()
-    private let notices = NoticeCenter(sleep: sleepUntilCancelled) { _ in }
+    private let notices = NoticeCenter.silent()
     private let clipboard = ClipboardSpy()
     private let workspace = WorkspaceOpenerSpy()
     private let files = FileAccessFake()
@@ -23,9 +23,7 @@ struct RequestActionsTests {
     init() {
         list = FlowListViewModel(store: store, sleep: sleepUntilCancelled)
         router = WindowRouter(notices: notices) {}
-        settings = SettingsEditor(
-            initial: WatcherSettings(), sleep: sleepUntilCancelled, notices: notices, persist: { _ in }, apply: { _ in }
-        )
+        settings = SettingsEditor.inMemory(notices: notices)
         let settings = settings
         proxy = ProxyController(runner: runner, systemProxy: SystemProxySpy(), notices: notices) { settings.value }
     }

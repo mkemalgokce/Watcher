@@ -9,7 +9,7 @@ import WatcherTestSupport
 @Suite(.tags(.unit))
 struct ProxyControllerTests {
     private let log = LockedBox<[String]>([])
-    private let notices = NoticeCenter(sleep: sleepUntilCancelled) { _ in }
+    private let notices = NoticeCenter.silent()
     private var settings = WatcherSettings()
 
     private func controller(

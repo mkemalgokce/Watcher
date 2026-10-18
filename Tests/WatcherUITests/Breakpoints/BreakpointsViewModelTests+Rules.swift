@@ -8,11 +8,8 @@ extension BreakpointsViewModelTests {
     /// Editing and deleting the rules listed in the Breakpoints window, which may be redrawn after the list changed.
     @MainActor
     struct Rules {
-        private let notices = NoticeCenter(sleep: sleepUntilCancelled) { _ in }
-        private let settings = SettingsEditor(
-            initial: WatcherSettings(), sleep: sleepUntilCancelled,
-            notices: NoticeCenter(sleep: sleepUntilCancelled) { _ in }, persist: { _ in }, apply: { _ in }
-        )
+        private let notices = NoticeCenter.silent()
+        private let settings = SettingsEditor.inMemory()
         private let login = BreakpointRule(name: "login", matching: MatchingRule(pattern: "*/login"))
         private let users = BreakpointRule(matching: MatchingRule(pattern: "*/users"))
 
