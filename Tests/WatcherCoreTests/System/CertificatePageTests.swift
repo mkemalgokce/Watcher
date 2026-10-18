@@ -7,8 +7,10 @@ import WatcherTestSupport
 struct CertificatePageTests {
     @Test
     func servesTheCertificateInEveryFormatAndRejectsOtherPaths() throws {
-        let directory = try TemporaryDirectory()
-        let authority = try CertificateAuthority(directory: directory.url)
+        let authority = try CertificateAuthority(
+            directory: URL(fileURLWithPath: "/fake-home/.watcher"),
+            files: FileAccessFake().access
+        )
         let page = CertificatePage(authority: authority)
         #expect(page.response(forPath: "/").headers.value(for: "Content-Type") == "text/html; charset=utf-8")
         #expect(page.response(forPath: "/ca.cer").body == authority.certificateDER)

@@ -16,6 +16,7 @@ public final class CertificateAuthority: @unchecked Sendable {
     private var contexts: [String: NIOSSLContext] = [:]
     private var _leafValidityDays = 365
     private var _keyLog: NIOSSLKeyLogCallback?
+    private let now: @Sendable () -> Date
 
     public struct Unavailable: Error, CustomStringConvertible { public var description: String {
         "No root certificate available"
@@ -30,9 +31,9 @@ public final class CertificateAuthority: @unchecked Sendable {
     }
 
     /// Loads the CA from `directory`, creating and persisting it on first use.
-    public init(directory: URL) throws {
-        let fm = FileManager.default
-        try fm.createDirectory(at: directory, withIntermediateDirectories: true)
+    public init(directory: URL, files: FileAccess = .live, now: @escaping @Sendable () -> Date = { Date() }) throws {
+        self.now = now
+        try files.createDirectory(directory)
         let keyURL = directory.appendingPathComponent("watcher-ca.key.pem")
         let certURL = directory.appendingPathComponent("watcher-ca.pem")
         certificateURL = certURL
@@ -42,34 +43,50 @@ public final class CertificateAuthority: @unchecked Sendable {
         }
         self.name = name
 
-        if fm.fileExists(atPath: keyURL.path), fm.fileExists(atPath: certURL.path) {
-            key = try P256.Signing.PrivateKey(pemRepresentation: String(contentsOf: keyURL, encoding: .utf8))
-            certificate = try Certificate(pemEncoded: String(contentsOf: certURL, encoding: .utf8))
+        if files.fileExists(keyURL.path), files.fileExists(certURL.path) {
+            key = try P256.Signing.PrivateKey(pemRepresentation: Self.text(of: keyURL, files: files))
+            certificate = try Certificate(pemEncoded: Self.text(of: certURL, files: files))
         } else {
             let key = P256.Signing.PrivateKey()
-            let now = Date()
-            certificate = try Certificate(
-                version: .v3, serialNumber: .init(),
-                publicKey: .init(key.publicKey),
-                notValidBefore: now.addingTimeInterval(-3600),
-                notValidAfter: now.addingTimeInterval(60 * 60 * 24 * 365 * 10),
-                issuer: name, subject: name,
-                signatureAlgorithm: .ecdsaWithSHA256,
-                extensions: Certificate.Extensions {
-                    Critical(BasicConstraints.isCertificateAuthority(maxPathLength: 0))
-                    Critical(KeyUsage(keyCertSign: true, cRLSign: true))
-                    SubjectKeyIdentifier(keyIdentifier: ArraySlice(Insecure.SHA1.hash(data: key.publicKey.derRepresentation)))
-                },
-                issuerPrivateKey: .init(key)
-            )
+            certificate = try Self.makeRoot(key: key, name: name, now: now())
             self.key = key
-            try key.pemRepresentation.write(to: keyURL, atomically: true, encoding: .utf8)
-            try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: keyURL.path)
-            try certificate.serializeAsPEM().pemString.write(to: certURL, atomically: true, encoding: .utf8)
+            try files.writeAtomically(Data(key.pemRepresentation.utf8), keyURL)
+            try files.setPermissions(0o600, keyURL.path)
+            try files.writeAtomically(Data(certificate.serializeAsPEM().pemString.utf8), certURL)
         }
         // Prefer the identifier stored in the certificate so leaf certificates always match the CA that is actually trusted.
         issuerKeyIdentifier = (try? certificate.extensions.subjectKeyIdentifier?.keyIdentifier)
             ?? ArraySlice(Insecure.SHA1.hash(data: key.publicKey.derRepresentation))
+    }
+
+    private static func text(of url: URL, files: FileAccess) throws -> String {
+        guard let text = try String(bytes: files.read(url), encoding: .utf8) else {
+            throw CocoaError(.fileReadInapplicableStringEncoding)
+        }
+        return text
+    }
+
+    /// A self-signed root valid for ten years from an hour ago.
+    private static func makeRoot(
+        key: P256.Signing.PrivateKey,
+        name: DistinguishedName,
+        now: Date
+    ) throws -> Certificate {
+        let keyIdentifier = ArraySlice(Insecure.SHA1.hash(data: key.publicKey.derRepresentation))
+        return try Certificate(
+            version: .v3, serialNumber: .init(),
+            publicKey: .init(key.publicKey),
+            notValidBefore: now.addingTimeInterval(-3600),
+            notValidAfter: now.addingTimeInterval(60 * 60 * 24 * 365 * 10),
+            issuer: name, subject: name,
+            signatureAlgorithm: .ecdsaWithSHA256,
+            extensions: Certificate.Extensions {
+                Critical(BasicConstraints.isCertificateAuthority(maxPathLength: 0))
+                Critical(KeyUsage(keyCertSign: true, cRLSign: true))
+                SubjectKeyIdentifier(keyIdentifier: keyIdentifier)
+            },
+            issuerPrivateKey: .init(key)
+        )
     }
 
     /// Validity of newly generated certificates, clamped to what Apple's TLS stack accepts (825 days).
@@ -105,7 +122,7 @@ public final class CertificateAuthority: @unchecked Sendable {
 
     /// A one-year server certificate for `host`, signed by this CA.
     func leafCertificate(for host: String, key leafKey: P256.Signing.PrivateKey = P256.Signing.PrivateKey()) throws -> Certificate {
-        let now = Date()
+        let now = now()
         let san: GeneralName = IPv4Address(host) != nil ? .ipAddress(ASN1OctetString(contentBytes: ArraySlice(host.split(separator: ".").compactMap { UInt8($0) }))) : .dnsName(host)
         return try Certificate(
             version: .v3, serialNumber: .init(),
