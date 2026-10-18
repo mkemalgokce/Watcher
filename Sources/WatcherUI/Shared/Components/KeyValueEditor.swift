@@ -1,12 +1,11 @@
 import AppKit
 import SwiftUI
-import UniformTypeIdentifiers
 import WatcherCore
 
 /// The shared editor for headers, query parameters, form fields and multipart parts: one row per entry with an on/off box,
 /// add and remove, an optional file per row, suggestions for common names, and a text mode for pasting many at once.
 struct KeyValueEditor: View {
-    @Environment(\.filePanels) private var filePanels
+    @Environment(SessionFilesViewModel.self) private var sessionFiles
     @Binding var rows: [KeyValue]
     var title: String
     var allowsFiles = false
@@ -57,8 +56,10 @@ struct KeyValueEditor: View {
                                 Menu {
                                     Button("Text") { row.file = nil }
                                     Button("Choose File…") {
-                                        if let file = Self.chooseFile(with: filePanels) {
-                                            row.file = file
+                                        Task {
+                                            if let file = await sessionFiles.chooseFilePart() {
+                                                row.file = file
+                                            }
                                         }
                                     }
                                 } label: { Image(systemName: row.file == nil ? "textformat" : "doc") }
@@ -88,12 +89,6 @@ struct KeyValueEditor: View {
             guard let separator else { return KeyValue(line, "", isEnabled: enabled) }
             return KeyValue(line[..<separator].trimmingCharacters(in: .whitespaces), line[line.index(after: separator)...].trimmingCharacters(in: .whitespaces), isEnabled: enabled)
         }
-    }
-
-    @MainActor static func chooseFile(with panels: any FilePanels) -> KeyValue.FilePart? {
-        guard let url = panels.chooseItem(directory: false), let data = try? Data(contentsOf: url) else { return nil }
-        let type = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
-        return KeyValue.FilePart(filename: url.lastPathComponent, contentType: type, data: data)
     }
 
     static let commonHeaders = [

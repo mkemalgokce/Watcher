@@ -199,4 +199,30 @@ struct SessionFilesViewModelTests {
         #expect(await eventually { notices.notice?.kind == .error })
         #expect(notices.notice?.message.hasPrefix("Cannot save a.bin") == true)
     }
+
+    @Test(arguments: [
+        ("photo.png", "image/png"),
+        ("notes.TXT", "text/plain"),
+        ("blob.unknownext", "application/octet-stream"),
+        ("no-extension", "application/octet-stream"),
+    ])
+    func aChosenFilePartIsReadThroughTheFileSystem(name: String, type: String) async throws {
+        let url = URL(fileURLWithPath: "/fake-home/in/\(name)")
+        try files.write(Data([1, 2, 3]), to: url.path)
+        let part = await viewModel(FilePanelsStub(open: url)).chooseFilePart()
+        #expect(part == KeyValue.FilePart(filename: name, contentType: type, data: Data([1, 2, 3])))
+    }
+
+    @Test
+    func aCancelledFilePartPanelChoosesNothing() async {
+        let panels = FilePanelsStub()
+        #expect(await viewModel(panels).chooseFilePart() == nil)
+        #expect(panels.openRequests == [false], "a file, not a folder, was asked for")
+    }
+
+    @Test
+    func anUnreadableFilePartChoosesNothing() async {
+        let missing = URL(fileURLWithPath: "/fake-home/in/missing.png")
+        #expect(await viewModel(FilePanelsStub(open: missing)).chooseFilePart() == nil)
+    }
 }
