@@ -30,4 +30,11 @@ struct HostPortTests {
     func theDefaultPortIsTheCallers() throws {
         #expect(try #require(HostPort("a.test", defaultPort: 80)).port == 80)
     }
+
+    @Test(arguments: [
+        ("[::1]", "::1"), ("::1", "::1"), ("example.com", "example.com"), ("[fe80::1]", "fe80::1"), ("[", "["),
+    ])
+    func bracketsAroundAnIPv6LiteralAreDropped(text: String, bare: String) {
+        #expect(HostPort.unbracketed(text) == bare)
+    }
 }

@@ -9,10 +9,16 @@ public final class Harness {
     public let engine: WatcherEngine
     public var proxyPort = 0
     public var originURL: String {
-        "http://\(host):\(upstream.port)"
+        "http://\(authorityHost):\(upstream.port)"
     }
 
     private let host: String
+    private let loopbackAddress: String
+    /// `host` as it is written in a URL, an IPv6 literal in brackets.
+    private var authorityHost: String {
+        host.contains(":") ? "[\(host)]" : host
+    }
+
     /// The engine's data folder when it is on disk, removed when the harness goes away.
     private let directory: TemporaryDirectory?
 
@@ -23,10 +29,12 @@ public final class Harness {
         host: String = "upstream.test",
         origin: OriginAuthority? = nil,
         files: FileAccessFake? = nil,
+        loopbackAddress: String = "127.0.0.1",
         clientApp: @escaping @Sendable (Int) -> String? = { _ in nil }
     ) throws {
         self.host = host
-        upstream = try TestUpstream(tls: origin?.serverContext(for: host))
+        self.loopbackAddress = loopbackAddress
+        upstream = try TestUpstream(tls: origin?.serverContext(for: host), bindHost: loopbackAddress)
         let trust = try origin?.trust ?? .makeClientConfiguration()
         let access = files?.access ?? .live
         directory = files == nil ? try TemporaryDirectory() : nil
@@ -41,7 +49,7 @@ public final class Harness {
     public func start(configure: (inout WatcherSettings) -> Void = { _ in }) async throws {
         try await upstream.start()
         try engine.settings.update {
-            let spoof = DNSSpoofRule(host: host, address: "127.0.0.1")
+            let spoof = DNSSpoofRule(host: host, address: loopbackAddress)
             $0.dnsSpoofing = RuleSet(isEnabled: true, rules: [spoof])
             configure(&$0)
         }

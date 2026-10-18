@@ -9,6 +9,11 @@ struct HostPort: Equatable {
         self.host = host; self.port = port
     }
 
+    /// `host` without the brackets an IPv6 literal carries in a URL; Foundation's `URLComponents.host` keeps them on some macOS releases.
+    static func unbracketed(_ host: String) -> String {
+        host.hasPrefix("[") && host.hasSuffix("]") ? String(host.dropFirst().dropLast()) : host
+    }
+
     /// Nil when no host is named or an explicit port is out of range; an absent, empty or non-numeric port becomes `defaultPort`.
     init?(_ text: String, defaultPort: Int) {
         let rest: Substring
