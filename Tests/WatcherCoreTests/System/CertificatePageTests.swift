@@ -42,4 +42,15 @@ struct CertificatePageTests {
                 == isAddressed
         )
     }
+
+    @Test(arguments: [("example.com", 80), ("watcher.cert", 9090), ("localhost", 9090)])
+    func theLocalAddressesAreLookedUpOnlyWhenTheAnswerDependsOnThem(host: String, port: Int) {
+        var lookups = 0
+        func localAddresses() -> Set<String> {
+            lookups += 1
+            return []
+        }
+        _ = CertificatePage.isAddressed(host: host, port: port, proxyPort: 9090, localAddresses: localAddresses())
+        #expect(lookups == 0, "every plain request asks this, and the lookup walks the network interfaces")
+    }
 }
