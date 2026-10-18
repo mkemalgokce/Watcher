@@ -222,8 +222,8 @@ struct ComposeView: View {
     }
 
     private func send() {
-        if viewModel.isWebSocket, let url = URL(string: viewModel.address) {
-            model.composeWebSocket(url: url, headers: viewModel.headers.filter(\.isEnabled).map { Header($0.name, $0.value) }, messages: viewModel.webSocketMessages)
+        if let session = viewModel.webSocketSession {
+            model.composeWebSocket(url: session.url, headers: session.headers, messages: session.messages)
             return dismiss()
         }
         Task { await viewModel.send(isProxyRunning: model.isRunning) { await model.perform($0, followRedirects: $1) } }

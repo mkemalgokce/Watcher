@@ -252,6 +252,19 @@ final class ComposeViewModel {
         bodyText.components(separatedBy: "\n").filter { !$0.isEmpty }
     }
 
+    struct WebSocketSession: Equatable {
+        let url: URL
+        let headers: [Header]
+        let messages: [String]
+    }
+
+    /// What Connect opens for a ws:// or wss:// address: the enabled headers and one message per non-empty line.
+    var webSocketSession: WebSocketSession? {
+        guard isWebSocket, let url = URL(string: address) else { return nil }
+        let enabled = headers.filter(\.isEnabled).map { Header($0.name, $0.value) }
+        return WebSocketSession(url: url, headers: enabled, messages: webSocketMessages)
+    }
+
     /// Sends through `perform` and records the outcome; a second send while one is running is ignored.
     func send(isProxyRunning: Bool, perform: (RequestRecord, Bool) async -> ResponseRecord) async {
         guard !isSending else { return }
