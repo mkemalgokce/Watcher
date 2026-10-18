@@ -3,7 +3,7 @@ import Testing
 @testable import WatcherCore
 import WatcherTestSupport
 
-@Suite(.tags(.integration))
+@Suite(.timeLimit(.minutes(1)), .tags(.integration))
 struct LiveCommandRunnerTests {
     private func run(
         _ path: String,

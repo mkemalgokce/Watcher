@@ -4,7 +4,7 @@ import Testing
 import WatcherTestSupport
 
 /// The generated command really runs: real curl, through Watcher, against the echo origin.
-@Suite(.tags(.integration, .network, .externalTool), .serialized)
+@Suite(.timeLimit(.minutes(1)), .tags(.integration, .network, .externalTool), .serialized)
 struct CurlEndToEndTests {
     @Test(.enabled(if: ExternalTool.curl.isAvailable, "needs curl"), .tags(.timing))
     func generatedCommandsRunThroughTheProxy() async throws {

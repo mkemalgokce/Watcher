@@ -3,7 +3,7 @@ import Testing
 @testable import WatcherCore
 import WatcherTestSupport
 
-@Suite(.tags(.integration, .network))
+@Suite(.timeLimit(.minutes(1)), .tags(.integration, .network))
 struct CertificatePageTests {
     /// A device pointing at the proxy asks for http://watcher.cert/ca.cer and gets the root certificate without any upstream.
     @Test

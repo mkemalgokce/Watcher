@@ -5,6 +5,7 @@ import WatcherTestSupport
 
 /// Runs against a real Charles Proxy when one is installed.
 @Suite(
+    .timeLimit(.minutes(1)),
     .tags(.integration, .externalTool),
     .enabled(
         if: FileManager.default.isExecutableFile(atPath: CharlesConverter.defaultExecutable.path),

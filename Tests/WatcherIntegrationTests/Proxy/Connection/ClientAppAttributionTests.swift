@@ -3,7 +3,7 @@ import Testing
 @testable import WatcherCore
 import WatcherTestSupport
 
-@Suite(.tags(.integration, .network, .externalTool))
+@Suite(.timeLimit(.minutes(1)), .tags(.integration, .network, .externalTool))
 struct ClientAppAttributionTests {
     @Test(.enabled(if: ExternalTool.curl.isAvailable, "needs curl"))
     func requestsAreAttributedToTheProgramThatSentThemAndCanBeBlockedByIt() async throws {

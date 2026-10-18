@@ -3,7 +3,11 @@ import Testing
 @testable import WatcherCore
 import WatcherTestSupport
 
-@Suite(.tags(.integration, .network, .externalTool), .enabled(if: ExternalTool.python3.isAvailable, "needs python3"))
+@Suite(
+    .timeLimit(.minutes(1)),
+    .tags(.integration, .network, .externalTool),
+    .enabled(if: ExternalTool.python3.isAvailable, "needs python3")
+)
 struct TLSBehaviourTests {
     private let directory: TemporaryDirectory
 

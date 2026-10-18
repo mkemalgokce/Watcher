@@ -6,7 +6,7 @@ import WatcherTestSupport
 
 /// Starting the proxy from the window: invalid ports are refused and a failed start stays visible until a retry.
 @MainActor
-@Suite(.tags(.integration))
+@Suite(.timeLimit(.minutes(1)), .tags(.integration))
 struct AppModelProxyTests {
     /// A port that is already taken leaves a visible error and a retry, not a silent toolbar.
     @Test(.tags(.network))

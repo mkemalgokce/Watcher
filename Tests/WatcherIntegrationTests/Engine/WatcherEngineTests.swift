@@ -3,7 +3,7 @@ import Testing
 @testable import WatcherCore
 import WatcherTestSupport
 
-@Suite(.tags(.integration, .network))
+@Suite(.timeLimit(.minutes(1)), .tags(.integration, .network))
 struct WatcherEngineTests {
     private let directory: TemporaryDirectory
 

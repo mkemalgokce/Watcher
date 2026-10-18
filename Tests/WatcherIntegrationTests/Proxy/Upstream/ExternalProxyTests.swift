@@ -5,7 +5,7 @@ import WatcherTestSupport
 
 /// An outer engine that knows only an external proxy reaches `upstream.test`, which resolves inside the inner harness
 /// alone (DNS Spoofing, blind tunnel).
-@Suite(.tags(.integration, .network))
+@Suite(.timeLimit(.minutes(1)), .tags(.integration, .network))
 struct ExternalProxyTests {
     private let directory: TemporaryDirectory
 

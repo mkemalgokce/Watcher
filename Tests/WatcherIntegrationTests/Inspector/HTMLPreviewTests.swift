@@ -8,6 +8,7 @@ import WebKit
 /// An HTML body shown in the inspector's preview, which must stay offline and inert.
 @MainActor
 @Suite(
+    .timeLimit(.minutes(1)),
     .serialized,
     .tags(.integration, .ui, .externalTool),
     .enabled(if: ExternalTool.python3.isAvailable, "python3 serves the page's image")
