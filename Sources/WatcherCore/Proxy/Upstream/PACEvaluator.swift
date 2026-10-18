@@ -43,11 +43,11 @@ public final class PACEvaluator: @unchecked Sendable {
         }
     }
 
-    @Sendable public static func load(from location: String) async throws -> PACEvaluator {
-        try await load(from: location, fetch: download)
+    public static func load(from location: String) async throws -> PACEvaluator {
+        try await load(from: location) { try await URLSession.shared.data(from: $0).0 }
     }
 
-    /// Takes `fetch` with no default: an async closure literal as a default argument aborts the Swift 6.2 runtime.
+    /// Takes `fetch` with no default: Swift 6.2 miscompiles async function values made in default arguments.
     public static func load(
         from location: String,
         fetch: @Sendable (URL) async throws -> Data
@@ -57,10 +57,6 @@ public final class PACEvaluator: @unchecked Sendable {
         }
         let data = try await fetch(url)
         return try PACEvaluator(script: String(decoding: data, as: UTF8.self))
-    }
-
-    @Sendable private static func download(_ url: URL) async throws -> Data {
-        try await URLSession.shared.data(from: url).0
     }
 
     /// First usable entry of the script's answer (`PROXY a:1; SOCKS b:2; DIRECT`); `.direct` when it cannot be understood.

@@ -34,14 +34,15 @@ public final class WatcherEngine: @unchecked Sendable {
     public init(
         directory: URL = WatcherPaths.supportDirectory,
         files: FileAccess = .live,
-        pacLoader: @escaping @Sendable (String) async throws -> PACEvaluator = PACEvaluator.load(from:),
+        pacLoader: (@Sendable (String) async throws -> PACEvaluator)? = nil,
         sleep: @escaping Sleep = liveSleep,
         now: @escaping @Sendable () -> Date = { Date() },
         makeServer: @escaping @Sendable (FlowStore, CertificateAuthority) -> ProxyServer = {
             ProxyServer(store: $0, authority: $1)
         }
     ) throws {
-        self.files = files; self.pacLoader = pacLoader; self.sleep = sleep; self.now = now; self.makeServer = makeServer
+        self.files = files; self.sleep = sleep; self.now = now; self.makeServer = makeServer
+        self.pacLoader = pacLoader ?? { try await PACEvaluator.load(from: $0) }
         authority = try CertificateAuthority(directory: directory, files: files)
         settings = SettingsStore(url: directory.appendingPathComponent("settings.json"), files: files)
         workspaces = WorkspaceStore(
