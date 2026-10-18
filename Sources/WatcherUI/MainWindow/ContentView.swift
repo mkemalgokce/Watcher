@@ -4,16 +4,11 @@ import WatcherCore
 public struct ContentView: View {
     @Environment(AppModel.self) private var model
     @Environment(WindowRouter.self) private var router
-    @Environment(FlowListViewModel.self) private var list
     @Environment(WorkspacesViewModel.self) private var workspaces
     @Environment(\.openWindow) private var openWindow
     @State private var workspaceName = ""
 
     public init() {}
-
-    private var filterTokens: Binding<[FilterToken]> {
-        Binding(get: { FilterToken.tokens(in: list.query) }, set: { FilterToken.apply($0, to: &list.query) })
-    }
 
     public var body: some View {
         @Bindable var model = model
@@ -26,16 +21,7 @@ public struct ContentView: View {
         }
         .navigationTitle("Watcher")
         // Every filter lives in the search field as a token; typing offers where to look and the quick filters it names.
-        .searchable(text: Bindable(list).query.text, tokens: filterTokens, placement: .toolbar, prompt: "Filter requests") {
-            Label($0.title, systemImage: $0.symbol)
-        }
-        .searchSuggestions {
-            let present = FilterToken.tokens(in: list.query)
-            let hosts = list.counts.domains.map(\.name)
-            ForEach(FilterToken.suggestions(for: list.query.text, hosts: hosts, excluding: present)) {
-                Label($0.title, systemImage: $0.symbol).searchCompletion($0)
-            }
-        }
+        .modifier(FilterSearch())
         .modifier(SearchFocus(request: router.searchFocusRequest))
         .toolbar { WatcherToolbar() }
         .safeAreaInset(edge: .top, spacing: 0) { StartupProblemBanner() }
@@ -57,56 +43,98 @@ public struct ContentView: View {
     }
 }
 
+/// The filter field: free text plus tokens, with suggestions for where to look.
+struct FilterSearch: ViewModifier {
+    var placement = SearchFieldPlacement.toolbar
+    @Environment(FlowListViewModel.self) private var list
+
+    private var tokens: Binding<[FilterToken]> {
+        Binding(get: { FilterToken.tokens(in: list.query) }, set: { FilterToken.apply($0, to: &list.query) })
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .searchable(
+                text: Bindable(list).query.text, tokens: tokens, placement: placement, prompt: "Filter requests"
+            ) {
+                Label($0.title, systemImage: $0.symbol)
+            }
+            .searchSuggestions {
+                let present = FilterToken.tokens(in: list.query)
+                let hosts = list.counts.domains.map(\.name)
+                ForEach(FilterToken.suggestions(for: list.query.text, hosts: hosts, excluding: present)) {
+                    Label($0.title, systemImage: $0.symbol).searchCompletion($0)
+                }
+            }
+    }
+}
+
 /// Record, Compose and Clear on the left, screens on the right; what the proxy is doing is in the status bar.
 /// Record starts the proxy and Pause stops it, so capturing has one switch.
 private struct WatcherToolbar: ToolbarContent {
-    @Environment(AppModel.self) private var model
+    /// Native toolbar buttons: macOS draws them as Liquid Glass and groups each ToolbarItemGroup into one capsule, as in Xcode.
+    var body: some ToolbarContent {
+        ToolbarItemGroup(placement: .navigation) { CaptureControls() }
+        ToolbarItemGroup(placement: .primaryAction) { ToolControls() }
+        ToolbarItem(placement: .primaryAction) { MoreMenu() }
+    }
+}
+
+struct CaptureControls: View {
     @Environment(WindowRouter.self) private var router
     @Environment(FlowListViewModel.self) private var list
     @Environment(ProxyController.self) private var proxy
-    @Environment(BreakpointsViewModel.self) private var breakpoints
     @Environment(RequestActions.self) private var actions
 
-    /// Native toolbar buttons: macOS draws them as Liquid Glass and groups each ToolbarItemGroup into one capsule, as in Xcode.
-    var body: some ToolbarContent {
-        ToolbarItemGroup(placement: .navigation) {
-            Button { proxy.toggleRunning() } label: {
-                Label(
-                    proxy.isRunning ? "Pause" : "Record",
-                    systemImage: proxy.isRunning ? "pause.fill" : "record.circle"
-                )
-            }
-            .disabled(proxy.isSwitchingProxy)
-            .help(proxy.isRunning ? "Recording. Click to stop the proxy (⌘E)" : "Start the proxy and record (⌘E)")
-            Button { router.show(.compose) } label: { Label("Compose", systemImage: "square.and.pencil") }
-                .help("New request (⌘N)")
-            Button { actions.clear() } label: { Label("Clear", systemImage: "trash") }
-                .disabled(list.flows.isEmpty)
-                .help("Remove every request from the list; Undo brings them back (⌘K)")
-        }
-        ToolbarItemGroup(placement: .primaryAction) {
-            let activeTools = ToolPage.activeRuleCount(in: model.settings.value)
-            Button { router.show(.breakpoints) } label: {
-                Label("Breakpoints", systemImage: breakpoints.hits.isEmpty ? "pause.circle" : "pause.circle.fill")
-            }
-            .badge(breakpoints.hits.count)
-            .help(
-                breakpoints.hits.isEmpty ? "Breakpoints (⌘B)" : "\(breakpoints.hits.count) paused at a breakpoint (⌘B)"
+    var body: some View {
+        Button { proxy.toggleRunning() } label: {
+            Label(
+                proxy.isRunning ? "Pause" : "Record",
+                systemImage: proxy.isRunning ? "pause.fill" : "record.circle"
             )
-            Button { router.show(.tools) } label: { Label("Tools", systemImage: "wrench.and.screwdriver") }
-                .badge(activeTools)
-                .help(StatusBarText.toolRulesHelp(activeTools))
         }
-        ToolbarItem(placement: .primaryAction) {
-            Menu {
-                Button("Converter…", systemImage: "arrow.left.arrow.right.square") { router.show(.converter) }
-                Button("Set Up a Device…", systemImage: "iphone.gen3") { router.show(.devices) }
-                Divider()
-                Button("Keyboard Shortcuts", systemImage: "keyboard") { router.show(.help) }
-            } label: {
-                Label("More", systemImage: "ellipsis.circle")
-            }
-            .help("Converter (⇧⌘U), device setup (⇧⌘D), shortcuts (⌘/)")
+        .disabled(proxy.isSwitchingProxy)
+        .help(proxy.isRunning ? "Recording. Click to stop the proxy (⌘E)" : "Start the proxy and record (⌘E)")
+        Button { router.show(.compose) } label: { Label("Compose", systemImage: "square.and.pencil") }
+            .help("New request (⌘N)")
+        Button { actions.clear() } label: { Label("Clear", systemImage: "trash") }
+            .disabled(list.flows.isEmpty)
+            .help("Remove every request from the list; Undo brings them back (⌘K)")
+    }
+}
+
+struct ToolControls: View {
+    @Environment(AppModel.self) private var model
+    @Environment(WindowRouter.self) private var router
+    @Environment(BreakpointsViewModel.self) private var breakpoints
+
+    var body: some View {
+        let activeTools = ToolPage.activeRuleCount(in: model.settings.value)
+        Button { router.show(.breakpoints) } label: {
+            Label("Breakpoints", systemImage: breakpoints.hits.isEmpty ? "pause.circle" : "pause.circle.fill")
         }
+        .badge(breakpoints.hits.count)
+        .help(
+            breakpoints.hits.isEmpty ? "Breakpoints (⌘B)" : "\(breakpoints.hits.count) paused at a breakpoint (⌘B)"
+        )
+        Button { router.show(.tools) } label: { Label("Tools", systemImage: "wrench.and.screwdriver") }
+            .badge(activeTools)
+            .help(StatusBarText.toolRulesHelp(activeTools))
+    }
+}
+
+struct MoreMenu: View {
+    @Environment(WindowRouter.self) private var router
+
+    var body: some View {
+        Menu {
+            Button("Converter…", systemImage: "arrow.left.arrow.right.square") { router.show(.converter) }
+            Button("Set Up a Device…", systemImage: "iphone.gen3") { router.show(.devices) }
+            Divider()
+            Button("Keyboard Shortcuts", systemImage: "keyboard") { router.show(.help) }
+        } label: {
+            Label("More", systemImage: "ellipsis.circle")
+        }
+        .help("Converter (⇧⌘U), device setup (⇧⌘D), shortcuts (⌘/)")
     }
 }

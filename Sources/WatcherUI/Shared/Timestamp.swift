@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// How a moment is written on screen, in the language and time zone the view is shown in.
 struct Timestamp {
@@ -19,5 +20,12 @@ struct Timestamp {
 
     func complete(_ date: Date) -> String {
         date.formatted(Date.FormatStyle(date: .complete, time: .standard, locale: locale, timeZone: timeZone))
+    }
+}
+
+extension EnvironmentValues {
+    /// Times written in the language and time zone the view is shown in.
+    var timestamp: Timestamp {
+        Timestamp(locale: locale, timeZone: timeZone)
     }
 }

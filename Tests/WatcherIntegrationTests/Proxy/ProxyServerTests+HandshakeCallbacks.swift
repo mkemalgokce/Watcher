@@ -6,8 +6,8 @@ import WatcherTestSupport
 
 extension ProxyServerTests {
     /// The callbacks a caller installs before `start` are what the very first connection reports to: the server reads
-    /// them under its lock, so nothing the caller set up first can be missed. Awaiting a stream rather than polling
-    /// keeps the test free of sleeps and of any guess about timing.
+    /// them under its lock, so nothing the caller set up first can be missed. The callbacks record into boxes the
+    /// test polls, so a callback that fires before the wait starts is never lost and one that never fires fails fast.
     @Suite(.timeLimit(.minutes(1)), .tags(.integration, .network))
     struct HandshakeCallbacks {
         private func firstRejectedHandshake(
@@ -20,10 +20,10 @@ extension ProxyServerTests {
             var settings = WatcherSettings()
             settings.autoIgnoreSSLPinning = autoIgnore
             server.updatePolicies(settings)
-            let (abandoned, abandonedSink) = AsyncStream<String>.makeStream()
-            let (suspected, suspectedSink) = AsyncStream<String>.makeStream()
-            server.onHandshakeAbandoned = { abandonedSink.yield($0) }
-            server.onPinningSuspected = { suspectedSink.yield($0) }
+            let abandoned = LockedBox<[String]>([])
+            let suspected = LockedBox<[String]>([])
+            server.onHandshakeAbandoned = { host in abandoned.mutate { $0.append(host) } }
+            server.onPinningSuspected = { host in suspected.mutate { $0.append(host) } }
             let port = try await server.start(port: 0)
 
             // A client that trusts another authority than Watcher's walks away from the first handshake.
@@ -35,22 +35,14 @@ extension ProxyServerTests {
             )
             let pinned = HTTPClientRequest(url: "https://pinned.test/")
             let request = Task { try? await client.execute(pinned, timeout: .seconds(10)) }
-            var firstAbandoned = abandoned.makeAsyncIterator()
-            let first = await firstAbandoned.next()
+            let reported = await eventually(timeout: 20, poll: .milliseconds(50)) {
+                !abandoned.value.isEmpty && (!autoIgnore || !suspected.value.isEmpty)
+            }
+            #expect(reported, "the handshake callbacks never fired")
             request.cancel()
             try? await client.shutdown()
             try await server.stop()
-            abandonedSink.finish(); suspectedSink.finish()
-
-            var seenAbandoned = first.map { [$0] } ?? []
-            while let host = await firstAbandoned.next() {
-                seenAbandoned.append(host)
-            }
-            var seenSuspected: [String] = []
-            for await host in suspected {
-                seenSuspected.append(host)
-            }
-            return (seenAbandoned, seenSuspected)
+            return (abandoned.value, suspected.value)
         }
 
         @Test
