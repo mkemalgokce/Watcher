@@ -8,12 +8,12 @@ final class ScriptEngine: @unchecked Sendable {
     private(set) var definesOnRequest = false
     private(set) var definesOnResponse = false
 
-    // shortcut: no CPU timeout, so a script stuck in a synchronous infinite loop blocks its queue; upgrade by running scripts in a killable process.
     private let timeout: Duration
 
     init(source: String, log: @escaping @Sendable (String) -> Void, timeout: Duration = .seconds(10)) {
         self.timeout = timeout
         context = JSContext()!
+        ExecutionLimit.apply(timeout, to: context)
         context.exceptionHandler = { _, exception in log("script error: \(exception?.toString() ?? "unknown")") }
         let console: @convention(block) (JSValue) -> Void = { log($0.toString() ?? "") }
         context.setObject(["log": console, "error": console, "warn": console, "info": console], forKeyedSubscript: "console" as NSString)
@@ -50,10 +50,28 @@ final class ScriptEngine: @unchecked Sendable {
                 """)
                 invoke?.call(withArguments: [function, argumentsJSON, unsafeBitCast(done, to: AnyObject.self)])
             }
-            queue.asyncAfter(deadline: .now() + .nanoseconds(Int(timeout / .nanoseconds(1)))) { [timeout] in
+            // Not on `queue`: a script that is still running must not hold its own timeout back.
+            let deadline = DispatchTime.now() + .nanoseconds(Int(timeout / .nanoseconds(1)))
+            DispatchQueue.global().asyncAfter(deadline: deadline) { [timeout] in
                 once.resume(throwing: ScriptError(description: "\(function) did not finish within \(timeout)"))
             }
         }
+    }
+}
+
+/// Stops synchronous JavaScript that runs past the timeout, which no promise or queue can interrupt.
+/// The limit is JavaScriptCore SPI (JSContextRefPrivate.h), so it is looked up at run time.
+private enum ExecutionLimit {
+    private typealias SetLimit = @convention(c) (
+        JSContextGroupRef, Double, OpaquePointer?, UnsafeMutableRawPointer?
+    ) -> Void
+
+    // shortcut: without the symbol an endless loop keeps its queue busy, though calls still time out; upgrade by running scripts in a killable process.
+    private static let setLimit = dlsym(dlopen(nil, RTLD_NOW), "JSContextGroupSetExecutionTimeLimit")
+        .map { unsafeBitCast($0, to: SetLimit.self) }
+
+    static func apply(_ timeout: Duration, to context: JSContext) {
+        setLimit?(JSContextGetGroup(context.jsGlobalContextRef), Double(timeout / .nanoseconds(1)) / 1e9, nil, nil)
     }
 }
 

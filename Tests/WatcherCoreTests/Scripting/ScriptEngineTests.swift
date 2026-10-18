@@ -50,6 +50,15 @@ struct ScriptEngineTests {
     }
 
     @Test
+    func anEndlessSynchronousLoopTimesOutAndLeavesTheEngineUsable() async throws {
+        let engine = engine("function spin() { for (;;) {} } function f() { return 1; }", timeout: .milliseconds(50))
+        await #expect(throws: ScriptError(description: "spin did not finish within 0.05 seconds")) {
+            try await engine.call("spin", argumentsJSON: "[]")
+        }
+        #expect(try await engine.call("f", argumentsJSON: "[]") == "1")
+    }
+
+    @Test
     func consoleOutputAndScriptErrorsReachTheLog() async throws {
         let talking = engine("function f() { console.log('hello'); console.error('bad'); }")
         _ = try await talking.call("f", argumentsJSON: "[]")
