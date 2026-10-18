@@ -73,8 +73,15 @@ final class ComposeViewModel {
     @ObservationIgnored private var syncing = false
     @ObservationIgnored private let now: @Sendable () -> Date
 
-    init(now: @escaping @Sendable () -> Date = Date.init) {
+    @ObservationIgnored private let boundary: () -> String
+
+    /// `boundary` names the parts of a multipart body; tests pass a fixed one.
+    init(
+        now: @escaping @Sendable () -> Date = Date.init,
+        boundary: @escaping () -> String = RequestBodyBuilder.newBoundary
+    ) {
         self.now = now
+        self.boundary = boundary
     }
 
     var isWebSocket: Bool {
@@ -222,7 +229,7 @@ final class ComposeViewModel {
             }
         case .basic: setIfMissing("Authorization", "Basic " + Data("\(username):\(password)".utf8).base64EncodedString())
         }
-        let boundary = RequestBodyBuilder.newBoundary()
+        let boundary = boundary()
         let body: Data
         switch bodyKind {
         case .none: body = Data()
