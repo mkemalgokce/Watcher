@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import WatcherCore
 import WatcherTestSupport
@@ -21,7 +22,8 @@ struct ToolFactoryTests {
     }()
 
     private func names(_ settings: WatcherSettings) -> [String] {
-        ToolFactory.makeTools(from: settings, breakpoints: BreakpointCenter(), log: { _ in }).map(\.name)
+        ToolFactory.makeTools(from: settings, breakpoints: BreakpointCenter(), read: { _ in Data() }, log: { _ in })
+            .map(\.name)
     }
 
     @Test
@@ -30,6 +32,20 @@ struct ToolFactoryTests {
             "Allow List", "Block List", "Map Remote", "Map Local", "No Caching", "Scripting", "Breakpoint",
             "Network Throttling",
         ])
+    }
+
+    @Test
+    func theInjectedReadServesMapLocalAndScripts() async throws {
+        let files = FileAccessFake(files: ["/x": Data("injected".utf8)])
+        let tools = ToolFactory.makeTools(
+            from: Self.everything, breakpoints: BreakpointCenter(), read: files.access.read, log: { _ in }
+        )
+        let mapLocal = try #require(tools.first { $0.name == "Map Local" })
+        var request = RequestRecord.fixture()
+        guard case let .respond(response) = await mapLocal.intercept(request: &request) else {
+            Issue.record("expected an answer from the injected file system"); return
+        }
+        #expect(response.body == Data("injected".utf8))
     }
 
     @Test

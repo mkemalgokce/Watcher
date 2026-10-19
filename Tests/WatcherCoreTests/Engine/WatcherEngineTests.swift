@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import WatcherCore
 import WatcherTestSupport
@@ -9,6 +10,15 @@ struct WatcherEngineTests {
 
     private func engine() throws -> WatcherEngine {
         try .inMemory(files: files)
+    }
+
+    @Test
+    func theInjectedClockTimesTheSession() throws {
+        let moment = Date(timeIntervalSince1970: 1_700_000_000)
+        let engine = try WatcherEngine(
+            directory: URL(fileURLWithPath: "/fake-home/.watcher"), files: files.access, now: { moment }
+        )
+        #expect(engine.store.begin(.fixture()).startedAt == moment)
     }
 
     @Test

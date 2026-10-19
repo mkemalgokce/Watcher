@@ -2,8 +2,8 @@ import Foundation
 
 /// Facade the app and CLI drive: owns the proxy, the session, breakpoints and settings.
 public final class WatcherEngine: @unchecked Sendable {
-    public let store = FlowStore()
-    public let breakpoints = BreakpointCenter()
+    public let store: FlowStore
+    public let breakpoints: BreakpointCenter
     public let settings: SettingsStore
     public let authority: CertificateAuthority
     public let workspaces: WorkspaceStore
@@ -47,15 +47,15 @@ public final class WatcherEngine: @unchecked Sendable {
         pacTimeout: Duration = .seconds(10),
         sleep: @escaping Sleep = liveSleep,
         now: @escaping @Sendable () -> Date = { Date() },
-        makeServer: @escaping @Sendable (FlowStore, CertificateAuthority) -> ProxyServer = {
-            ProxyServer(store: $0, authority: $1)
-        }
+        makeServer: (@Sendable (FlowStore, CertificateAuthority) -> ProxyServer)? = nil
     ) throws {
-        self.files = files; self.pacTimeout = pacTimeout; self.sleep = sleep
-        self.now = now; self.makeServer = makeServer
+        self.files = files; self.pacTimeout = pacTimeout; self.sleep = sleep; self.now = now
+        self.makeServer = makeServer ?? { ProxyServer(store: $0, authority: $1, now: now, files: files) }
         self.pacLoader = pacLoader ?? { try await PACEvaluator.load(from: $0) }
-        authority = try CertificateAuthority(directory: directory, files: files)
-        settings = SettingsStore(url: WatcherPaths.settingsFile(in: directory), files: files)
+        store = FlowStore(now: now)
+        breakpoints = BreakpointCenter(now: now)
+        authority = try CertificateAuthority(directory: directory, files: files, now: now)
+        settings = SettingsStore(url: WatcherPaths.settingsFile(in: directory), files: files, now: now)
         workspaces = WorkspaceStore(
             directory: directory.appendingPathComponent("workspaces", isDirectory: true),
             files: files
@@ -176,7 +176,9 @@ public final class WatcherEngine: @unchecked Sendable {
         guard let server = lock.withLock({ server }) else { return }
         let log = onLog
         loadProtobufSchemas(settings.protobufSchemas, log: log)
-        server.tools.set(ToolFactory.makeTools(from: settings, breakpoints: breakpoints, log: { log($0) }))
+        server.tools.set(ToolFactory.makeTools(
+            from: settings, breakpoints: breakpoints, read: files.read, log: { log($0) }
+        ))
         if !settings.breakpoints.isEnabled {
             breakpoints.releaseAll()
         }
