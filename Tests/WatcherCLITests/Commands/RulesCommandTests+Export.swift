@@ -11,7 +11,7 @@ extension RulesCommandTests {
         func modeDefaultsToAll(arguments: [String], mode: String) throws {
             let export = try Rules.Export.parse(arguments)
             #expect(export.path == "out.json")
-            #expect(export.mode == mode)
+            #expect(export.mode.rawValue == mode)
         }
 
         @Test(arguments: [("all", WatcherSettings.ExportMode.all), ("enabledRules", .enabledRules)])
@@ -37,13 +37,12 @@ extension RulesCommandTests {
         }
 
         @Test(arguments: ["bogus", "", "ALL"])
-        func anUnknownModeFailsBeforeWritingAnything(mode: String) throws {
-            let cli = CLIHarness()
-            let command = try Rules.Export.parse(["/tmp/rules.json", "--mode", mode])
-            let error = #expect(throws: ValidationError.self) { try command.run(in: cli.environment) }
-            #expect(error?.message == "mode must be all or enabledRules")
-            #expect(cli.files.contents(of: "/tmp/rules.json") == nil)
-            #expect(cli.printed.isEmpty)
+        func anUnknownModeIsRejectedWhenParsing(mode: String) {
+            #expect {
+                try Rules.Export.parse(["/tmp/rules.json", "--mode", mode])
+            } throws: {
+                Rules.Export.message(for: $0).contains("--mode")
+            }
         }
 
         @Test

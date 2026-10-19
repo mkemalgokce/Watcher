@@ -50,7 +50,7 @@ struct ImportCharlesCommandTests {
     func modeDefaultsToAppend(arguments: [String], mode: String) throws {
         let command = try ImportCharles.parse(arguments)
         #expect(command.path == "charles.xml")
-        #expect(command.mode == mode)
+        #expect(command.mode.rawValue == mode)
     }
 
     @Test
@@ -75,11 +75,12 @@ struct ImportCharlesCommandTests {
     }
 
     @Test(arguments: ["bogus", "", "Append"])
-    func anUnknownModeFailsBeforeReadingTheFile(mode: String) throws {
-        let cli = CLIHarness()
-        let command = try ImportCharles.parse(["/tmp/missing.xml", "--mode", mode])
-        let error = #expect(throws: ValidationError.self) { try command.run(in: cli.environment) }
-        #expect(error?.message == "mode must be append or override")
+    func anUnknownModeIsRejectedWhenParsing(mode: String) {
+        #expect {
+            try ImportCharles.parse(["/tmp/missing.xml", "--mode", mode])
+        } throws: {
+            ImportCharles.message(for: $0).contains("--mode")
+        }
     }
 
     @Test
