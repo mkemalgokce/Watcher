@@ -21,4 +21,10 @@ struct HTTPEndpointTests {
     func rejectsWhatIsNotAnHTTPURLWithAHost(address: String) {
         #expect(HTTPEndpoint(address) == nil)
     }
+
+    @Test
+    func anIPv6HostLosesItsBrackets() throws {
+        let endpoint = try #require(HTTPEndpoint("http://[::1]:8080/p"))
+        #expect((endpoint.host, endpoint.port, endpoint.target) == ("::1", 8080, "/p"))
+    }
 }

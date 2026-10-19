@@ -12,7 +12,7 @@ public struct HTTPEndpoint: Equatable, Sendable {
               let scheme = components.scheme?.lowercased(), ["http", "https"].contains(scheme)
         else { return nil }
         self.scheme = scheme
-        self.host = host
+        self.host = HostPort.unbracketed(host)
         port = components.port ?? RequestRecord.defaultPort(for: scheme)
         target = components.originForm
     }
