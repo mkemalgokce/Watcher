@@ -8,7 +8,7 @@ public enum HAR {
         let formatter = ISO8601DateFormatter.withFractionalSeconds()
         let document: [String: Any] = ["log": [
             "version": "1.2",
-            "creator": ["name": "Watcher", "version": "0.1.0"],
+            "creator": ["name": "Watcher", "version": WatcherVersion.current],
             "entries": flows.map { entry($0, formatter: formatter) },
         ]]
         return try JSONSerialization.data(withJSONObject: document, options: [.prettyPrinted, .sortedKeys])

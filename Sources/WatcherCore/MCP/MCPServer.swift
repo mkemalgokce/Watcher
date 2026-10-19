@@ -39,7 +39,7 @@ public final class MCPServer: @unchecked Sendable {
             return response(id: id, result: [
                 "protocolVersion": params["protocolVersion"] as? String ?? "2024-11-05",
                 "capabilities": ["tools": [String: Any]()],
-                "serverInfo": ["name": "watcher", "version": "0.1.0"],
+                "serverInfo": ["name": "watcher", "version": WatcherVersion.current],
             ])
         case "ping":
             return response(id: id, result: [String: Any]())
