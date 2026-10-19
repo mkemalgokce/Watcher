@@ -160,8 +160,7 @@ final class ComposeViewModel {
         bodyKind = RequestBodyBuilder.kind(forContentType: type, body: decoded)
         switch bodyKind {
         case .form, .multipart:
-            let fields = FormFields.parse(RequestRecord(method: draft.method, scheme: draft.scheme, host: draft.host, port: draft.port, path: "/", headers: draft.headers, body: decoded))
-            formRows = fields.filter { $0.source != .query }.map { field in
+            formRows = FormFields.parse(body: decoded, contentType: type).map { field in
                 KeyValue(
                     field.name,
                     field.filename == nil ? field.value : "",

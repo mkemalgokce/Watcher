@@ -15,16 +15,7 @@ struct RichPreview: View {
         case .media: MediaPreview(data: data, contentType: contentType)
         case .eventStream: EventStreamView(text: String(decoding: data, as: UTF8.self))
         case .form:
-            // Parsed like a request body; the query part of the path is irrelevant here.
-            let fields = FormFields.parse(RequestRecord(
-                method: "POST",
-                scheme: "https",
-                host: "body",
-                port: 443,
-                path: "/",
-                headers: contentType.map { [Header("Content-Type", $0)] } ?? [],
-                body: data
-            ))
+            let fields = FormFields.parse(body: data, contentType: contentType)
             KeyValueTable(rows: KeyValueRow.fields(fields), emptyText: "No fields could be read from this body.").padding(8)
         }
     }

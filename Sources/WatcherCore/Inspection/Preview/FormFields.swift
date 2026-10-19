@@ -21,16 +21,23 @@ public struct FormField: Equatable, Sendable {
 public enum FormFields {
     /// Query string plus, when the body is `application/x-www-form-urlencoded` or `multipart/form-data`, its fields.
     public static func parse(_ request: RequestRecord) -> [FormField] {
-        var fields = (URLComponents(string: request.path)?.queryItems ?? []).map { FormField(source: .query, name: $0.name, value: $0.value ?? "", filename: nil) }
-        let type = request.headers.value(for: "content-type") ?? ""
+        let query = (URLComponents(string: request.path)?.queryItems ?? []).map {
+            FormField(source: .query, name: $0.name, value: $0.value ?? "", filename: nil)
+        }
+        return query + parse(body: request.body, contentType: request.headers.value(for: "content-type"))
+    }
+
+    /// The fields of a body alone, by its content type; empty for any other kind of body.
+    public static func parse(body: Data, contentType: String?) -> [FormField] {
+        let type = contentType ?? ""
         if type.lowercased().contains("application/x-www-form-urlencoded") {
             // Lossy, so a body that is not UTF-8 still lists its fields.
             // swiftlint:disable:next optional_data_string_conversion
-            fields += urlencoded(String(decoding: request.body, as: UTF8.self))
+            return urlencoded(String(decoding: body, as: UTF8.self))
         } else if type.lowercased().contains("multipart/form-data"), let boundary = boundary(in: type) {
-            fields += multipart(request.body, boundary: boundary)
+            return multipart(body, boundary: boundary)
         }
-        return fields
+        return []
     }
 
     /// Split by hand: a captured body may hold spaces, raw UTF-8 or a stray `%`, which `URLComponents` traps on.
