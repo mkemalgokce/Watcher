@@ -19,7 +19,7 @@ struct DevicesViewModelTests {
     private func viewModel(trusted: Bool = true) -> DevicesViewModel {
         let simulator = SimulatorCertificate.Simulator(udid: "U1", name: "iPhone 17", runtime: "iOS 26", isBooted: true)
         return DevicesViewModel(
-            probe: .init(simulators: { [simulator] }, androidDevices: { [] }, isMacTrusted: { trusted }),
+            probe: .init(simulators: { [simulator] }, androidDevices: { [] }, isMacTrusted: { _ in trusted }),
             certificateURL: Self.certificateURL
         ) { 9090 }
     }
@@ -32,6 +32,18 @@ struct DevicesViewModelTests {
         #expect(!devices.isScanning)
         #expect(devices.simulators.map(\.name) == ["iPhone 17"])
         #expect(devices.androidDevices.isEmpty)
+        #expect(devices.macTrusted)
+    }
+
+    @Test
+    func trustIsAskedAboutThisAppsCertificate() async {
+        let asked = LockedBox<[URL]>([])
+        var probe = DevicesViewModel.DeviceProbe.none
+        probe.isMacTrusted = { url in asked.mutate { $0.append(url) }; return true }
+        let devices = DevicesViewModel(probe: probe, certificateURL: Self.certificateURL) { 9090 }
+        await devices.refreshMacTrust()
+        await devices.refresh()
+        #expect(asked.value == [Self.certificateURL, Self.certificateURL])
         #expect(devices.macTrusted)
     }
 

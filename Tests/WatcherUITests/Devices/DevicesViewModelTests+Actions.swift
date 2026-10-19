@@ -105,7 +105,7 @@ extension DevicesViewModelTests {
             let release = DispatchSemaphore(value: 0)
             let scanning = LockedBox(0)
             var probe = DevicesViewModel.DeviceProbe.none
-            probe.isMacTrusted = {
+            probe.isMacTrusted = { _ in
                 let value = trusted.value // read before the trust is installed
                 scanning.mutate { $0 += 1 }
                 if scanning.value == 1 {

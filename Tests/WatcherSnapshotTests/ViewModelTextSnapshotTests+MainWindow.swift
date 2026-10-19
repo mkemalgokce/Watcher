@@ -25,7 +25,8 @@ extension ViewModelTextSnapshotTests {
         @Test
         func theStatusBarWhileStoppedAndWhileRecordingWithToolsOn() async throws {
             let probe = DevicesViewModel.DeviceProbe(
-                simulators: { [] }, androidDevices: { [] }, isMacTrusted: { false }, lanAddresses: { ["192.168.1.5"] }
+                simulators: { [] }, androidDevices: { [] }, isMacTrusted: { _ in false },
+                lanAddresses: { ["192.168.1.5"] }
             )
             let model = try AppModel(dependencies: .test(devices: probe))
             model.engine.store.load([.fixture(sequence: 1, status: 200), .fixture(sequence: 2, status: 500)])
