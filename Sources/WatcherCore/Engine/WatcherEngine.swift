@@ -17,7 +17,7 @@ public final class WatcherEngine: @unchecked Sendable {
     /// False tunnels all HTTPS untouched whatever the stored settings say, without changing them; set it before `start`.
     public var decryptsHTTPS = true
 
-    /// Guards `server`, `bound`, `protobufSchema` and `loadedPAC`, which callers reach from any thread.
+    /// Guards `server`, `bound` and `loadedPAC`, which callers reach from any thread.
     private let lock = NSLock()
     private var server: ProxyServer?
     private var bound: Int?
@@ -29,7 +29,7 @@ public final class WatcherEngine: @unchecked Sendable {
     private var appliedReverseProxies: [ReverseProxyRule]?
     private var appliedSocks: SocksSettings?
     private let previewers = PreviewerRunner()
-    private var protobufSchema = LoadedSchemas()
+    private let protobuf: ProtobufBodies
     private var loadedPAC: (location: String, evaluator: PACEvaluator)?
     private let files: FileAccess
     private let pacLoader: @Sendable (String) async throws -> PACEvaluator
@@ -49,6 +49,7 @@ public final class WatcherEngine: @unchecked Sendable {
         now: @escaping @Sendable () -> Date = { Date() },
         makeServer: (@Sendable (FlowStore, CertificateAuthority) -> ProxyServer)? = nil
     ) throws {
+        protobuf = ProtobufBodies(files: files)
         self.files = files; self.pacTimeout = pacTimeout; self.sleep = sleep; self.now = now
         self.makeServer = makeServer ?? { ProxyServer(store: $0, authority: $1, now: now, files: files) }
         self.pacLoader = pacLoader ?? { try await PACEvaluator.load(from: $0) }
@@ -175,7 +176,7 @@ public final class WatcherEngine: @unchecked Sendable {
     private func applyNow(_ settings: WatcherSettings, pac: PACEvaluator?) async {
         guard let server = lock.withLock({ server }) else { return }
         let log = onLog
-        loadProtobufSchemas(settings.protobufSchemas, log: log)
+        protobuf.load(settings.protobufSchemas, log: log)
         server.tools.set(ToolFactory.makeTools(
             from: settings, breakpoints: breakpoints, read: files.read, log: { log($0) }
         ))
@@ -292,49 +293,9 @@ public extension WatcherEngine {
     }
 }
 
-private struct LoadedSchemas {
-    var files: [String] = []
-    var schema: ProtobufSchema?
-    var hadFailures = false
-}
-
-extension WatcherEngine {
-    /// Reads all `.desc` files into one schema; unreadable files are reported and skipped.
-    private func loadProtobufSchemas(_ paths: [String], log: @Sendable (String) -> Void) {
-        let loaded = lock.withLock { protobufSchema }
-        // A file that failed to load is tried again on the next apply, which runs when the settings change.
-        guard paths != loaded.files || loaded.hadFailures || (loaded.schema == nil && !paths.isEmpty) else { return }
-        var combined = Data()
-        var hadFailures = false
-        for file in paths {
-            do { try combined.append(files.read(URL(fileURLWithPath: (file as NSString).expandingTildeInPath)))
-                // A FileDescriptorSet is a repeated field, so concatenated sets are themselves a valid set.
-            } catch {
-                hadFailures = true
-                log("Protobuf schema \(file): \(error)")
-            }
-        }
-        let schema = combined.isEmpty ? nil : try? ProtobufSchema(descriptorSet: combined)
-        if !paths.isEmpty, schema == nil {
-            log("Protobuf schemas could not be parsed")
-        }
-        lock.withLock { protobufSchema = LoadedSchemas(files: paths, schema: schema, hadFailures: hadFailures) }
-    }
-
+public extension WatcherEngine {
     /// Body text for display: a schema-decoded protobuf when a rule names the message type, else the generic preview.
-    public func bodyText(of flow: Flow, response: Bool) -> String {
-        let data = response ? flow.response?.body ?? Data() : flow.request.body
-        let headers = response ? flow.response?.headers ?? [] : flow.request.headers
-        let contentType = headers.value(for: "content-type")
-        if let schema = lock.withLock({ protobufSchema.schema }),
-           let rule = settings.value.protobuf.active.first(where: { $0.matching.compile().matches(flow.request) })
-        {
-            let type = response ? rule.responseType : rule.requestType
-            let isGRPC = contentType?.lowercased().contains("grpc") == true && data.count > 5
-            if !type.isEmpty, let text = schema.describe(isGRPC ? data.dropFirst(5) : data, as: type) {
-                return text
-            }
-        }
-        return BodyPreview.text(data, contentType: contentType)
+    func bodyText(of flow: Flow, response: Bool) -> String {
+        protobuf.text(of: flow, response: response, rules: settings.value.protobuf.active)
     }
 }
