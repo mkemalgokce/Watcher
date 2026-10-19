@@ -210,10 +210,16 @@ final class ComposeViewModel {
 
     // MARK: Building and sending
 
+    private var authorization: String? {
+        switch auth {
+        case .none: nil
+        case .bearer: token.isEmpty ? nil : "Bearer \(token)"
+        case .basic: "Basic " + Data("\(username):\(password)".utf8).base64EncodedString()
+        }
+    }
+
     func build() throws -> RequestRecord {
-        guard let components = URLComponents(string: address.trimmingCharacters(in: .whitespaces)), let host = components.host, !host.isEmpty,
-              let scheme = components.scheme, ["http", "https"].contains(scheme.lowercased())
-        else {
+        guard let endpoint = HTTPEndpoint(address.trimmingCharacters(in: .whitespaces)) else {
             throw RequestBodyBuilder.BuildError(description: "Enter a full http:// or https:// URL.")
         }
         var list = headers.filter { $0.isEnabled && !$0.name.isEmpty }.map { Header($0.name, $0.value) }
@@ -222,12 +228,8 @@ final class ComposeViewModel {
                 list.append(Header(name, value))
             }
         }
-        switch auth {
-        case .none: break
-        case .bearer: if !token.isEmpty {
-                setIfMissing("Authorization", "Bearer \(token)")
-            }
-        case .basic: setIfMissing("Authorization", "Basic " + Data("\(username):\(password)".utf8).base64EncodedString())
+        if let authorization {
+            setIfMissing("Authorization", authorization)
         }
         let boundary = boundary()
         let body: Data
@@ -247,13 +249,12 @@ final class ComposeViewModel {
         if let type = RequestBodyBuilder.contentType(for: bodyKind, boundary: boundary) {
             setIfMissing("Content-Type", type)
         }
-        let lowered = scheme.lowercased()
         return RequestRecord(
             method: method,
-            scheme: lowered,
-            host: host,
-            port: components.port ?? (lowered == "https" ? 443 : 80),
-            path: (components.percentEncodedPath.isEmpty ? "/" : components.percentEncodedPath) + (components.percentEncodedQuery.map { "?\($0)" } ?? ""),
+            scheme: endpoint.scheme,
+            host: endpoint.host,
+            port: endpoint.port,
+            path: endpoint.target,
             headers: list,
             body: body
         )
