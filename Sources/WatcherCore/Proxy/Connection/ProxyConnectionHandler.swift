@@ -38,7 +38,7 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
     ) {
         self.details = details
         writer = ResponseWriter(isHTTP2: isHTTP2)
-        clientApp = ClientAppResolver(lookup: server.clientApp)
+        clientApp = ClientAppResolver(localAddresses: server.localAddresses, lookup: server.clientApp)
         self.server = server; self.codecs = codecs; self.origin = origin; self.tunnel = tunnel; self.isHTTP2 = isHTTP2
         decoder = codecs.count > 1 ? codecs[1] : nil
     }
@@ -188,7 +188,9 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
         inFlight = Task {
             await previous?.value
             var record = record
-            record.clientApp = await self.clientApp.app(for: channel)
+            if let client = await self.clientApp.identity(for: channel) {
+                record.attribute(to: client)
+            }
             switch await server.serve(record, allowStreaming: true, upload: upload, connection: self.details.summary) {
             case let .buffered(response):
                 channel.eventLoop.execute { self.writer.respond(response, to: channel, head: head) }
@@ -218,7 +220,9 @@ final class ProxyConnectionHandler: ChannelInboundHandler, RemovableChannelHandl
         inFlight = Task {
             await previous?.value
             var record = record
-            record.clientApp = await self.clientApp.app(for: client)
+            if let client = await self.clientApp.identity(for: client) {
+                record.attribute(to: client)
+            }
             switch await server.prepareUpgrade(record) {
             case let .answer(response):
                 client.eventLoop.execute { self.writer.respond(response, to: client, head: head) }

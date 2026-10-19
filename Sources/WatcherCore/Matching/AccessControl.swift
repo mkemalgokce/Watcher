@@ -19,7 +19,7 @@ public struct AccessControl: Sendable {
     }
 
     /// A dual-stack (`::`) listener reports IPv4 peers as `::ffff:a.b.c.d`; they are checked as that IPv4 address.
-    private static func unmapped(_ address: String) -> String {
+    static func unmapped(_ address: String) -> String {
         let prefix = "::ffff:"
         guard address.lowercased().hasPrefix(prefix), address.contains(".") else { return address }
         return String(address.dropFirst(prefix.count))

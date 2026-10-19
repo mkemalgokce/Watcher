@@ -1,6 +1,7 @@
 import AppKit
 import Observation
 import Testing
+import WatcherCore
 import WatcherTestSupport
 @testable import WatcherUI
 
@@ -62,8 +63,44 @@ struct IconStoreTests {
     }
 
     @Test
+    func theNameShownIsKeptForNewRecordsAndCleanedOnlyForLegacyOnes() {
+        #expect(IconStore.displayName("Safari & WebKit", isLegacy: false) == "Safari & WebKit")
+        #expect(IconStore.displayName("Acme Helper Pro", isLegacy: false) == "Acme Helper Pro")
+        #expect(IconStore.displayName("Google Chrome Helper (GPU)", isLegacy: true) == "Google Chrome")
+    }
+
+    @Test
     func aCommandLineToolHasNoIcon() {
         #expect(makeStore().appIcon(for: "curl") == nil)
+    }
+
+    @Test(arguments: [
+        (ClientKind.tool, "terminal"), (.service, "gearshape"), (.device, "iphone"),
+    ])
+    func toolsServicesAndDevicesGetASymbolWhateverTheyAreCalled(kind: ClientKind, symbol: String) {
+        files.write(Data(), to: "/Applications/Safari.app")
+        let group = FlowGroup(name: "Safari", count: 1, kind: kind, bundlePath: "/Applications/Safari.app")
+        #expect(makeStore().icon(forApp: group.name, kind: group.kind, bundlePath: group.bundlePath) == .symbol(symbol))
+    }
+
+    @Test
+    func anAppShowsTheIconOfItsBundleWhenKnown() {
+        let group = FlowGroup(name: "Whatever", count: 1, kind: .app, bundlePath: "/Elsewhere/Whatever.app")
+        guard case .image = makeStore().icon(forApp: group.name, kind: group.kind, bundlePath: group.bundlePath) else {
+            Issue.record("expected the bundle's icon")
+            return
+        }
+    }
+
+    @Test
+    func anAppWithoutABundleIsFoundByNameAndOtherwiseGetsAnAppSymbol() {
+        files.write(Data(), to: "/Applications/Safari.app")
+        let store = makeStore()
+        guard case .image = store.icon(forApp: "Safari & WebKit", kind: .app, bundlePath: nil) else {
+            Issue.record("Safari & WebKit takes Safari's icon")
+            return
+        }
+        #expect(store.icon(forApp: "Nothing", kind: .app, bundlePath: nil) == .symbol("app"))
     }
 
     @Test

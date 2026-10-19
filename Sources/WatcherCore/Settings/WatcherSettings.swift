@@ -42,6 +42,8 @@ public struct WatcherSettings: Codable, Equatable, Sendable {
     /// Hides Authorization, Cookie and similar header values from MCP output.
     public var mcpRedaction = true
     public var hideAppleTraffic = false
+    /// Hides requests sent by macOS daemons and system agents.
+    public var hideSystemServices = false
     public var includeProxyInCURL = false
     /// Repeating a request strips cache validators so the server answers afresh.
     public var noCachingOnRepeat = false
@@ -60,7 +62,9 @@ public struct WatcherSettings: Codable, Equatable, Sendable {
         case mapLocal, mapRemote, breakpoints, scripting, throttle, dnsSpoofing, reverseProxy, externalProxy, protobufSchemas, protobuf
         case customCertificates, breakpointTemplates, previewers
         case preferHTTP2, listenOnIPv6, autoIgnoreSSLPinning, accessControl, tlsKeyLogFile, leafCertificateValidityDays, maxFlows
-        case markModifiedTraffic, mcpRedaction, hideAppleTraffic, includeProxyInCURL, noCachingOnRepeat, composeTimeoutSeconds, autoSystemProxy
+        case markModifiedTraffic, mcpRedaction, hideAppleTraffic, hideSystemServices
+        case includeProxyInCURL, noCachingOnRepeat
+        case composeTimeoutSeconds, autoSystemProxy
     }
 
     public init(from decoder: Decoder) throws {
@@ -97,6 +101,7 @@ public struct WatcherSettings: Codable, Equatable, Sendable {
         markModifiedTraffic = try c.decode(.markModifiedTraffic, default: markModifiedTraffic)
         mcpRedaction = try c.decode(.mcpRedaction, default: mcpRedaction)
         hideAppleTraffic = try c.decode(.hideAppleTraffic, default: hideAppleTraffic)
+        hideSystemServices = try c.decode(.hideSystemServices, default: hideSystemServices)
         includeProxyInCURL = try c.decode(.includeProxyInCURL, default: includeProxyInCURL)
         noCachingOnRepeat = try c.decode(.noCachingOnRepeat, default: noCachingOnRepeat)
         composeTimeoutSeconds = try c.decode(.composeTimeoutSeconds, default: composeTimeoutSeconds)

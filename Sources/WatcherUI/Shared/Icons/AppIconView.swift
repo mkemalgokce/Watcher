@@ -1,16 +1,22 @@
 import SwiftUI
+import WatcherCore
 
-/// The app's icon, or a terminal symbol for command-line tools.
+/// What sent a request: the app's icon, or a symbol for tools, system services and devices.
 struct AppIconView: View {
     @Environment(IconStore.self) private var icons
-    let process: String
+    let name: String
+    var kind: ClientKind?
+    var bundlePath: String?
     var size: CGFloat = 16
 
     var body: some View {
-        if let icon = icons.appIcon(for: process) {
-            Image(nsImage: icon).resizable().interpolation(.high).frame(width: size, height: size).accessibilityHidden(true)
-        } else {
-            Image(systemName: "terminal").font(.system(size: size * 0.75)).foregroundStyle(.secondary).frame(width: size, height: size).accessibilityHidden(true)
+        switch icons.icon(forApp: name, kind: kind, bundlePath: bundlePath) {
+        case let .image(icon):
+            Image(nsImage: icon).resizable().interpolation(.high)
+                .frame(width: size, height: size).accessibilityHidden(true)
+        case let .symbol(symbol):
+            Image(systemName: symbol).imageScale(.small).foregroundStyle(.secondary)
+                .frame(width: size, height: size).accessibilityHidden(true)
         }
     }
 }

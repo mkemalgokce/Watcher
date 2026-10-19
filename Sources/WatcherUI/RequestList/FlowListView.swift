@@ -33,9 +33,16 @@ struct FlowListView: View {
                 .width(min: 120, ideal: 160).customizationID("request").disabledCustomizationBehavior(.visibility)
             TableColumn("App", value: \.sortApp) { flow in
                 if let app = flow.request.clientApp {
-                    HStack(spacing: 5) { AppIconView(process: app, size: 14); Text(IconStore.appName(forProcess: app)).lineLimit(1).foregroundStyle(.secondary) }
-                        .environment(model.icons)
-                        .help(app).accessibilityElement(children: .combine)
+                    HStack(spacing: 5) {
+                        AppIconView(
+                            name: app, kind: flow.request.clientKind,
+                            bundlePath: flow.request.clientBundlePath, size: 14
+                        )
+                        Text(IconStore.displayName(app, isLegacy: flow.request.clientProcess == nil))
+                            .lineLimit(1).foregroundStyle(.secondary)
+                    }
+                    .environment(model.icons)
+                    .help(flow.request.clientProcess ?? app).accessibilityElement(children: .combine)
                 }
             }.width(min: 40, ideal: 80).customizationID("app")
                 // The app is also in the sidebar and the inspector; hidden at first so the list fits a narrow window. Right-click a header to show it.

@@ -40,6 +40,28 @@ final class IconStore {
 
     // MARK: Apps
 
+    /// Apps show their own icon (from the bundle when it is known, else found by name); everything else a symbol.
+    /// A record from before kinds existed has none, and counts as an app.
+    func icon(forApp name: String, kind: ClientKind?, bundlePath: String?) -> ClientIcon {
+        switch kind ?? .app {
+        case .tool: return .symbol("terminal")
+        case .service: return .symbol("gearshape")
+        case .device: return .symbol("iphone")
+        case .app:
+            let image = bundlePath.map(bundleIcon(at:)) ?? appIcon(for: name)
+            return image.map(ClientIcon.image) ?? .symbol("app")
+        }
+    }
+
+    private func bundleIcon(at path: String) -> NSImage {
+        if let icon = appIcons[path] {
+            return icon
+        }
+        let icon = workspace.icon(forFile: path)
+        appIcons[path] = icon
+        return icon
+    }
+
     func appIcon(for process: String) -> NSImage? {
         if let icon = appIcons[process] {
             return icon
@@ -62,14 +84,21 @@ final class IconStore {
         if let range = name.range(of: " Web Content") {
             name = String(name[..<range.lowerBound])
         }
-        if name == "com.apple.WebKit.Networking" || name == "com.apple.WebKit" {
+        if ["com.apple.WebKit.Networking", "com.apple.WebKit"].contains(name) {
             name = "Safari"
         }
         return name.trimmingCharacters(in: .whitespaces)
     }
 
+    /// The name shown for a client: the owner's as recorded, but a legacy record (no raw process saved)
+    /// only has a process name, whose helper suffix is folded into its app.
+    nonisolated static func displayName(_ name: String, isLegacy: Bool) -> String {
+        isLegacy ? appName(forProcess: name) : name
+    }
+
     private func appBundle(for process: String) -> URL? {
-        let name = Self.appName(forProcess: process)
+        // Safari & WebKit is what every WebView app's traffic is filed under; it only borrows Safari's icon.
+        let name = process == "Safari & WebKit" ? "Safari" : Self.appName(forProcess: process)
         let folders = Self.systemApplicationFolders + [homeDirectory.appendingPathComponent("Applications").path]
         return folders
             .map { URL(fileURLWithPath: $0).appendingPathComponent("\(name).app") }
@@ -133,6 +162,11 @@ final class IconStore {
     }
 
     private nonisolated static let maxFaviconBytes = 512 * 1024
+}
+
+/// What stands for a client in a list: its own icon, or a symbol.
+enum ClientIcon: Equatable {
+    case image(NSImage), symbol(String)
 }
 
 /// One site's icon; observed on its own so its arrival redraws a single row.

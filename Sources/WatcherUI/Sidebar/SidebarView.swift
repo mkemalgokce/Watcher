@@ -17,12 +17,12 @@ struct SidebarView: View {
             }
             // Sections appear only with content: swapping a placeholder row for real rows made AppKit warn about a
             // reentrant NSTableView delegate operation while traffic arrived.
-            if !counts.apps.isEmpty {
-                Section("Apps") {
-                    ForEach(counts.apps) { group in
-                        Label { Text(IconStore.appName(forProcess: group.name)).lineLimit(1) } icon: { AppIconView(process: group.name) }
-                            .badge(group.count).tag(SidebarItem.app(group.name)).help(group.name)
-                    }
+            clientSection("Apps", .app)
+            clientSection("Tools", .tool)
+            clientSection("Devices", .device)
+            if !list.groups(of: .service).isEmpty {
+                Section("System Services", isExpanded: Bindable(list).expandsSystemServices) {
+                    clientRows(.service)
                 }
             }
             if !counts.domains.isEmpty {
@@ -42,6 +42,24 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .environment(\.sidebarRowSize, .large)
+    }
+
+    @ViewBuilder
+    private func clientSection(_ title: String, _ kind: ClientKind) -> some View {
+        if !list.groups(of: kind).isEmpty {
+            Section(title) { clientRows(kind) }
+        }
+    }
+
+    private func clientRows(_ kind: ClientKind) -> some View {
+        ForEach(list.groups(of: kind)) { group in
+            Label {
+                Text(IconStore.displayName(group.name, isLegacy: group.processes.isEmpty)).lineLimit(1)
+            } icon: {
+                AppIconView(name: group.name, kind: group.kind, bundlePath: group.bundlePath)
+            }
+            .badge(group.count).tag(SidebarItem.app(group.name)).help(group.tooltip)
+        }
     }
 
     /// Like Mail's mailboxes: one-colour symbols in the accent tint, and a count only when there is something.

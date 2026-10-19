@@ -6,7 +6,7 @@ public func withHarness<Result>(
     origin: OriginAuthority? = nil,
     files: FileAccessFake? = nil,
     loopbackAddress: String? = nil,
-    clientApp: @escaping @Sendable (Int) -> String? = { _ in nil },
+    clientApp: @escaping @Sendable (Int) -> ClientIdentity? = { _ in nil },
     configure: (inout WatcherSettings) -> Void = { _ in },
     isolation _: isolated (any Actor)? = #isolation,
     _ body: (Harness) async throws -> Result

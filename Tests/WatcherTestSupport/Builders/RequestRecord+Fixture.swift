@@ -10,9 +10,10 @@ public extension RequestRecord {
         path: String = "/",
         headers: [Header] = [],
         body: Data = Data(),
-        clientApp: String? = nil
+        clientApp: String? = nil,
+        clientKind: ClientKind? = nil
     ) -> RequestRecord {
-        RequestRecord(
+        var request = RequestRecord(
             method: method,
             scheme: scheme,
             host: host,
@@ -22,6 +23,8 @@ public extension RequestRecord {
             body: body,
             clientApp: clientApp
         )
+        request.clientKind = clientKind
+        return request
     }
 
     /// Splits `url` the way a captured request stores it; the port defaults to the scheme's.

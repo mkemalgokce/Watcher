@@ -79,6 +79,9 @@ public struct WatcherCommands: Commands {
                 Button("Clear Filters") { model.list.clearFilters() }
                     .keyboardShortcut("l", modifiers: [.command, .shift])
                 Toggle("Hide Apple Traffic", isOn: Binding(get: { model.settings.hideAppleTraffic }, set: { model.settings.hideAppleTraffic = $0 }))
+                Toggle("Hide System Services", isOn: Binding(
+                    get: { model.settings.hideSystemServices }, set: { model.settings.hideSystemServices = $0 }
+                ))
             }
         }
 

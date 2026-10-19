@@ -17,6 +17,7 @@ struct WatcherSettingsTests {
         #expect(defaults.preferHTTP2 && defaults.mcpRedaction)
         #expect(
             !(defaults.listenOnIPv6 || defaults.autoIgnoreSSLPinning || defaults.hideAppleTraffic
+                || defaults.hideSystemServices
                 || defaults.autoSystemProxy)
         )
         let numbers = [defaults.leafCertificateValidityDays, defaults.maxFlows, defaults.composeTimeoutSeconds]

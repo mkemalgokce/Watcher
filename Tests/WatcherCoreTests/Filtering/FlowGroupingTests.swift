@@ -4,9 +4,9 @@ import WatcherTestSupport
 
 @Suite(.tags(.unit))
 struct FlowGroupingTests {
-    private func flow(host: String = "api.example.com", app: String? = nil) -> Flow {
+    private func flow(host: String = "api.example.com", app: String? = nil, kind: ClientKind? = nil) -> Flow {
         .fixture(
-            request: .fixture(host: host, path: "/a", clientApp: app),
+            request: .fixture(host: host, path: "/a", clientApp: app, clientKind: kind),
             response: .fixture(headers: [Header("Content-Type", "application/json")])
         )
     }
@@ -22,11 +22,43 @@ struct FlowGroupingTests {
         ]
         let domains = FlowGrouping.domains(flows)
         #expect(
-            domains.first == FlowGroup(name: "example.com", count: 3),
+            domains.first == FlowGroup(name: "example.com", count: 3, kind: nil),
             "a.example.com, b.example.com and the Safari flow's api.example.com"
         )
-        #expect(domains.contains(FlowGroup(name: "bbc.co.uk", count: 1)))
-        #expect(domains.contains(FlowGroup(name: "10.0.0.1", count: 1)))
-        #expect(FlowGrouping.apps(flows) == [FlowGroup(name: "Safari", count: 1)])
+        #expect(domains.contains(FlowGroup(name: "bbc.co.uk", count: 1, kind: nil)))
+        #expect(domains.contains(FlowGroup(name: "10.0.0.1", count: 1, kind: nil)))
+        #expect(FlowGrouping.apps(flows) == [FlowGroup(name: "Safari", count: 1, kind: .app)])
+    }
+
+    @Test
+    func appsCarryTheirKindAndRecordsWithoutOneCountAsApps() {
+        let flows = [
+            flow(app: "Chrome", kind: .app), flow(app: "Chrome", kind: .app), flow(app: "curl", kind: .tool),
+            flow(app: "trustd", kind: .service), flow(app: "10.0.0.9", kind: .device), flow(app: "Old"),
+        ]
+        #expect(FlowGrouping.apps(flows) == [
+            FlowGroup(name: "Chrome", count: 2, kind: .app),
+            FlowGroup(name: "10.0.0.9", count: 1, kind: .device),
+            FlowGroup(name: "Old", count: 1, kind: .app),
+            FlowGroup(name: "curl", count: 1, kind: .tool),
+            FlowGroup(name: "trustd", count: 1, kind: .service),
+        ])
+    }
+
+    @Test
+    func anAppRowKnowsItsBundleAndTheRawProcessesBehindIt() {
+        func helper(_ process: String, bundle: String?) -> Flow {
+            var request = RequestRecord.fixture(clientApp: "Chrome", clientKind: .app)
+            request.clientProcess = process
+            request.clientBundlePath = bundle
+            return .fixture(request: request)
+        }
+        let flows = [
+            helper("Chrome Helper", bundle: nil), helper("Chrome", bundle: "/Applications/Chrome.app"),
+            helper("Chrome Helper", bundle: "/Applications/Chrome.app"),
+        ]
+        let chrome = FlowGrouping.apps(flows).first
+        #expect(chrome?.bundlePath == "/Applications/Chrome.app")
+        #expect(chrome?.processes == ["Chrome", "Chrome Helper"])
     }
 }
