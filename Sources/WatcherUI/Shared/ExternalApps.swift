@@ -71,4 +71,25 @@ final class ExternalApps {
     func reveal(_ url: URL) {
         workspace.reveal([url])
     }
+
+    /// Writes the content to a file, then opens it, saying so when that fails.
+    func open(_ data: Data, name: String, contentType: String?, with app: URL?) async {
+        guard let url = prepare(data, name: name, contentType: contentType) else { return }
+        await open(url, with: app)
+    }
+
+    /// Writes the content to a file, then shows it in Finder, saying so when that fails.
+    func reveal(_ data: Data, name: String, contentType: String?) {
+        guard let url = prepare(data, name: name, contentType: contentType) else { return }
+        reveal(url)
+    }
+
+    private func prepare(_ data: Data, name: String, contentType: String?) -> URL? {
+        do {
+            return try write(data, name: name, contentType: contentType)
+        } catch {
+            notices.notify("Cannot prepare the file: \(error.localizedDescription)", .error)
+            return nil
+        }
+    }
 }

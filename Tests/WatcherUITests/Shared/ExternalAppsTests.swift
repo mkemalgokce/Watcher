@@ -132,4 +132,43 @@ struct ExternalAppsTests {
         #expect(files.contents(of: url.path) == nil)
         #expect(!files.folders.contains(url.deletingLastPathComponent().path))
     }
+
+    @Test
+    func openingContentWritesItThenOpensTheFile() async throws {
+        let files = FileAccessFake()
+        let workspace = WorkspaceOpenerSpy()
+        let apps = ExternalApps(workspace: workspace, notices: notices, files: files.access)
+        await apps.open(Data("{}".utf8), name: "users.json", contentType: nil, with: editor)
+        let url = try #require(workspace.openedWith.first?.file)
+        #expect(url.lastPathComponent == "users.json")
+        #expect(files.contents(of: url.path) == Data("{}".utf8))
+        #expect(notices.notice == nil)
+    }
+
+    @Test
+    func revealingContentWritesItThenRevealsTheFile() throws {
+        let files = FileAccessFake()
+        let workspace = WorkspaceOpenerSpy()
+        let apps = ExternalApps(workspace: workspace, notices: notices, files: files.access)
+        apps.reveal(Data("{}".utf8), name: "users.json", contentType: nil)
+        let url = try #require(workspace.revealed.first?.first)
+        #expect(url.lastPathComponent == "users.json")
+        #expect(files.contents(of: url.path) == Data("{}".utf8))
+    }
+
+    @Test
+    func contentThatCannotBeWrittenIsReportedWhenOpenedOrRevealed() async {
+        struct Disk: Error {}
+        var access = FileAccessFake().access
+        access.writeAtomically = { _, _ in throw Disk() }
+        let workspace = WorkspaceOpenerSpy()
+        let apps = ExternalApps(workspace: workspace, notices: notices, files: access)
+        apps.reveal(Data("x".utf8), name: "a.txt", contentType: nil)
+        #expect(notices.notice?.message.hasPrefix("Cannot prepare the file: ") == true)
+        #expect(notices.notice?.kind == .error)
+        notices.dismiss()
+        await apps.open(Data("x".utf8), name: "a.txt", contentType: nil, with: nil)
+        #expect(notices.notice?.message.hasPrefix("Cannot prepare the file: ") == true)
+        #expect(workspace.opened.isEmpty && workspace.revealed.isEmpty)
+    }
 }

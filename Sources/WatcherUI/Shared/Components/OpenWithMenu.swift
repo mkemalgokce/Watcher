@@ -2,7 +2,6 @@ import SwiftUI
 
 /// "Open With" for a body, an uploaded file, an image or a decoded Base64 payload.
 struct OpenWithMenu: View {
-    @Environment(NoticeCenter.self) private var notices
     @Environment(ExternalApps.self) private var externalApps
     let data: Data
     var name = "body"
@@ -22,18 +21,14 @@ struct OpenWithMenu: View {
             }
             Divider()
             Button("Show in Finder", systemImage: "folder") {
-                guard let url = try? externalApps.write(data, name: name, contentType: contentType) else { return }
-                externalApps.reveal(url)
+                externalApps.reveal(data, name: name, contentType: contentType)
             }
         }
         .disabled(data.isEmpty)
     }
 
     private func open(with app: URL?) {
-        do {
-            let url = try externalApps.write(data, name: name, contentType: contentType)
-            Task { await externalApps.open(url, with: app) }
-        } catch { notices.notify("Cannot prepare the file: \(error.localizedDescription)", .error) }
+        Task { await externalApps.open(data, name: name, contentType: contentType, with: app) }
     }
 }
 
