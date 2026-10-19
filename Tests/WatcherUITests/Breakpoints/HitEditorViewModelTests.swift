@@ -79,4 +79,12 @@ struct HitEditorViewModelTests {
         #expect(response.status == template.status)
         #expect(String(data: response.body, encoding: .utf8) == template.body)
     }
+
+    @Test
+    func beautifyRewritesTheBodyAsPrettyJSON() {
+        let viewModel = HitEditorViewModel(hit: .init(phase: .request, request: Self.login))
+        viewModel.bodyText = #"{"a":1}"#
+        viewModel.beautifyBody()
+        #expect(viewModel.bodyText == JSONFormatter.pretty(#"{"a":1}"#))
+    }
 }

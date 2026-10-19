@@ -90,6 +90,21 @@ final class BreakpointsViewModel {
         center.resolve(hit.id, with: resolution)
     }
 
+    func abort(_ hit: BreakpointCenter.Hit) {
+        resolve(hit, with: .abort)
+        notices.notify("Aborted \(hit.request.host)")
+    }
+
+    func continueUnchanged(_ hit: BreakpointCenter.Hit) {
+        proceed(hit)
+        notices.notify("Continued unchanged", .success)
+    }
+
+    func execute(_ hit: BreakpointCenter.Hit, with resolution: BreakpointCenter.Resolution) {
+        resolve(hit, with: resolution)
+        notices.notify("Sent edited \(hit.phase == .response ? "response" : "request")", .success)
+    }
+
     func continueAll() {
         center.releaseAll()
         notices.notify("All paused traffic continued", .success)

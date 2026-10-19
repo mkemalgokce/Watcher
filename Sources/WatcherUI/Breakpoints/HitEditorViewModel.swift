@@ -53,6 +53,10 @@ final class HitEditorViewModel {
         }
     }
 
+    func beautifyBody() {
+        bodyText = JSONFormatter.pretty(bodyText)
+    }
+
     func apply(_ template: BreakpointTemplate) {
         status = "\(template.status)"
         headers = template.headers.map { KeyValue($0.name, $0.value) }

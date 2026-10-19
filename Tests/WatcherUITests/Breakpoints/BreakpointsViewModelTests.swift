@@ -159,4 +159,39 @@ struct BreakpointsViewModelTests {
             return
         }
     }
+
+    @Test
+    func abortingOneHitSaysSoAndFailsIt() async {
+        let breakpoints = viewModel()
+        let paused = pause("/a")
+        #expect(await eventually { center.pending.count == 1 })
+        breakpoints.abort(center.pending[0])
+        #expect(notices.notice?.message == "Aborted api.example.com")
+        guard case .abort = await paused.value else {
+            Issue.record("not aborted")
+            return
+        }
+    }
+
+    @Test
+    func continuingOneHitUnchangedSaysSoAndLetsItThrough() async {
+        let breakpoints = viewModel()
+        let paused = pause("/a")
+        #expect(await eventually { center.pending.count == 1 })
+        breakpoints.continueUnchanged(center.pending[0])
+        #expect(notices.notice?.message == "Continued unchanged")
+        guard case let .proceed(request, _) = await paused.value else {
+            Issue.record("not continued")
+            return
+        }
+        #expect(request.path == "/a")
+    }
+
+    @Test(arguments: [(BreakpointCenter.Phase.request, "request"), (.response, "response")])
+    func executingAnEditedHitNamesWhatWasSent(phase: BreakpointCenter.Phase, word: String) {
+        let breakpoints = viewModel()
+        let hit = BreakpointCenter.Hit(phase: phase, request: .fixture(path: "/a"))
+        breakpoints.execute(hit, with: .abort)
+        #expect(notices.notice?.message == "Sent edited \(word)")
+    }
 }
