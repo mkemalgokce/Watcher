@@ -223,10 +223,8 @@ public final class MCPServer: @unchecked Sendable {
             ToolDefinition(name: "create_compose_http", description: "Send an HTTP request through Watcher and return the response.", properties: ["method": "HTTP method", "url": "Absolute URL", "headers": "Lines of `Name: value`", "body": "Request body"], required: ["url"]) { args in
                 guard let url = URLComponents(string: args["url"] as? String ?? ""), let host = url.host else { throw Failure(description: "url must be absolute") }
                 let scheme = url.scheme ?? "https"
-                let headers = (args["headers"] as? String ?? "").split(separator: "\n").compactMap { line -> Header? in
-                    guard let colon = line.firstIndex(of: ":") else { return nil }
-                    return Header(line[..<colon].trimmingCharacters(in: .whitespaces), line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces))
-                }
+                let lines = (args["headers"] as? String ?? "").split(separator: "\n")
+                let headers = lines.compactMap { Header(line: String($0)) }
                 let request = RequestRecord(
                     method: (args["method"] as? String ?? "GET").uppercased(),
                     scheme: scheme,

@@ -16,10 +16,7 @@ enum HTTPMessageFile {
         var lines = head.components(separatedBy: .newlines)
         let statusLine = lines.removeFirst().split(separator: " ")
         guard statusLine.count >= 2, let status = Int(statusLine[1]) else { return nil }
-        let headers = lines.compactMap { line -> Header? in
-            guard let colon = line.firstIndex(of: ":") else { return nil }
-            return Header(String(line[..<colon]), line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces))
-        }
+        let headers = lines.compactMap { Header(line: $0) }
         return ResponseRecord(status: status, headers: headers, body: data[range.upperBound...])
     }
 
