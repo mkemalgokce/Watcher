@@ -4,7 +4,6 @@ import Foundation
 public struct Base64Segment: Identifiable, Equatable, Sendable {
     public enum Kind: Equatable, Sendable { case image(mime: String), text, binary }
 
-    public let id = UUID()
     /// Where the encoded text sits in the searched string (UTF-16 offsets).
     public let range: NSRange
     public let data: Data
@@ -13,6 +12,11 @@ public struct Base64Segment: Identifiable, Equatable, Sendable {
     public let text: String?
     /// Label for the list: the JSON key or `data:` URI media type, when known.
     public let label: String?
+
+    /// Found segments never overlap, so where one starts identifies it, and the same text gives the same ids.
+    public var id: Int {
+        range.location
+    }
 
     public static func == (a: Base64Segment, b: Base64Segment) -> Bool {
         a.range == b.range && a.data == b.data
