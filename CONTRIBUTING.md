@@ -39,6 +39,7 @@ code owner (@mkemalgokce, see `.github/CODEOWNERS`) before it can be merged.
 | `make snapshots-record` | Rewrites the snapshot references for this macOS |
 | `make coverage` | Unit and integration tests with coverage, gated by `scripts/coverage-thresholds.txt`; CI runs it with `test-snapshot` and `test-e2e` |
 | `make changelog` | Regenerates `CHANGELOG.md` with git-cliff |
+| `make release-prep VERSION=1.2.3` | Sets the reported version and adds its `CHANGELOG.md` section; see [Releases](#releases) |
 | `make dmg` | Builds `dist/Watcher-$(VERSION).dmg` (default 0.0.0) like a release, signed ad hoc and not notarized |
 
 ## Commit messages
@@ -66,6 +67,12 @@ Every change starts with a failing test.
 Only the maintainer releases. Pushing a `v*` tag starts `.github/workflows/release.yml`; the build waits for approval in the
 `release` environment, then signs the DMG with the project's Developer ID, notarizes and staples it, and publishes the
 release with notes from git-cliff. The signing and notary secrets live only in that environment.
+
+To cut a release:
+
+1. `make release-prep VERSION=1.2.3` sets the version Watcher reports and adds the `1.2.3` section to `CHANGELOG.md`.
+   Open a pull request with the result (`chore: prepare v1.2.3`) and merge it.
+2. Tag the merged commit and push the tag: `git tag -a v1.2.3 -m v1.2.3 && git push origin v1.2.3`.
 
 The DMG window's background is `tools/dmg/background.svg`; after editing it, run `tools/dmg/render-background.sh`
 (needs `librsvg` from the Brewfile) to rebuild the 1x and 2x `background.tiff`.
