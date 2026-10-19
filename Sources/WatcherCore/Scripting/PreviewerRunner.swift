@@ -26,7 +26,7 @@ final class PreviewerRunner: @unchecked Sendable {
         guard let response = flow.response else { return [] }
         let message: [String: Any] = [
             "url": flow.request.url, "status": response.status,
-            "headers": Dictionary(response.headers.map { ($0.name, $0.value) }, uniquingKeysWith: { _, last in last }),
+            "headers": ScriptPayload.headerDictionary(response.headers),
             "body": String(data: response.body, encoding: .utf8) ?? NSNull(),
             "bodyBase64": response.body.base64EncodedString(),
         ]
