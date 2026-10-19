@@ -5,21 +5,18 @@ import WatcherTestSupport
 @testable import WatcherUI
 
 extension ViewModelTextSnapshotTests {
-    /// The Breakpoints window: its rules, and which of them stop each paused request.
+    /// The Breakpoints window: its rules.
     @MainActor
     struct Breakpoints {
         @Test
-        func rulesAndThePausedRequestsTheyStop() throws {
+        func ruleSummaries() throws {
             let model = try AppModel.test()
             model.settings.breakpoints = RuleSet(isEnabled: true, rules: [
                 BreakpointRule(name: "Login", matching: MatchingRule(pattern: "*/login")),
                 BreakpointRule(matching: MatchingRule(pattern: "api.example.com/*"), onResponse: false),
                 BreakpointRule(isEnabled: false, matching: MatchingRule(pattern: "*")),
             ])
-            let breakpoints = model.breakpoints
-            var lines = model.settings.breakpoints.rules.map(\.summaryLine)
-            let paused = [("api.example.com", "/login"), ("api.example.com", "/v1/users"), ("cdn.a.com", "/a.css")]
-            lines += paused.map { breakpoints.stopsAtLine(for: .fixture(host: $0.0, path: $0.1)) }
+            let lines = model.settings.breakpoints.rules.map(\.summaryLine)
             assertSnapshot(of: lines.joined(separator: "\n"), as: .lines)
         }
     }

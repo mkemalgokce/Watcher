@@ -25,10 +25,7 @@ struct RuleFields: View {
                 LabeledField(
                     "Methods",
                     prompt: "GET, POST",
-                    text: Binding(
-                        get: { matching.methods.joined(separator: ", ") },
-                        set: { matching.methods = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).uppercased() }.filter { !$0.isEmpty } }
-                    ),
+                    text: listText($matching.methods, transform: { $0.uppercased() }),
                     help: "Empty matches every method."
                 )
                 LabeledField("App", prompt: "Google Chrome*", text: Binding(get: { matching.app ?? "" }, set: { matching.app = $0.isEmpty ? nil : $0 }))
@@ -123,12 +120,4 @@ struct MapLocalSourceFields: View {
     private func choose() {
         source = model.filePicker.chooseSource(directory: isDirectory) ?? source
     }
-}
-
-/// Comma-separated text for a list of host patterns.
-func commaList(_ values: Binding<[String]>) -> Binding<String> {
-    Binding(
-        get: { values.wrappedValue.joined(separator: ", ") },
-        set: { values.wrappedValue = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }
-    )
 }

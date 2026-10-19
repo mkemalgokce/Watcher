@@ -88,4 +88,26 @@ struct FormFieldsTests {
         )
         #expect(FormFields.parse(request).map(\.value) == [value])
     }
+
+    @Test(arguments: [
+        ("application/x-www-form-urlencoded", "a=1&b=x+y", ["form:a=1", "form:b=x y"]),
+        ("Application/X-WWW-Form-Urlencoded; charset=utf-8", "a=%C3%BC", ["form:a=ü"]),
+        ("application/x-www-form-urlencoded", "", []),
+        ("application/json", "a=1", []),
+        ("multipart/form-data", "a=1", []),
+        (
+            "multipart/form-data; boundary=B",
+            "--B\r\nContent-Disposition: form-data; name=\"t\"\r\n\r\nhi\r\n--B--\r\n",
+            ["multipart:t=hi"]
+        ),
+    ])
+    func aBodyAloneIsParsedByItsContentType(type: String, body: String, expected: [String]) {
+        let fields = FormFields.parse(body: Data(body.utf8), contentType: type)
+        #expect(fields.map { "\($0.source.rawValue):\($0.name)=\($0.value)" } == expected)
+    }
+
+    @Test
+    func aBodyWithoutAContentTypeHasNoFields() {
+        #expect(FormFields.parse(body: Data("a=1".utf8), contentType: nil).isEmpty)
+    }
 }

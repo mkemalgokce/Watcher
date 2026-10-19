@@ -40,9 +40,7 @@ extension ComposeViewModel {
 
     /// Keeps the current file when the panel is cancelled or the file cannot be read.
     func chooseFile(using picker: FilePicker) async {
-        if let chosen = await picker.choosePart() {
-            file = chosen
-        }
+        file = await picker.choosePart(keeping: file)
     }
 
     /// Connect for a ws:// or wss:// address, Send otherwise. Connecting hands the session over and closes the window.

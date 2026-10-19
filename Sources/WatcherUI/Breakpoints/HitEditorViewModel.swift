@@ -21,8 +21,7 @@ final class HitEditorViewModel {
     }
 
     var isURLValid: Bool {
-        guard let components = URLComponents(string: urlText), let scheme = components.scheme?.lowercased() else { return false }
-        return ["http", "https"].contains(scheme) && components.host?.isEmpty == false
+        HTTPEndpoint(urlText) != nil
     }
 
     var canExecute: Bool {
@@ -54,6 +53,10 @@ final class HitEditorViewModel {
         }
     }
 
+    func beautifyBody() {
+        bodyText = JSONFormatter.pretty(bodyText)
+    }
+
     func apply(_ template: BreakpointTemplate) {
         status = "\(template.status)"
         headers = template.headers.map { KeyValue($0.name, $0.value) }
@@ -74,11 +77,9 @@ final class HitEditorViewModel {
         }
         var request = hit.request
         request.method = method
-        if let url = URLComponents(string: urlText), let host = url.host {
-            request.scheme = url.scheme?.lowercased() ?? request.scheme
-            request.host = host
-            request.port = url.port ?? (request.scheme == "https" ? 443 : 80)
-            request.path = (url.percentEncodedPath.isEmpty ? "/" : url.percentEncodedPath) + (url.percentEncodedQuery.map { "?\($0)" } ?? "")
+        if let endpoint = HTTPEndpoint(urlText) {
+            request.scheme = endpoint.scheme; request.host = endpoint.host
+            request.port = endpoint.port; request.path = endpoint.target
         }
         request.headers = edited
         request.body = Data(bodyText.utf8)

@@ -34,16 +34,15 @@ public enum MockMaker {
 
         let directory = folder.appendingPathComponent(safe(flow.request.host), isDirectory: true)
         try files.createDirectory(directory)
-        let path = flow.request.path.split(separator: "?").first.map(String.init) ?? "/"
+        let path = flow.request.pathWithoutQuery
         let base = "\(flow.request.method.lowercased())-\(safe(path == "/" ? "root" : path))"
         let named = directory.appendingPathComponent(base).appendingPathExtension((plain ? ext : nil) ?? "txt")
         let file = unique(named, files: files)
         try files.writeAtomically(data, file)
 
-        let pattern = "^(https?://)?" + NSRegularExpression.escapedPattern(for: flow.request.host) + "(:\\d+)?" + NSRegularExpression.escapedPattern(for: path) + "(\\?.*)?$"
         let rule = MapLocalRule(
             name: "Mock \(flow.request.method) \(flow.request.host)\(path)",
-            matching: MatchingRule(pattern: pattern, mode: .regex, methods: [flow.request.method.uppercased()]),
+            matching: .exactURL(host: flow.request.host, path: path, methods: [flow.request.method.uppercased()]),
             source: .file(file.path)
         )
         return Mock(rule: rule, file: file)

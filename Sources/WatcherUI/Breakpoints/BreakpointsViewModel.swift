@@ -41,12 +41,6 @@ final class BreakpointsViewModel {
         settings.breakpoints.rules.filter { $0.isEnabled && RequestMatcher($0.matching).matches(request) }
     }
 
-    /// "host/path stops at: Login, api.example.com/*", or "nothing" when no rule stops it.
-    func stopsAtLine(for request: RequestRecord) -> String {
-        let names = rules(matching: request).map(\.displayName)
-        return "\(request.host)\(request.path) stops at: \(names.isEmpty ? "nothing" : names.joined(separator: ", "))"
-    }
-
     /// Deletes the rules that stop `hit`'s request and lets it, and everything else they paused, continue.
     func removeBreakpoints(for hit: BreakpointCenter.Hit) {
         let doomed = rules(matching: hit.request)
@@ -94,6 +88,21 @@ final class BreakpointsViewModel {
 
     func resolve(_ hit: BreakpointCenter.Hit, with resolution: BreakpointCenter.Resolution) {
         center.resolve(hit.id, with: resolution)
+    }
+
+    func abort(_ hit: BreakpointCenter.Hit) {
+        resolve(hit, with: .abort)
+        notices.notify("Aborted \(hit.request.host)")
+    }
+
+    func continueUnchanged(_ hit: BreakpointCenter.Hit) {
+        proceed(hit)
+        notices.notify("Continued unchanged", .success)
+    }
+
+    func execute(_ hit: BreakpointCenter.Hit, with resolution: BreakpointCenter.Resolution) {
+        resolve(hit, with: resolution)
+        notices.notify("Sent edited \(hit.phase == .response ? "response" : "request")", .success)
     }
 
     func continueAll() {

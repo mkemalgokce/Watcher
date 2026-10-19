@@ -21,6 +21,11 @@ struct AppModelTests {
     }
 
     @Test
+    func eachModelKeepsItsOwnEmbeddedDataIndex() throws {
+        #expect(try AppModel.test().embeddedData !== AppModel.test().embeddedData)
+    }
+
+    @Test
     func onboardingIsReadFromAndSavedToThePreferences() throws {
         let preferences = PreferencesFake(["onboarding.done": true])
         let model = try AppModel(dependencies: .test(preferences: preferences))

@@ -1,6 +1,4 @@
-import AppKit
 import SwiftUI
-import UniformTypeIdentifiers
 import WatcherCore
 
 /// The inspector: what the selected request was and the facts about it, then the request and response together.

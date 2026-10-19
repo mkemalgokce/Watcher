@@ -12,6 +12,26 @@ struct ShortcutTests {
         #expect(Shortcut.spoken("⌥⌘1 – ⌥⌘5") == "Option Command 1  to  Option Command 5")
     }
 
+    @Test
+    func anEmptySearchKeepsEveryGroup() {
+        #expect(Shortcut.groups(matching: "").map(\.title) == Shortcut.groups.map(\.title))
+    }
+
+    @Test(arguments: ["clear the session", "CLEAR THE SESSION", "⌘K"])
+    func aSearchMatchesTitlesWithoutCaseAndKeysAsTyped(search: String) {
+        let found = Shortcut.groups(matching: search).flatMap(\.items)
+        #expect(found.contains { $0.keys == "⌘K" && $0.title == "Clear the session" })
+        #expect(found.count < Shortcut.groups.flatMap(\.items).count)
+    }
+
+    @Test
+    func aSearchDropsGroupsWithoutAMatchAndNoMatchIsEmpty() {
+        let groups = Shortcut.groups(matching: "clear the session")
+        #expect(groups.allSatisfy { !$0.items.isEmpty })
+        #expect(groups.count < Shortcut.groups.count)
+        #expect(Shortcut.groups(matching: "no such shortcut").isEmpty)
+    }
+
     /// The Help page lists every menu shortcut, so the list cannot silently fall behind the menus.
     @Test
     func helpListsEveryMenuShortcut() throws {

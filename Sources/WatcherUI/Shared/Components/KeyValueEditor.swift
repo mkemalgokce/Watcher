@@ -56,11 +56,7 @@ struct KeyValueEditor: View {
                                 Menu {
                                     Button("Text") { row.file = nil }
                                     Button("Choose File…") {
-                                        Task {
-                                            if let file = await model.filePicker.choosePart() {
-                                                row.file = file
-                                            }
-                                        }
+                                        Task { row.file = await model.filePicker.choosePart(keeping: row.file) }
                                     }
                                 } label: { Image(systemName: row.file == nil ? "textformat" : "doc") }
                                     .menuStyle(.borderlessButton).fixedSize().help("Text value or file").accessibilityLabel("Value type")

@@ -39,18 +39,15 @@ struct HelpView: View {
     }
 
     private var shortcuts: some View {
-        let groups = Shortcut.groups.compactMap { group -> (String, [Shortcut])? in
-            let items = search.isEmpty ? group.items : group.items.filter { $0.title.localizedCaseInsensitiveContains(search) || $0.keys.contains(search) }
-            return items.isEmpty ? nil : (group.title, items)
-        }
+        let groups = Shortcut.groups(matching: search)
         return VStack(alignment: .leading, spacing: 18) {
             if groups.isEmpty {
                 Text("No shortcut matches “\(search)”.").foregroundStyle(.secondary)
             }
-            ForEach(groups, id: \.0) { title, items in
-                Card(title) {
+            ForEach(groups, id: \.title) { group in
+                Card(group.title) {
                     Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 7) {
-                        ForEach(items, id: \.title) { item in
+                        ForEach(group.items, id: \.title) { item in
                             GridRow {
                                 Keycap(keys: item.keys).gridColumnAlignment(.trailing)
                                 Text(item.title)

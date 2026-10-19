@@ -152,7 +152,6 @@ private struct PhaseBadge: View {
 private struct HitEditor: View {
     @Environment(AppModel.self) private var model
     @Environment(BreakpointsViewModel.self) private var breakpoints
-    @Environment(NoticeCenter.self) private var notices
     @State private var viewModel: HitEditorViewModel
 
     init(hit: BreakpointCenter.Hit) {
@@ -189,8 +188,10 @@ private struct HitEditor: View {
                 Text(hit.request.url).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             } else {
                 HStack {
-                    Picker("Method", selection: $viewModel.method) { ForEach(ComposeViewModel.methods, id: \.self) { Text($0) } }
-                        .labelsHidden().fixedSize().accessibilityLabel("Method")
+                    Picker("Method", selection: $viewModel.method) {
+                        ForEach(RequestMethod.common, id: \.self) { Text($0) }
+                    }
+                    .labelsHidden().fixedSize().accessibilityLabel("Method")
                     TextField("URL", text: $viewModel.urlText).textFieldStyle(.roundedBorder).font(.system(.body, design: .monospaced)).accessibilityLabel("URL")
                 }
                 if !viewModel.isURLValid {
@@ -206,7 +207,7 @@ private struct HitEditor: View {
                         Text(viewModel.bodyLanguage.displayName).font(.caption).foregroundStyle(.secondary)
                         Spacer()
                         if viewModel.bodyLanguage == .json {
-                            IconButton("Beautify JSON", symbol: "text.alignleft") { viewModel.bodyText = JSONFormatter.pretty(viewModel.bodyText) }
+                            IconButton("Beautify JSON", symbol: "text.alignleft") { viewModel.beautifyBody() }
                         }
                     }
                     SyntaxTextView(text: $viewModel.bodyText, language: viewModel.bodyLanguage)
@@ -217,8 +218,7 @@ private struct HitEditor: View {
             Text("⌘↩ send with your changes · ⇧⌘↩ continue unchanged · ⇧⌘⌫ abort").font(.caption).foregroundStyle(.secondary)
             HStack {
                 Button("Abort", systemImage: "xmark.octagon", role: .destructive) {
-                    breakpoints.resolve(hit, with: .abort)
-                    notices.notify("Aborted \(hit.request.host)")
+                    breakpoints.abort(hit)
                 }
                 .keyboardShortcut(.delete, modifiers: [.command, .shift]).help("Fail this request (⇧⌘⌫)")
                 Button("Remove Breakpoint", systemImage: "trash") { breakpoints.removeBreakpoints(for: hit) }
@@ -226,14 +226,12 @@ private struct HitEditor: View {
                     .disabled(breakpoints.rules(matching: hit.request).isEmpty)
                 Spacer()
                 Button("Continue Unchanged") {
-                    breakpoints.resolve(hit, with: .proceed(request: hit.request, response: hit.response))
-                    notices.notify("Continued unchanged", .success)
+                    breakpoints.continueUnchanged(hit)
                 }
                 .keyboardShortcut(.return, modifiers: [.command, .shift]).help("Let the original through (⇧⌘↩)")
                 Button("Execute Edited", systemImage: "play.fill") {
                     guard let resolution = viewModel.resolution() else { return }
-                    breakpoints.resolve(hit, with: resolution)
-                    notices.notify("Sent edited \(viewModel.isResponse ? "response" : "request")", .success)
+                    breakpoints.execute(hit, with: resolution)
                 }
                 .buttonStyle(.borderedProminent).keyboardShortcut(.return, modifiers: .command)
                 .disabled(!viewModel.canExecute).help("Send with your changes (⌘↩)")

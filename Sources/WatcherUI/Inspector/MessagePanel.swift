@@ -36,7 +36,7 @@ struct MessagePanel: View {
             flow: flow,
             side: side,
             previewersActive: !model.settings.previewers.active.isEmpty,
-            embedded: EmbeddedDataIndex.shared.segments(in: flow, side: side)
+            embedded: model.embeddedData.segments(in: flow, side: side)
         )
     }
 

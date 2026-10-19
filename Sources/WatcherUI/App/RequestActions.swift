@@ -156,7 +156,7 @@ final class RequestActions {
             let mock = try MockMaker.make(from: flow, in: paths.mocksDirectory, files: files)
             settings.mapLocal.isEnabled = true
             settings.mapLocal.rules.append(mock.rule)
-            let path = flow.request.path.split(separator: "?").first ?? ""
+            let path = flow.request.pathWithoutQuery
             let file = mock.file.lastPathComponent
             let message = "Mock created: \(flow.request.method) \(path) now answers from \(file). "
                 + "Edit the file to change the answer; switch it off in Tools → Map Local."
@@ -173,20 +173,17 @@ final class RequestActions {
     }
 
     static func breakpointMatching(for request: RequestRecord) -> MatchingRule {
-        let path = String(request.path.prefix { $0 != "?" })
-        let escapedPath = path.isEmpty || path == "/" ? "/?" : NSRegularExpression.escapedPattern(for: path)
-        let tail = escapedPath + #"(\?.*)?"#
-        return MatchingRule(pattern: anchored(host: escapedHost(request.host), tail: tail), mode: .regex)
+        .exactURL(host: request.host, path: request.pathWithoutQuery)
     }
 
     /// Blocks this host only.
     func blockHost(_ host: String) {
-        addBlockRule(name: host, matching: Self.hostMatching(host, subdomains: false))
+        addBlockRule(name: host, matching: .host(host, subdomains: false))
     }
 
     /// Blocks a sidebar domain and its subdomains.
     func blockDomain(_ domain: String) {
-        addBlockRule(name: domain, matching: Self.hostMatching(domain, subdomains: true))
+        addBlockRule(name: domain, matching: .host(domain, subdomains: true))
         notices.notify("Requests to \(domain) are now blocked (Tools ▸ Block List)", .success)
     }
 
@@ -194,20 +191,6 @@ final class RequestActions {
         settings.blockList.isEnabled = true
         guard !settings.blockList.rules.contains(where: { $0.matching == matching }) else { return }
         settings.blockList.rules.append(BlockRule(name: name, matching: matching))
-    }
-
-    /// The host is anchored at both ends, so a look-alike name or a URL that only mentions it never matches.
-    private static func hostMatching(_ host: String, subdomains: Bool) -> MatchingRule {
-        let name = (subdomains ? #"([^/?:]+\.)?"# : "") + escapedHost(host)
-        return MatchingRule(pattern: anchored(host: name, tail: #"([/?].*)?"#), mode: .regex)
-    }
-
-    private static func escapedHost(_ host: String) -> String {
-        NSRegularExpression.escapedPattern(for: host)
-    }
-
-    private static func anchored(host: String, tail: String) -> String {
-        #"^([A-Za-z][A-Za-z0-9+.-]*://)?"# + host + #"(:\d+)?"# + tail + "$"
     }
 
     /// Output of every enabled previewer whose URL pattern matches this request.

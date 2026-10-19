@@ -34,3 +34,16 @@ extension RequestRecordTests {
         }
     }
 }
+
+extension RequestRecordTests {
+    struct PathWithoutQuery {
+        @Test(arguments: [
+            ("/a/b?x=1", "/a/b"), ("/a/b", "/a/b"), ("/?x=1", "/"), ("", "/"), ("?x=1", "/"),
+            ("/a?b?c", "/a"), ("/a?", "/a"),
+        ])
+        func dropsTheQueryAndFallsBackToTheRoot(path: String, expected: String) {
+            #expect(RequestRecord.fixture(path: path).pathWithoutQuery == expected)
+            #expect(RequestRecord.pathWithoutQuery(of: path) == expected)
+        }
+    }
+}

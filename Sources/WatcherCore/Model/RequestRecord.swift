@@ -20,6 +20,16 @@ public struct RequestRecord: Codable, Equatable, Sendable {
         ["https", "wss"].contains(scheme) ? 443 : 80
     }
 
+    /// The path up to the query; the root when nothing is left.
+    public var pathWithoutQuery: String {
+        Self.pathWithoutQuery(of: path)
+    }
+
+    public static func pathWithoutQuery(of path: String) -> String {
+        let bare = path.prefix { $0 != "?" }
+        return bare.isEmpty ? "/" : String(bare)
+    }
+
     public var usesDefaultPort: Bool {
         ["http", "https"].contains(scheme) && port == Self.defaultPort(for: scheme)
     }

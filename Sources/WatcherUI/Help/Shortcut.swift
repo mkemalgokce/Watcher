@@ -5,6 +5,17 @@ struct Shortcut {
 
     struct Group { let title: String; let items: [Shortcut] }
 
+    /// The groups with only the shortcuts whose title or keys match `search`; every shortcut when it is empty.
+    static func groups(matching search: String) -> [Group] {
+        guard !search.isEmpty else { return groups }
+        return groups.compactMap { group in
+            let items = group.items.filter {
+                $0.title.localizedCaseInsensitiveContains(search) || $0.keys.contains(search)
+            }
+            return items.isEmpty ? nil : Group(title: group.title, items: items)
+        }
+    }
+
     static let groups: [Group] = [
         Group(title: "Capture", items: [
             Shortcut(keys: "⌘E", title: "Record or pause (starts and stops the proxy)"),
