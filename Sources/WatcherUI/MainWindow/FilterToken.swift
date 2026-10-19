@@ -13,7 +13,6 @@ enum FilterToken: Hashable, Identifiable {
         self
     }
 
-    private static let methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
     private static let statuses = [2, 3, 4, 5, 0]
     private static let textScopes: [FlowFilter.Scope] = [.url, .header, .body, .all]
     private static let maxHosts = 5
@@ -40,7 +39,7 @@ enum FilterToken: Hashable, Identifiable {
 
     /// The tokens a filter holds, grouped by kind so they keep a stable order.
     static func tokens(in filter: FlowFilter) -> [FilterToken] {
-        methods.filter(filter.methods.contains).map(FilterToken.method)
+        RequestMethod.common.filter(filter.methods.contains).map(FilterToken.method)
             + statuses.filter(filter.statusClasses.contains).map(FilterToken.status)
             + FlowFilter.ContentKind.allCases.filter(filter.contentKinds.contains).map(FilterToken.kind)
             + filter.terms.map(FilterToken.term)
@@ -65,12 +64,12 @@ enum FilterToken: Hashable, Identifiable {
         let text = typed.trimmingCharacters(in: .whitespaces)
         let offered: [FilterToken]
         if text.isEmpty {
-            offered = statuses.map(FilterToken.status) + methods.map(FilterToken.method)
+            offered = statuses.map(FilterToken.status) + RequestMethod.common.map(FilterToken.method)
                 + FlowFilter.ContentKind.allCases.map(FilterToken.kind)
         } else {
             let lower = text.lowercased()
             let named = statuses.map(FilterToken.status).filter { $0.title.lowercased().hasPrefix(lower) }
-                + methods.filter { $0.lowercased().hasPrefix(lower) }.map(FilterToken.method)
+                + RequestMethod.common.filter { $0.lowercased().hasPrefix(lower) }.map(FilterToken.method)
                 + FlowFilter.ContentKind.allCases.filter { $0.rawValue.lowercased().hasPrefix(lower) }
                 .map(FilterToken.kind)
             let matchingHosts = hosts.filter { $0.lowercased().contains(lower) }.prefix(maxHosts)

@@ -188,8 +188,10 @@ private struct HitEditor: View {
                 Text(hit.request.url).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             } else {
                 HStack {
-                    Picker("Method", selection: $viewModel.method) { ForEach(ComposeViewModel.methods, id: \.self) { Text($0) } }
-                        .labelsHidden().fixedSize().accessibilityLabel("Method")
+                    Picker("Method", selection: $viewModel.method) {
+                        ForEach(RequestMethod.common, id: \.self) { Text($0) }
+                    }
+                    .labelsHidden().fixedSize().accessibilityLabel("Method")
                     TextField("URL", text: $viewModel.urlText).textFieldStyle(.roundedBorder).font(.system(.body, design: .monospaced)).accessibilityLabel("URL")
                 }
                 if !viewModel.isURLValid {

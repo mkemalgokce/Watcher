@@ -68,7 +68,7 @@ struct ComposeView: View {
     private var urlBar: some View {
         HStack(spacing: 8) {
             Picker("Method", selection: $viewModel.method) {
-                ForEach(ComposeViewModel.methods, id: \.self) { Text($0) }
+                ForEach(RequestMethod.common, id: \.self) { Text($0) }
             }
             .labelsHidden().fixedSize().accessibilityLabel("Method")
             TextField("https://api.example.com/path, or paste a curl command", text: $viewModel.address)

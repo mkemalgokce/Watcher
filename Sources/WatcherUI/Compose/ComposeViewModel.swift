@@ -31,8 +31,6 @@ final class ComposeViewModel {
         }
     }
 
-    static let methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
-
     var method = "GET"
     var address = "https://" {
         didSet {
