@@ -38,6 +38,19 @@ extension FlowListViewModelTests {
         }
 
         @Test
+        func hidingSystemServicesDeselectsAServiceRowButKeepsOtherSelections() {
+            let list = list()
+            fill(list)
+            list.sidebar = .app("curl")
+            list.hidesSystemServices = true
+            #expect(list.sidebar == .app("curl"))
+            list.hidesSystemServices = false
+            list.sidebar = .app("trustd")
+            list.hidesSystemServices = true
+            #expect(list.sidebar == .all)
+        }
+
+        @Test
         func hidingSystemServicesRemovesTheirFlowsAndTheirSidebarSection() {
             let list = list()
             fill(list)

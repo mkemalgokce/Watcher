@@ -63,6 +63,13 @@ struct IconStoreTests {
     }
 
     @Test
+    func theNameShownIsKeptForNewRecordsAndCleanedOnlyForLegacyOnes() {
+        #expect(IconStore.displayName("Safari & WebKit", isLegacy: false) == "Safari & WebKit")
+        #expect(IconStore.displayName("Acme Helper Pro", isLegacy: false) == "Acme Helper Pro")
+        #expect(IconStore.displayName("Google Chrome Helper (GPU)", isLegacy: true) == "Google Chrome")
+    }
+
+    @Test
     func aCommandLineToolHasNoIcon() {
         #expect(makeStore().appIcon(for: "curl") == nil)
     }
@@ -73,13 +80,13 @@ struct IconStoreTests {
     func toolsServicesAndDevicesGetASymbolWhateverTheyAreCalled(kind: ClientKind, symbol: String) {
         files.write(Data(), to: "/Applications/Safari.app")
         let group = FlowGroup(name: "Safari", count: 1, kind: kind, bundlePath: "/Applications/Safari.app")
-        #expect(makeStore().icon(for: group) == .symbol(symbol))
+        #expect(makeStore().icon(forApp: group.name, kind: group.kind, bundlePath: group.bundlePath) == .symbol(symbol))
     }
 
     @Test
     func anAppShowsTheIconOfItsBundleWhenKnown() {
         let group = FlowGroup(name: "Whatever", count: 1, kind: .app, bundlePath: "/Elsewhere/Whatever.app")
-        guard case .image = makeStore().icon(for: group) else {
+        guard case .image = makeStore().icon(forApp: group.name, kind: group.kind, bundlePath: group.bundlePath) else {
             Issue.record("expected the bundle's icon")
             return
         }
@@ -89,11 +96,11 @@ struct IconStoreTests {
     func anAppWithoutABundleIsFoundByNameAndOtherwiseGetsAnAppSymbol() {
         files.write(Data(), to: "/Applications/Safari.app")
         let store = makeStore()
-        guard case .image = store.icon(for: FlowGroup(name: "Safari & WebKit", count: 1, kind: .app)) else {
+        guard case .image = store.icon(forApp: "Safari & WebKit", kind: .app, bundlePath: nil) else {
             Issue.record("Safari & WebKit takes Safari's icon")
             return
         }
-        #expect(store.icon(for: FlowGroup(name: "Nothing", count: 1, kind: .app)) == .symbol("app"))
+        #expect(store.icon(forApp: "Nothing", kind: .app, bundlePath: nil) == .symbol("app"))
     }
 
     @Test
@@ -158,7 +165,6 @@ struct IconStoreTests {
         ("Slack Helper (GPU)", "Slack"),
         ("Safari Web Content", "Safari"),
         ("com.apple.WebKit.Networking", "Safari"),
-        ("Safari & WebKit", "Safari"),
         ("com.apple.WebKit", "Safari"),
         ("curl", "curl"),
         ("  Firefox  ", "Firefox"),

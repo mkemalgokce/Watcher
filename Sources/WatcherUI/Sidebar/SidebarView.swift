@@ -54,7 +54,7 @@ struct SidebarView: View {
     private func clientRows(_ kind: ClientKind) -> some View {
         ForEach(list.groups(of: kind)) { group in
             Label {
-                Text(IconStore.displayName(group.name, kind: group.kind)).lineLimit(1)
+                Text(IconStore.displayName(group.name, isLegacy: group.processes.isEmpty)).lineLimit(1)
             } icon: {
                 AppIconView(name: group.name, kind: group.kind, bundlePath: group.bundlePath)
             }

@@ -82,6 +82,28 @@ struct ClientIdentityClassificationTests {
         ),
         Case(process: "trustd", path: nil, app: "trustd", kind: .service, bundle: nil),
         Case(
+            process: "Agent", path: "/Library/Apple/System/Library/CoreServices/Agent.app/Contents/MacOS/Agent",
+            app: "Agent", kind: .service, bundle: "/Library/Apple/System/Library/CoreServices/Agent.app"
+        ),
+        Case(
+            process: "Helper", path: "/usr/libexec/Helper.app/Contents/MacOS/Helper",
+            app: "Helper", kind: .service, bundle: "/usr/libexec/Helper.app"
+        ),
+        Case(
+            process: "Mail Agent", path: cryptexes + "/OS/System/Library/CoreServices/MailAgent.app/Contents/MacOS/x",
+            app: "MailAgent", kind: .service, bundle: cryptexes + "/OS/System/Library/CoreServices/MailAgent.app"
+        ),
+        Case(
+            process: "FlatAgent", path: "/System/Library/CoreServices/FlatAgent.app/FlatAgent",
+            app: "FlatAgent", kind: .service, bundle: "/System/Library/CoreServices/FlatAgent.app"
+        ),
+        Case(process: "launchd", path: "/sbin/launchd", app: "launchd", kind: .service, bundle: nil),
+        Case(
+            process: "assistantd", path: "/System/Library/PrivateFrameworks/A.framework/assistantd",
+            app: "assistantd", kind: .service, bundle: nil
+        ),
+        Case(process: "oahd", path: "/Library/Apple/usr/libexec/oah/oahd", app: "oahd", kind: .service, bundle: nil),
+        Case(
             process: "Flat", path: "/Applications/Flat.app/Flat",
             app: "Flat", kind: .app, bundle: "/Applications/Flat.app"
         ),

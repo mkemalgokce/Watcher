@@ -21,6 +21,16 @@ struct AppModelTests {
     }
 
     @Test
+    func savedHidingSettingsApplyAtLaunch() throws {
+        let files = FileAccessFake()
+        let saved = Data(#"{"hideAppleTraffic":true,"hideSystemServices":true}"#.utf8)
+        files.write(saved, to: "/fake-home/.watcher/settings.json")
+        let model = try AppModel(dependencies: .test(files: files))
+        #expect(model.list.hidesAppleTraffic)
+        #expect(model.list.hidesSystemServices)
+    }
+
+    @Test
     func hidingSystemServicesRefreshesTheList() throws {
         let model = try AppModel.test()
         let daemon = Flow.fixture(sequence: 1, status: 200, clientApp: "trustd", clientKind: .service)

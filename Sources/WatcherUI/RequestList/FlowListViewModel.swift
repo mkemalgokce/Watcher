@@ -26,7 +26,18 @@ final class FlowListViewModel {
     }
 
     var hidesSystemServices = false {
-        didSet { refresh(ifChanged: oldValue, hidesSystemServices) }
+        didSet {
+            if hidesSystemServices, selectsAServiceRow {
+                sidebar = .all
+            }
+            refresh(ifChanged: oldValue, hidesSystemServices)
+        }
+    }
+
+    /// Hiding the services removes their rows; leaving one selected would filter the list down to nothing.
+    private var selectsAServiceRow: Bool {
+        guard case let .app(name) = sidebar else { return false }
+        return counts.apps.contains { $0.name == name && $0.kind == .service }
     }
 
     /// Whether the sidebar's System Services section is open; it starts closed, as daemons are rarely what is wanted.

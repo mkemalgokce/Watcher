@@ -38,7 +38,7 @@ struct FlowListView: View {
                             name: app, kind: flow.request.clientKind,
                             bundlePath: flow.request.clientBundlePath, size: 14
                         )
-                        Text(IconStore.displayName(app, kind: flow.request.clientKind))
+                        Text(IconStore.displayName(app, isLegacy: flow.request.clientProcess == nil))
                             .lineLimit(1).foregroundStyle(.secondary)
                     }
                     .environment(model.icons)

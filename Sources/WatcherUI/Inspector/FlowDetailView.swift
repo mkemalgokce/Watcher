@@ -148,7 +148,7 @@ private struct InspectorHeader: View {
                     AppIconView(
                         name: app, kind: flow.request.clientKind, bundlePath: flow.request.clientBundlePath, size: 13
                     )
-                    Text(IconStore.displayName(app, kind: flow.request.clientKind)).lineLimit(1)
+                    Text(IconStore.displayName(app, isLegacy: flow.request.clientProcess == nil)).lineLimit(1)
                 }
                 .font(.caption).foregroundStyle(.secondary).help("Sent by \(app)")
             }

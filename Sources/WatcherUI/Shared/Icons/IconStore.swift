@@ -40,10 +40,6 @@ final class IconStore {
 
     // MARK: Apps
 
-    func icon(for group: FlowGroup) -> ClientIcon {
-        icon(forApp: group.name, kind: group.kind, bundlePath: group.bundlePath)
-    }
-
     /// Apps show their own icon (from the bundle when it is known, else found by name); everything else a symbol.
     /// A record from before kinds existed has none, and counts as an app.
     func icon(forApp name: String, kind: ClientKind?, bundlePath: String?) -> ClientIcon {
@@ -88,19 +84,21 @@ final class IconStore {
         if let range = name.range(of: " Web Content") {
             name = String(name[..<range.lowerBound])
         }
-        if ["com.apple.WebKit.Networking", "com.apple.WebKit", "Safari & WebKit"].contains(name) {
+        if ["com.apple.WebKit.Networking", "com.apple.WebKit"].contains(name) {
             name = "Safari"
         }
         return name.trimmingCharacters(in: .whitespaces)
     }
 
-    /// The name shown for a client: the owner's as recorded, but a legacy record's raw helper name is folded into its app.
-    nonisolated static func displayName(_ name: String, kind: ClientKind?) -> String {
-        (kind ?? .app) == .app ? appName(forProcess: name) : name
+    /// The name shown for a client: the owner's as recorded, but a legacy record (no raw process saved)
+    /// only has a process name, whose helper suffix is folded into its app.
+    nonisolated static func displayName(_ name: String, isLegacy: Bool) -> String {
+        isLegacy ? appName(forProcess: name) : name
     }
 
     private func appBundle(for process: String) -> URL? {
-        let name = Self.appName(forProcess: process)
+        // Safari & WebKit is what every WebView app's traffic is filed under; it only borrows Safari's icon.
+        let name = process == "Safari & WebKit" ? "Safari" : Self.appName(forProcess: process)
         let folders = Self.systemApplicationFolders + [homeDirectory.appendingPathComponent("Applications").path]
         return folders
             .map { URL(fileURLWithPath: $0).appendingPathComponent("\(name).app") }

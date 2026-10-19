@@ -9,7 +9,7 @@ public enum ClientProcess {
         let command: String
     }
 
-    /// Who owns the loopback TCP connection whose client end uses `port`; nil for remote clients or when lsof fails.
+    /// Who owns the local TCP connection whose client end uses `port`; nil for remote clients or when lsof fails.
     public static func identity(forLocalPort port: Int) -> ClientIdentity? {
         identity(forLocalPort: port, runner: LiveCommandRunner.run, executablePath: executablePath(ofPid:))
     }
@@ -40,13 +40,19 @@ public enum ClientProcess {
             switch tag {
             case "p": pid = Int32(value); command = nil
             case "c": command = value
-            case "n" where value.hasPrefix("127.0.0.1:\(port)->") || value.hasPrefix("[::1]:\(port)->"):
+            case "n" where Self.isClientEnd(value, port: port):
                 guard let pid, let command else { return nil }
                 return Owner(pid: pid, command: command)
             default: break
             }
         }
         return nil
+    }
+
+    /// The client end of a connection reads `<address>:<port>-><server>`, whatever address (loopback or the Mac's own LAN one) it used.
+    private static func isClientEnd(_ name: String, port: Int) -> Bool {
+        guard let arrow = name.range(of: "->") else { return false }
+        return name[..<arrow.lowerBound].hasSuffix(":\(port)")
     }
 
     /// The executable's path through libproc; nil when the process is gone or protected (privileged daemons).

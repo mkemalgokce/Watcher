@@ -26,7 +26,7 @@ final class ClientAppResolver: @unchecked Sendable {
     }
 
     private func resolve(_ peer: SocketAddress?) async -> ClientIdentity? {
-        guard let peer, let address = peer.ipAddress else { return nil }
+        guard let peer, let address = peer.ipAddress.map(AccessControl.unmapped) else { return nil }
         guard address == "127.0.0.1" || address == "::1" || localAddresses().contains(address) else {
             return .device(address: address)
         }

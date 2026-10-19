@@ -9,7 +9,7 @@ enum SidebarItem: Hashable {
 extension FlowGroup {
     /// The row's name, followed by the raw processes behind it when they are named otherwise.
     var tooltip: String {
-        let displayed = IconStore.displayName(name, kind: kind)
+        let displayed = IconStore.displayName(name, isLegacy: processes.isEmpty)
         let others = processes.filter { $0 != displayed }
         return others.isEmpty ? displayed : "\(displayed): \(others.joined(separator: ", "))"
     }

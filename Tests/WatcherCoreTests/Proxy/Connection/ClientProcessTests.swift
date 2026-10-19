@@ -19,6 +19,9 @@ struct ClientProcessTests {
         #expect(ClientProcess.parse(Self.lsofOutput, port: 1111) == nil)
         let ipv6 = ClientProcess.parse("p12\ncx\nn[::1]:5->[::1]:9\n", port: 5)
         #expect(ipv6 == ClientProcess.Owner(pid: 12, command: "x"))
+        let lan = ClientProcess.parse("p9\ncy\nn192.168.1.5:7->192.168.1.5:9090\n", port: 7)
+        #expect(lan == ClientProcess.Owner(pid: 9, command: "y"), "a client that used the Mac's own LAN address")
+        #expect(ClientProcess.parse("p9\ncy\nn192.168.1.5:9090->192.168.1.5:7\n", port: 7) == nil, "the server end")
         #expect(ClientProcess.parse("cx\nn127.0.0.1:5->127.0.0.1:9\n", port: 5) == nil, "no pid, no owner")
     }
 
