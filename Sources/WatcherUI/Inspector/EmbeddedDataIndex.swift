@@ -67,7 +67,7 @@ extension Base64Segment {
             return "PDF"
         }
         return switch kind {
-        case let .image(mime): mime.replacingOccurrences(of: "image/", with: "").uppercased() + " image"
+        case let .image(mime): ImageInfo.typeLabel(mime: mime) + " image"
         case .text: mimeType == "application/json" ? "JSON" : "Text"
         case .binary: "Binary"
         }

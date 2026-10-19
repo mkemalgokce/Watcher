@@ -52,13 +52,13 @@ struct ImagePreview: View {
     }
 
     private func summary(_ image: NSImage) -> String {
-        let pixels = image.representations.first.map { "\($0.pixelsWide) × \($0.pixelsHigh)" } ?? "\(Int(image.size.width)) × \(Int(image.size.height))"
-        let type = (mime ?? Base64Finder.imageMime(data) ?? "image").replacingOccurrences(of: "image/", with: "").uppercased()
-        return "\(pixels) · \(type) · \(Format.bytes(data.count))"
+        let size = image.representations.first.map { (width: $0.pixelsWide, height: $0.pixelsHigh) }
+            ?? (width: Int(image.size.width), height: Int(image.size.height))
+        return ImageInfo.summary(width: size.width, height: size.height, declaredMime: mime, data: data)
     }
 
     private func save() {
-        let ext = FileExtension.preferred(forContentType: mime ?? Base64Finder.imageMime(data)) ?? "png"
+        let ext = FileExtension.preferred(forContentType: ImageInfo.mime(declared: mime, data: data)) ?? "png"
         sessionFiles.saveData(data, suggestedName: "image.\(ext)")
     }
 }
