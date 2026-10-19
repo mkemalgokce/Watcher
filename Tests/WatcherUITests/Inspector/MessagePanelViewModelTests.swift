@@ -23,7 +23,7 @@ struct MessagePanelViewModelTests {
 
     @Test
     func paramsAreOnlyOnTheRequest() {
-        let flow = Flow.fixture()
+        let flow = Flow.fixture(request: .fixture(body: Data("x".utf8)))
         #expect(model(flow, .request).available == [.headers, .params, .body, .cookies, .raw])
         #expect(model(flow, .response).available == [.headers, .body, .cookies, .raw])
     }
@@ -55,6 +55,14 @@ struct MessagePanelViewModelTests {
     func aSectionTheExchangeLacksFallsBackToBody(chosen: String, expected: Section) {
         let flow = Flow.fixture(request: .fixture(body: Data("x".utf8)))
         #expect(model(flow, .request).section(chosen: chosen) == expected)
+    }
+
+    /// A Body tab that could only ever jump elsewhere when clicked is not offered at all.
+    @Test
+    func aRequestWithoutABodyHasNoBodyTab() {
+        #expect(!model(.fixture(request: .fixture(path: "/")), .request).available.contains(.body))
+        #expect(model(.fixture(request: .fixture(body: Data("x".utf8))), .request).available.contains(.body))
+        #expect(model(.fixture(response: .fixture()), .response).available.contains(.body))
     }
 
     @Test
