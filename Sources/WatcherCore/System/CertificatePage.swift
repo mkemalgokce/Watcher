@@ -27,7 +27,7 @@ public struct CertificatePage: Sendable {
     }
 
     public func response(forPath path: String) -> ResponseRecord {
-        switch path.split(separator: "?").first.map(String.init) ?? "/" {
+        switch RequestRecord.pathWithoutQuery(of: path) {
         case "/ca.pem": file(Data(pem.utf8), "application/x-pem-file", "watcher-ca.pem")
         case "/ca.cer": file(der, "application/x-x509-ca-cert", "watcher-ca.cer")
         case "/ca.mobileconfig": file(mobileConfig(), "application/x-apple-aspen-config", "watcher-ca.mobileconfig")

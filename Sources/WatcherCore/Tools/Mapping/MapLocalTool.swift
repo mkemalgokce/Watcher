@@ -45,7 +45,7 @@ struct MapLocalTool: Tool {
     /// Maps the part of the request path after the pattern's static prefix into `directory`; nil if it would leave it.
     static func resolve(request: RequestRecord, pattern: String, directory: String) -> URL? {
         let root = URL(fileURLWithPath: (directory as NSString).expandingTildeInPath).resolvingSymlinksInPath()
-        let requestPath = request.path.split(separator: "?", maxSplits: 1).first.map(String.init) ?? "/"
+        let requestPath = request.pathWithoutQuery
 
         let withoutScheme = pattern.components(separatedBy: "://").last ?? pattern
         let staticPart = withoutScheme.prefix { $0 != "*" && $0 != "?" }

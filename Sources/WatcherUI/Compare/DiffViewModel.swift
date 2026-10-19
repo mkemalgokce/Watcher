@@ -102,9 +102,9 @@ final class DiffViewModel {
 
     /// The earlier call to the same endpoint: the base people almost always want.
     static func suggestedBase(for flow: Flow, in flows: [Flow]) -> Flow? {
-        let path = flow.request.path.split(separator: "?", maxSplits: 1).first
+        let path = flow.request.pathWithoutQuery
         return flows.last { $0.sequence < flow.sequence && $0.request.method == flow.request.method && $0.request.host == flow.request.host
-            && $0.request.path.split(separator: "?", maxSplits: 1).first == path
+            && $0.request.pathWithoutQuery == path
         }
     }
 }

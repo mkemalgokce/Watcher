@@ -156,7 +156,7 @@ final class RequestActions {
             let mock = try MockMaker.make(from: flow, in: paths.mocksDirectory, files: files)
             settings.mapLocal.isEnabled = true
             settings.mapLocal.rules.append(mock.rule)
-            let path = flow.request.path.split(separator: "?").first ?? ""
+            let path = flow.request.pathWithoutQuery
             let file = mock.file.lastPathComponent
             let message = "Mock created: \(flow.request.method) \(path) now answers from \(file). "
                 + "Edit the file to change the answer; switch it off in Tools → Map Local."
@@ -173,8 +173,8 @@ final class RequestActions {
     }
 
     static func breakpointMatching(for request: RequestRecord) -> MatchingRule {
-        let path = String(request.path.prefix { $0 != "?" })
-        let escapedPath = path.isEmpty || path == "/" ? "/?" : NSRegularExpression.escapedPattern(for: path)
+        let path = request.pathWithoutQuery
+        let escapedPath = path == "/" ? "/?" : NSRegularExpression.escapedPattern(for: path)
         let tail = escapedPath + #"(\?.*)?"#
         return MatchingRule(pattern: anchored(host: escapedHost(request.host), tail: tail), mode: .regex)
     }

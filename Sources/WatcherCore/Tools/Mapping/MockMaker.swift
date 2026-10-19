@@ -34,7 +34,7 @@ public enum MockMaker {
 
         let directory = folder.appendingPathComponent(safe(flow.request.host), isDirectory: true)
         try files.createDirectory(directory)
-        let path = flow.request.path.split(separator: "?").first.map(String.init) ?? "/"
+        let path = flow.request.pathWithoutQuery
         let base = "\(flow.request.method.lowercased())-\(safe(path == "/" ? "root" : path))"
         let named = directory.appendingPathComponent(base).appendingPathExtension((plain ? ext : nil) ?? "txt")
         let file = unique(named, files: files)
