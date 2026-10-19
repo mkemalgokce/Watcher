@@ -38,6 +38,15 @@ struct MockMakerTests {
         #expect(!matcher.matches(.fixture(method: "GET", host: "evil-api.example.com", path: "/v1/users")))
     }
 
+    /// The same URL rule a breakpoint gets: a root mock also answers the bare host, and a WebSocket handshake matches.
+    @Test
+    func aRootMockMatchesTheBareHostAndAnyScheme() throws {
+        let root = Flow.fixture(request: .fixture(path: "/"), response: .fixture(), state: .pending)
+        let matcher = try make(root).rule.matching.compile()
+        #expect(matcher.matches(.fixture(method: "GET", path: "")))
+        #expect(matcher.matches(.fixture(method: "GET", scheme: "wss", path: "/")))
+    }
+
     /// A 404 keeps its status: the file is a raw HTTP message that Map Local serves as it is.
     @Test
     func non200KeepsStatusAndHeadersButDropsStaleLengths() throws {

@@ -40,10 +40,9 @@ public enum MockMaker {
         let file = unique(named, files: files)
         try files.writeAtomically(data, file)
 
-        let pattern = "^(https?://)?" + NSRegularExpression.escapedPattern(for: flow.request.host) + "(:\\d+)?" + NSRegularExpression.escapedPattern(for: path) + "(\\?.*)?$"
         let rule = MapLocalRule(
             name: "Mock \(flow.request.method) \(flow.request.host)\(path)",
-            matching: MatchingRule(pattern: pattern, mode: .regex, methods: [flow.request.method.uppercased()]),
+            matching: .exactURL(host: flow.request.host, path: path, methods: [flow.request.method.uppercased()]),
             source: .file(file.path)
         )
         return Mock(rule: rule, file: file)
