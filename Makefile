@@ -10,7 +10,7 @@ UNIT_TESTS := ^(WatcherCoreTests|WatcherUITests|WatcherCLITests)\.
 OUTSIDE_COVERAGE := WatcherInteractionTests|WatcherSnapshotTests|WatcherE2ETests
 
 .PHONY: bootstrap tools format format-check lint lint-baseline lint-analyze lint-analyze-baseline test test-unit \
-	test-scripts test-integration test-smoke test-e2e test-snapshot snapshots-record test-interaction test-tsan changelog coverage dmg
+	test-scripts test-integration test-smoke test-e2e test-snapshot snapshots-record test-interaction test-tsan graph changelog coverage dmg
 
 bootstrap:
 	brew bundle --no-upgrade
@@ -84,6 +84,10 @@ test-interaction:
 # ThreadSanitizer over the same tests the coverage gate measures, in its own build folder.
 test-tsan:
 	swift test --sanitize=thread --no-parallel --scratch-path .build/tsan --skip '$(OUTSIDE_COVERAGE)'
+
+# The local code graph in graphify-out/; the git hooks refresh it after every commit, merge and checkout.
+graph:
+	graphify update .
 
 changelog:
 	git cliff -o CHANGELOG.md

@@ -20,3 +20,13 @@ commit-msg:
   jobs:
     - name: conventional commit
       run: scripts/check-commit-msg.sh {1}
+
+# The code graph follows every change to the checked-out code.
+post-commit: &graph
+  jobs:
+    - name: code graph
+      run: scripts/update-graph.sh
+
+post-merge: *graph
+
+post-checkout: *graph
