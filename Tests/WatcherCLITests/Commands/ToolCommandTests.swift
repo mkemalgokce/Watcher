@@ -2,6 +2,7 @@ import ArgumentParser
 import Foundation
 import Testing
 @testable import watcher_cli
+import enum WatcherCore.ToolKind
 import WatcherTestSupport
 
 @Suite(.tags(.unit))
@@ -21,7 +22,7 @@ struct ToolCommandTests {
     @Test
     func helpNamesEveryTool() {
         let help = Tool.helpMessage()
-        for name in ToolName.allCases.map(\.rawValue) {
+        for name in ToolKind.allCases.map(\.rawValue) {
             #expect(help.contains(name), "\(name) missing from: \(help)")
         }
     }

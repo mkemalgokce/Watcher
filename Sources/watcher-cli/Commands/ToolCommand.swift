@@ -1,12 +1,14 @@
 import ArgumentParser
 import WatcherCore
 
+extension ToolKind: ExpressibleByArgument {}
+
 struct Tool: ParsableCommand {
     static let configuration = CommandConfiguration(abstract: "Switch a debugging tool on or off.")
 
     enum State: String, ExpressibleByArgument { case on, off }
 
-    @Argument(help: "One of: \(ToolName.allCases.map(\.rawValue).joined(separator: ", ")).") var tool: ToolName
+    @Argument(help: "One of: \(ToolKind.allCases.map(\.rawValue).joined(separator: ", ")).") var tool: ToolKind
     @Argument var state: State
 
     func run() throws {
@@ -14,7 +16,7 @@ struct Tool: ParsableCommand {
     }
 
     func run(in environment: CLIEnvironment) throws {
-        try environment.settings.update { tool.set(state == .on, in: &$0) }
+        try environment.settings.update { $0[keyPath: tool.switchPath] = state == .on }
         environment.output("\(tool.rawValue): \(state.rawValue)")
     }
 }

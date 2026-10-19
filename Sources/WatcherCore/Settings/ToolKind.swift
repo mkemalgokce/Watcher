@@ -13,7 +13,7 @@ public enum ToolKind: String, CaseIterable, Sendable {
     case externalProxy = "external-proxy"
 
     /// The setting that switches the tool on or off.
-    var switchPath: WritableKeyPath<WatcherSettings, Bool> {
+    public var switchPath: WritableKeyPath<WatcherSettings, Bool> {
         switch self {
         case .blockList: \.blockList.isEnabled
         case .allowList: \.allowList.isEnabled
