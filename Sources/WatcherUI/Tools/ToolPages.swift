@@ -17,13 +17,13 @@ struct SSLProxyingTab: View {
                     LabeledField(
                         "Decrypt",
                         prompt: "*, or api.example.com, *.example.org",
-                        text: commaList($settings.include),
+                        text: listText($settings.include),
                         help: "Comma separated. * decrypts every host."
                     )
                     LabeledField(
                         "Never decrypt",
                         prompt: "bank.example.com",
-                        text: commaList($settings.exclude),
+                        text: listText($settings.exclude),
                         help: "Wins over Decrypt. Apps that pin their certificate need to be listed here to keep working."
                     )
                 }
@@ -108,7 +108,12 @@ struct ExternalProxyTab: View {
                     }
                 }
                 Section {
-                    LabeledField("Bypass", prompt: "localhost, *.internal", text: commaList($proxy.bypass), help: "Hosts reached directly, comma separated.")
+                    LabeledField(
+                        "Bypass",
+                        prompt: "localhost, *.internal",
+                        text: listText($proxy.bypass),
+                        help: "Hosts reached directly, comma separated."
+                    )
                 }
             }
             .formStyle(.grouped)
@@ -140,10 +145,7 @@ struct ProtobufTab: View {
             Form {
                 Section {
                     CodeEditorField(
-                        text: Binding(
-                            get: { settings.protobufSchemas.joined(separator: "\n") },
-                            set: { settings.protobufSchemas = $0.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }
-                        ),
+                        text: listText($settings.protobufSchemas, separator: "\n"),
                         label: "Schema files",
                         minHeight: 50
                     )

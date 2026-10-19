@@ -25,10 +25,7 @@ struct RuleFields: View {
                 LabeledField(
                     "Methods",
                     prompt: "GET, POST",
-                    text: Binding(
-                        get: { matching.methods.joined(separator: ", ") },
-                        set: { matching.methods = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).uppercased() }.filter { !$0.isEmpty } }
-                    ),
+                    text: listText($matching.methods, transform: { $0.uppercased() }),
                     help: "Empty matches every method."
                 )
                 LabeledField("App", prompt: "Google Chrome*", text: Binding(get: { matching.app ?? "" }, set: { matching.app = $0.isEmpty ? nil : $0 }))
@@ -125,10 +122,23 @@ struct MapLocalSourceFields: View {
     }
 }
 
-/// Comma-separated text for a list of host patterns.
-func commaList(_ values: Binding<[String]>) -> Binding<String> {
+/// Text for a list of values, one `separator` between them: each is trimmed, `transform`ed and kept only if not empty.
+func listText(
+    _ values: Binding<[String]>,
+    separator: Character = ",",
+    transform: @escaping (String) -> String = { $0 }
+) -> Binding<String> {
     Binding(
-        get: { values.wrappedValue.joined(separator: ", ") },
-        set: { values.wrappedValue = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }
+        get: { values.wrappedValue.joined(separator: separator == "," ? ", " : String(separator)) },
+        set: { values.wrappedValue = ListText.items($0, separator: separator, transform: transform) }
     )
+}
+
+/// The values a separated text holds.
+enum ListText {
+    static func items(_ text: String, separator: Character, transform: (String) -> String = { $0 }) -> [String] {
+        text.split(separator: separator)
+            .map { transform($0.trimmingCharacters(in: .whitespaces)) }
+            .filter { !$0.isEmpty }
+    }
 }
