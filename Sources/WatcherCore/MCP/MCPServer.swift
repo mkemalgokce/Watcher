@@ -232,7 +232,7 @@ public final class MCPServer: @unchecked Sendable {
                     scheme: scheme,
                     host: HostPort.unbracketed(host),
                     port: url.port ?? RequestRecord.defaultPort(for: scheme),
-                    path: (url.percentEncodedPath.isEmpty ? "/" : url.percentEncodedPath) + (url.percentEncodedQuery.map { "?\($0)" } ?? ""),
+                    path: url.originForm,
                     headers: headers,
                     body: Data((args["body"] as? String ?? "").utf8)
                 )

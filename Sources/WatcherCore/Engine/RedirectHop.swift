@@ -18,10 +18,9 @@ enum RedirectHop {
             || port != current.port
         let changesMethod = response.status == 303
             || ((response.status == 301 || response.status == 302) && current.method == "POST")
-        let query = components.percentEncodedQuery.map { "?\($0)" } ?? ""
         return RequestRecord(
             method: changesMethod ? "GET" : current.method, scheme: scheme, host: host, port: port,
-            path: (components.percentEncodedPath.isEmpty ? "/" : components.percentEncodedPath) + query,
+            path: components.originForm,
             headers: current.headers.filter {
                 let name = $0.name.lowercased()
                 return name != "host" && !(changesMethod && name.hasPrefix("content-"))

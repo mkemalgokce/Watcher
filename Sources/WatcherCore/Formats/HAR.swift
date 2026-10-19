@@ -106,11 +106,9 @@ public enum HAR {
               let urlString = request["url"] as? String,
               let url = URLComponents(string: urlString), let host = url.host else { return nil }
         let scheme = url.scheme ?? "http"
-        let path = (url.percentEncodedPath.isEmpty ? "/" : url.percentEncodedPath) + (url.percentEncodedQuery.map { "?\($0)" } ?? "")
-
         let record = RequestRecord(
             method: method, scheme: scheme, host: HostPort.unbracketed(host),
-            port: url.port ?? RequestRecord.defaultPort(for: scheme), path: path,
+            port: url.port ?? RequestRecord.defaultPort(for: scheme), path: url.originForm,
             headers: [Header](jsonList: request["headers"]),
             body: data(fromContent: request["postData"])
         )

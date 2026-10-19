@@ -1,3 +1,5 @@
+import Foundation
+
 /// A `host[:port]` as it appears in a CONNECT target or a Host header, with IPv6 literals in brackets.
 struct HostPort: Equatable {
     let host: String
@@ -36,5 +38,12 @@ struct HostPort: Equatable {
         }
         guard let value = Int(digits), (1 ... 65535).contains(value) else { return nil }
         port = value
+    }
+}
+
+extension URLComponents {
+    /// The request target of an absolute URL: its percent-encoded path (at least `/`) and query.
+    var originForm: String {
+        (percentEncodedPath.isEmpty ? "/" : percentEncodedPath) + (percentEncodedQuery.map { "?\($0)" } ?? "")
     }
 }
