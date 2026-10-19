@@ -44,8 +44,8 @@ final class ProtobufBodies: @unchecked Sendable {
         let data = response ? flow.response?.body ?? Data() : flow.request.body
         let headers = response ? flow.response?.headers ?? [] : flow.request.headers
         let contentType = headers.value(for: "content-type")
-        let rule = rules.first { $0.matching.compile().matches(flow.request) }
-        if let schema = lock.withLock({ loaded.schema }), let rule {
+        let matches = { (rule: ProtobufRule) in rule.matching.compile().matches(flow.request) }
+        if let schema = lock.withLock({ loaded.schema }), let rule = rules.first(where: matches) {
             let type = response ? rule.responseType : rule.requestType
             let message = ProtobufWire.message(in: data, contentType: contentType)
             if !type.isEmpty, let text = schema.describe(message, as: type) {
