@@ -94,7 +94,11 @@ public final class AppModel {
 
     private func connect(_ dependencies: AppDependencies) {
         list.hidesAppleTraffic = settings.hideAppleTraffic
-        settings.onChange = { [list] _, new in list.hidesAppleTraffic = new.hideAppleTraffic }
+        list.hidesSystemServices = settings.hideSystemServices
+        settings.onChange = { [list] _, new in
+            list.hidesAppleTraffic = new.hideAppleTraffic
+            list.hidesSystemServices = new.hideSystemServices
+        }
         proxy.restoreLeftoverSystemProxy()
         dependencies.onTerminate { [proxy] in proxy.applicationWillTerminate() }
     }

@@ -144,8 +144,13 @@ private struct InspectorHeader: View {
                 MetaItem(symbol: item.symbol, text: item.text, help: item.help)
             }
             if let app = flow.request.clientApp {
-                HStack(spacing: 4) { AppIconView(process: app, size: 13); Text(IconStore.appName(forProcess: app)).lineLimit(1) }
-                    .font(.caption).foregroundStyle(.secondary).help("Sent by \(app)")
+                HStack(spacing: 4) {
+                    AppIconView(
+                        name: app, kind: flow.request.clientKind, bundlePath: flow.request.clientBundlePath, size: 13
+                    )
+                    Text(IconStore.displayName(app, kind: flow.request.clientKind)).lineLimit(1)
+                }
+                .font(.caption).foregroundStyle(.secondary).help("Sent by \(app)")
             }
             if let comment = meta.comment {
                 MetaItem(symbol: comment.symbol, text: comment.text, help: comment.help)

@@ -56,6 +56,22 @@ struct ListScreenTests {
     }
 
     @Test
+    func theSidebarWithEveryKindOfClient() async throws {
+        try await ImageSnapshot.verify(
+            SidebarView().environment(Screen.demo()), size: CGSize(width: 240, height: 520), named: "clients"
+        )
+    }
+
+    @Test
+    func theSidebarWithItsSystemServicesOpen() async throws {
+        let model = try Screen.demo()
+        model.list.expandsSystemServices = true
+        await ImageSnapshot.verify(
+            SidebarView().environment(model), size: CGSize(width: 240, height: 520), named: "servicesOpen"
+        )
+    }
+
+    @Test
     func theSidebarBeforeAnyTraffic() async throws {
         try await ImageSnapshot.verify(
             SidebarView().environment(Screen.model()), size: CGSize(width: 240, height: 320), named: "empty"

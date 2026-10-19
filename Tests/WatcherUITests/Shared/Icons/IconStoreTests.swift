@@ -1,6 +1,7 @@
 import AppKit
 import Observation
 import Testing
+import WatcherCore
 import WatcherTestSupport
 @testable import WatcherUI
 
@@ -66,6 +67,35 @@ struct IconStoreTests {
         #expect(makeStore().appIcon(for: "curl") == nil)
     }
 
+    @Test(arguments: [
+        (ClientKind.tool, "terminal"), (.service, "gearshape"), (.device, "iphone"),
+    ])
+    func toolsServicesAndDevicesGetASymbolWhateverTheyAreCalled(kind: ClientKind, symbol: String) {
+        files.write(Data(), to: "/Applications/Safari.app")
+        let group = FlowGroup(name: "Safari", count: 1, kind: kind, bundlePath: "/Applications/Safari.app")
+        #expect(makeStore().icon(for: group) == .symbol(symbol))
+    }
+
+    @Test
+    func anAppShowsTheIconOfItsBundleWhenKnown() {
+        let group = FlowGroup(name: "Whatever", count: 1, kind: .app, bundlePath: "/Elsewhere/Whatever.app")
+        guard case .image = makeStore().icon(for: group) else {
+            Issue.record("expected the bundle's icon")
+            return
+        }
+    }
+
+    @Test
+    func anAppWithoutABundleIsFoundByNameAndOtherwiseGetsAnAppSymbol() {
+        files.write(Data(), to: "/Applications/Safari.app")
+        let store = makeStore()
+        guard case .image = store.icon(for: FlowGroup(name: "Safari & WebKit", count: 1, kind: .app)) else {
+            Issue.record("Safari & WebKit takes Safari's icon")
+            return
+        }
+        #expect(store.icon(for: FlowGroup(name: "Nothing", count: 1, kind: .app)) == .symbol("app"))
+    }
+
     @Test
     func aHelperProcessShowsItsAppsIcon() {
         files.write(Data(), to: "/Applications/Google Chrome.app")
@@ -128,6 +158,7 @@ struct IconStoreTests {
         ("Slack Helper (GPU)", "Slack"),
         ("Safari Web Content", "Safari"),
         ("com.apple.WebKit.Networking", "Safari"),
+        ("Safari & WebKit", "Safari"),
         ("com.apple.WebKit", "Safari"),
         ("curl", "curl"),
         ("  Firefox  ", "Firefox"),

@@ -18,7 +18,7 @@ public struct ClientIdentity: Equatable, Sendable {
     }
 
     /// A client on another machine, known only by its address.
-    static func device(address: String) -> ClientIdentity {
+    public static func device(address: String) -> ClientIdentity {
         ClientIdentity(app: address, process: address, kind: .device, bundlePath: nil)
     }
 }

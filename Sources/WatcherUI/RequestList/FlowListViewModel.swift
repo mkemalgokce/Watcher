@@ -25,6 +25,13 @@ final class FlowListViewModel {
         didSet { refresh(ifChanged: oldValue, hidesAppleTraffic) }
     }
 
+    var hidesSystemServices = false {
+        didSet { refresh(ifChanged: oldValue, hidesSystemServices) }
+    }
+
+    /// Whether the sidebar's System Services section is open; it starts closed, as daemons are rarely what is wanted.
+    var expandsSystemServices = false
+
     private(set) var visibleFlows: [Flow] = []
     private(set) var counts = SidebarCounts()
     private(set) var visibleBytes = 0
@@ -130,8 +137,19 @@ final class FlowListViewModel {
         }
     }
 
+    /// The sidebar rows of one kind; the system services are gone while they are hidden.
+    func groups(of kind: ClientKind) -> [FlowGroup] {
+        kind == .service && hidesSystemServices ? [] : counts.apps.filter { $0.kind == kind }
+    }
+
+    private func isHidden(_ flow: Flow) -> Bool {
+        (hidesAppleTraffic && AppleTraffic.isApple(flow.request.host))
+            || (hidesSystemServices && flow.request.clientKind == .service)
+    }
+
     private func refreshDerived() {
-        let shown = hidesAppleTraffic ? flows.filter { !AppleTraffic.isApple($0.request.host) } : flows
+        let hidesAny = hidesAppleTraffic || hidesSystemServices
+        let shown = hidesAny ? flows.filter { !isHidden($0) } : flows
         let filtered = effectiveFilter.apply(to: shown)
         // Arrival order is the order flows are kept in; sorting is only paid for when another column was chosen.
         visibleFlows = sortOrder == [KeyPathComparator(\Flow.sequence)] ? filtered : filtered.sorted(using: sortOrder)

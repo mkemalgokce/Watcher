@@ -21,6 +21,19 @@ struct AppModelTests {
     }
 
     @Test
+    func hidingSystemServicesRefreshesTheList() throws {
+        let model = try AppModel.test()
+        let daemon = Flow.fixture(sequence: 1, status: 200, clientApp: "trustd", clientKind: .service)
+        [daemon, .fixture(sequence: 2, status: 200)]
+            .forEach { model.list.enqueue(.added($0)) }
+        model.list.flushEvents()
+        model.settings.hideSystemServices = true
+        #expect(model.list.visibleFlows.map(\.sequence) == [2])
+        model.settings.hideSystemServices = false
+        #expect(model.list.visibleFlows.count == 2)
+    }
+
+    @Test
     func eachModelKeepsItsOwnEmbeddedDataIndex() throws {
         #expect(try AppModel.test().embeddedData !== AppModel.test().embeddedData)
     }

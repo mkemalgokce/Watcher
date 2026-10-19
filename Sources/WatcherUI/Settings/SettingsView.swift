@@ -64,6 +64,7 @@ struct GeneralSettings: View {
                 Toggle("Open Watcher at login", isOn: $pane.opensAtLogin)
                 Toggle("Turn on the system proxy when the proxy starts", isOn: $model.settings.autoSystemProxy)
                 Toggle("Hide Apple system traffic", isOn: $model.settings.hideAppleTraffic)
+                Toggle("Hide system services (macOS daemons and agents)", isOn: $model.settings.hideSystemServices)
                 Toggle("Show website icons", isOn: $pane.showsWebsiteIcons)
                 Text("Icons are downloaded from each site's /favicon.ico, directly and not through Watcher, and kept in ~/.watcher/favicons.")
                     .font(.caption).foregroundStyle(.secondary)

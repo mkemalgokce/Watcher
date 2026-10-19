@@ -2,6 +2,15 @@ import SwiftUI
 import WatcherCore
 
 extension AppModel {
+    /// One client of each kind, so the sidebar shows every section.
+    private static let demoClients = [
+        ClientIdentity(app: "Google Chrome", process: "Google Chrome Helper", kind: .app, bundlePath: nil),
+        ClientIdentity(app: "curl", process: "curl", kind: .tool, bundlePath: nil),
+        ClientIdentity(app: "trustd", process: "trustd", kind: .service, bundlePath: nil),
+        ClientIdentity.device(address: "192.168.1.23"),
+        ClientIdentity(app: "Safari", process: "Safari", kind: .app, bundlePath: nil),
+    ]
+
     /// A handful of realistic-looking requests covering the list's states.
     func loadDemoData(startedAt: Date = Date()) {
         func flow(_ n: Int, _ method: String, _ host: String, _ path: String, status: Int?, type: String = "application/json", body: String = "", ms: Double = 0.12, tools: [String] = []) -> Flow {
@@ -11,9 +20,9 @@ extension AppModel {
                 host: host,
                 port: 443,
                 path: path,
-                headers: [Header("Accept", "application/json"), Header("User-Agent", "Demo/1.0")],
-                clientApp: ["Google Chrome", "curl", "Slack", "Safari", "Xcode"][(n - 1) % 5]
+                headers: [Header("Accept", "application/json"), Header("User-Agent", "Demo/1.0")]
             ))
+            flow.request.attribute(to: Self.demoClients[(n - 1) % Self.demoClients.count])
             if let status {
                 flow.response = ResponseRecord(status: status, headers: [Header("Content-Type", type), Header("Server", "nginx")], body: Data(body.utf8))
                 flow.state = .completed

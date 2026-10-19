@@ -44,4 +44,21 @@ struct FlowGroupingTests {
             FlowGroup(name: "trustd", count: 1, kind: .service),
         ])
     }
+
+    @Test
+    func anAppRowKnowsItsBundleAndTheRawProcessesBehindIt() {
+        func helper(_ process: String, bundle: String?) -> Flow {
+            var request = RequestRecord.fixture(clientApp: "Chrome", clientKind: .app)
+            request.clientProcess = process
+            request.clientBundlePath = bundle
+            return .fixture(request: request)
+        }
+        let flows = [
+            helper("Chrome Helper", bundle: nil), helper("Chrome", bundle: "/Applications/Chrome.app"),
+            helper("Chrome Helper", bundle: "/Applications/Chrome.app"),
+        ]
+        let chrome = FlowGrouping.apps(flows).first
+        #expect(chrome?.bundlePath == "/Applications/Chrome.app")
+        #expect(chrome?.processes == ["Chrome", "Chrome Helper"])
+    }
 }
