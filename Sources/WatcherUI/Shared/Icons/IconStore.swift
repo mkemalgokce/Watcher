@@ -53,13 +53,39 @@ final class IconStore {
         }
     }
 
-    private func bundleIcon(at path: String) -> NSImage {
+    private func bundleIcon(at path: String) -> NSImage? {
         if let icon = appIcons[path] {
             return icon
         }
-        let icon = workspace.icon(forFile: path)
+        if missingApps.contains(path) {
+            return nil
+        }
+        // macOS draws an iOS app bundle (a Simulator app) as a no-entry sign, so read the icon file it names instead.
+        let isIOSBundle = path.contains("/CoreSimulator/") || files.fileExists("\(path)/Info.plist")
+        guard let icon = isIOSBundle ? iOSBundleIcon(at: path) : workspace.icon(forFile: path) else {
+            missingApps.insert(path)
+            return nil
+        }
         appIcons[path] = icon
         return icon
+    }
+
+    /// The first icon file listed under `CFBundleIcons` (iPhone, then iPad), largest scale first.
+    private func iOSBundleIcon(at path: String) -> NSImage? {
+        let bundle = URL(fileURLWithPath: path)
+        guard let data = try? files.read(bundle.appendingPathComponent("Info.plist")),
+              let info = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+        else { return nil }
+        let names = ["CFBundleIcons", "CFBundleIcons~ipad"].flatMap { key -> [String] in
+            let primary = (info[key] as? [String: Any])?["CFBundlePrimaryIcon"] as? [String: Any]
+            return primary?["CFBundleIconFiles"] as? [String] ?? []
+        }
+        let suffixes = ["@3x.png", "@2x.png", ".png", "@2x~ipad.png", "~ipad.png"]
+        let candidates = names.flatMap { name in suffixes.map { name + $0 } }
+        return candidates.lazy
+            .compactMap { try? self.files.read(bundle.appendingPathComponent($0)) }
+            .compactMap(NSImage.init(data:))
+            .first
     }
 
     func appIcon(for process: String) -> NSImage? {

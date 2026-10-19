@@ -92,6 +92,32 @@ struct IconStoreTests {
         }
     }
 
+    private static let simulatorApps = "/fake-home/Library/Developer/CoreSimulator/Devices/D/data/Containers/Bundle/App"
+
+    /// macOS draws an iOS app bundle as a no-entry sign, so a Simulator app shows the icon file its Info.plist names.
+    @Test
+    func aSimulatorAppShowsTheIconItsInfoPlistNames() throws {
+        let bundle = "\(Self.simulatorApps)/Shop.app"
+        let plist: [String: Any] = ["CFBundleIcons": ["CFBundlePrimaryIcon": ["CFBundleIconFiles": ["AppIcon60x60"]]]]
+        let info = try PropertyListSerialization.data(fromPropertyList: plist, format: .binary, options: 0)
+        files.write(info, to: "\(bundle)/Info.plist")
+        files.write(sampleIcon, to: "\(bundle)/AppIcon60x60@2x.png")
+
+        let store = makeStore()
+        guard case let .image(icon) = store.icon(forApp: "Shop (Simulator)", kind: .app, bundlePath: bundle) else {
+            Issue.record("expected the bundle's own icon")
+            return
+        }
+        #expect(icon.size == NSSize(width: 4, height: 4))
+    }
+
+    @Test
+    func aSimulatorAppWithoutAnIconFileGetsAnAppSymbol() {
+        let bundle = "\(Self.simulatorApps)/Bare.app"
+        files.write(Data(), to: "\(bundle)/Bare")
+        #expect(makeStore().icon(forApp: "Bare (Simulator)", kind: .app, bundlePath: bundle) == .symbol("app"))
+    }
+
     @Test
     func anAppWithoutABundleIsFoundByNameAndOtherwiseGetsAnAppSymbol() {
         files.write(Data(), to: "/Applications/Safari.app")
