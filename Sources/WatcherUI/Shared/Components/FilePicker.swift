@@ -22,6 +22,11 @@ final class FilePicker {
         return KeyValue.FilePart(filename: url.lastPathComponent, contentType: type, data: data)
     }
 
+    /// The chosen file, or `current` when the panel is cancelled or the file cannot be read.
+    func choosePart(keeping current: KeyValue.FilePart?) async -> KeyValue.FilePart? {
+        await choosePart() ?? current
+    }
+
     /// A file or a directory, as the rule's source already is; nil means cancelled.
     func chooseSource(directory: Bool) -> MapLocalRule.Source? {
         guard let url = panels.chooseItem(directory: directory) else { return nil }

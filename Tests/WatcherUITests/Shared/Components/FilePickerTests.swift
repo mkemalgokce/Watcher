@@ -35,6 +35,19 @@ struct FilePickerTests {
     }
 
     @Test
+    func keepingTheCurrentFilePartSurvivesACancelledOrUnreadablePick() async throws {
+        let current = KeyValue.FilePart(filename: "old.png", contentType: "image/png", data: Data([9]))
+        #expect(await picker(FilePanelsStub()).choosePart(keeping: current) == current)
+        let missing = URL(fileURLWithPath: "/fake-home/in/missing.png")
+        #expect(await picker(FilePanelsStub(open: missing)).choosePart(keeping: current) == current)
+        let url = URL(fileURLWithPath: "/fake-home/in/new.png")
+        try files.write(Data([1]), to: url.path)
+        let chosen = await picker(FilePanelsStub(open: url)).choosePart(keeping: current)
+        #expect(chosen?.filename == "new.png")
+        #expect(await picker(FilePanelsStub()).choosePart(keeping: nil) == nil)
+    }
+
+    @Test
     func anUnreadableFilePartChoosesNothing() async {
         let missing = URL(fileURLWithPath: "/fake-home/in/missing.png")
         #expect(await picker(FilePanelsStub(open: missing)).choosePart() == nil)
