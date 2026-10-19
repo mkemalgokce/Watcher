@@ -18,7 +18,7 @@ extension AppDependencies {
             commands: LiveCommandRunner.run,
             preferences: LivePreferences.standard,
             runner: engine,
-            systemProxy: SystemProxy.shared,
+            systemProxy: SystemProxy(),
             onTerminate: LiveAppLifecycle.onTerminate,
             sender: engine,
             previews: { [engine] in await engine.previews(for: $0) },
