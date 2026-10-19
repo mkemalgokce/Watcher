@@ -5,8 +5,6 @@ import WatcherCore
 /// then kept, so the section tab and its badge cost nothing on later redraws.
 @MainActor
 final class EmbeddedDataIndex {
-    static let shared = EmbeddedDataIndex()
-
     struct Key: Hashable { let flow: UUID; let side: MessageSide; let size: Int }
 
     /// Bodies beyond this are not searched: finding Base64 is a regular-expression pass over the whole text.

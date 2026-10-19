@@ -1,5 +1,5 @@
+import Foundation
 import Observation
-import SwiftUI
 import WatcherCore
 
 /// Builds the window's view models from one set of dependencies and connects them; the proxy itself lives in
@@ -27,6 +27,7 @@ public final class AppModel {
     let filePicker: FilePicker
     let settingsPane: SettingsViewModel
     let icons: IconStore
+    let embeddedData = EmbeddedDataIndex()
     /// The time the inspector and Compose measure against.
     let now: @Sendable () -> Date
     private let sleep: Sleep
