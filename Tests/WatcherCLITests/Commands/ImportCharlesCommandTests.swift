@@ -76,7 +76,11 @@ struct ImportCharlesCommandTests {
 
     @Test(arguments: ["bogus", "", "Append"])
     func anUnknownModeIsRejectedWhenParsing(mode: String) {
-        #expect(throws: (any Error).self) { try ImportCharles.parse(["/tmp/missing.xml", "--mode", mode]) }
+        #expect {
+            try ImportCharles.parse(["/tmp/missing.xml", "--mode", mode])
+        } throws: {
+            ImportCharles.message(for: $0).contains("--mode")
+        }
     }
 
     @Test

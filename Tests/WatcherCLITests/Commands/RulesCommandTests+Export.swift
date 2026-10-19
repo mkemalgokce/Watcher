@@ -38,7 +38,11 @@ extension RulesCommandTests {
 
         @Test(arguments: ["bogus", "", "ALL"])
         func anUnknownModeIsRejectedWhenParsing(mode: String) {
-            #expect(throws: (any Error).self) { try Rules.Export.parse(["/tmp/rules.json", "--mode", mode]) }
+            #expect {
+                try Rules.Export.parse(["/tmp/rules.json", "--mode", mode])
+            } throws: {
+                Rules.Export.message(for: $0).contains("--mode")
+            }
         }
 
         @Test
