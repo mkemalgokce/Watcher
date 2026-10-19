@@ -10,7 +10,7 @@ UNIT_TESTS := ^(WatcherCoreTests|WatcherUITests|WatcherCLITests)\.
 OUTSIDE_COVERAGE := WatcherInteractionTests|WatcherSnapshotTests|WatcherE2ETests
 
 .PHONY: bootstrap tools format format-check lint lint-baseline lint-analyze lint-analyze-baseline test test-unit \
-	test-scripts test-integration test-smoke test-e2e test-snapshot snapshots-record test-interaction test-tsan changelog coverage dmg
+	test-scripts test-integration test-smoke test-e2e test-snapshot snapshots-record test-interaction test-tsan changelog release-prep coverage dmg
 
 bootstrap:
 	brew bundle --no-upgrade
@@ -87,6 +87,10 @@ test-tsan:
 
 changelog:
 	git cliff -o CHANGELOG.md
+
+# The release commit: version bump plus its CHANGELOG.md section. Merge it, then tag v$(VERSION): make release-prep VERSION=1.2.3
+release-prep:
+	scripts/release-prep.sh $(VERSION)
 
 # The release DMG, signed ad hoc and not notarized: make dmg VERSION=1.2.3
 dmg:
