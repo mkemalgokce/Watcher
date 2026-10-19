@@ -2,6 +2,8 @@ import ArgumentParser
 import Foundation
 import WatcherCore
 
+extension WatcherSettings.ImportMode: ExpressibleByArgument {}
+
 struct ImportCharles: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "import-charles",
@@ -9,18 +11,22 @@ struct ImportCharles: ParsableCommand {
     )
 
     @Argument(help: "Charles settings XML.") var path: String
-    @Option(help: "append (add to existing rules) or override (replace the tool rules; port, SSL and other settings are kept).") var mode = "append"
+    @Option(
+        help: """
+        append (add to existing rules) or override \
+        (replace the tool rules; port, SSL and other settings are kept).
+        """
+    ) var mode: WatcherSettings.ImportMode = .append
 
     func run() throws {
         try run(in: .live)
     }
 
     func run(in environment: CLIEnvironment) throws {
-        guard let importMode = WatcherSettings.ImportMode(rawValue: mode) else { throw ValidationError("mode must be append or override") }
         let source = environment.url(forPath: path)
         let incoming = try CharlesSettings.importSettings(from: environment.files.read(source))
         let store = environment.settings
-        let merged = importMode == .override
+        let merged = mode == .override
             ? store.value.replacingToolRules(with: incoming)
             : store.value.importing(incoming, mode: .append)
         try store.replace(with: merged)

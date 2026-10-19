@@ -12,7 +12,7 @@ extension RulesCommandTests {
         func modeDefaultsToOverride(arguments: [String], mode: String) throws {
             let rules = try Rules.Import.parse(arguments)
             #expect(rules.path == "in.json")
-            #expect(rules.mode == mode)
+            #expect(rules.mode.rawValue == mode)
         }
 
         @Test(arguments: [("override", WatcherSettings.ImportMode.override), ("append", .append)])
@@ -33,23 +33,9 @@ extension RulesCommandTests {
             ])
         }
 
-        @Test
-        func anUnknownModeIsReportedBeforeTheFileIsRead() throws {
-            let cli = CLIHarness()
-            let command = try Rules.Import.parse(["/tmp/missing.json", "--mode", "bogus"])
-            let error = #expect(throws: ValidationError.self) { try command.run(in: cli.environment) }
-            #expect(error?.message == "mode must be append or override")
-            #expect(cli.printed.isEmpty)
-        }
-
-        @Test
-        func anUnknownModeChangesNothing() throws {
-            let cli = CLIHarness()
-            try cli.files.write(RulesCommandTests.pretty(WatcherSettings()), to: "/tmp/rules.json")
-            let command = try Rules.Import.parse(["/tmp/rules.json", "--mode", "bogus"])
-            let error = #expect(throws: ValidationError.self) { try command.run(in: cli.environment) }
-            #expect(error?.message == "mode must be append or override")
-            #expect(!cli.files.paths.contains(cli.supportFile("settings.json")))
+        @Test(arguments: ["bogus", "", "Append"])
+        func anUnknownModeIsRejectedWhenParsing(mode: String) {
+            #expect(throws: (any Error).self) { try Rules.Import.parse(["/tmp/rules.json", "--mode", mode]) }
         }
 
         @Test
