@@ -39,7 +39,7 @@ public final class WatcherEngine: @unchecked Sendable {
     private let makeServer: @Sendable (FlowStore, CertificateAuthority) -> ProxyServer
 
     /// `makeServer` builds the proxy for each start; tests pass one with their own TLS trust or app lookup.
-    /// `sleep` paces the check for settings edited outside the engine; `now` times composed WebSockets.
+    /// `sleep` paces the check for settings edited outside the engine; `now` is the clock for everything the engine builds.
     public init(
         directory: URL = WatcherPaths.supportDirectory,
         files: FileAccess = .live,
@@ -59,7 +59,8 @@ public final class WatcherEngine: @unchecked Sendable {
         settings = SettingsStore(url: WatcherPaths.settingsFile(in: directory), files: files, now: now)
         workspaces = WorkspaceStore(
             directory: directory.appendingPathComponent("workspaces", isDirectory: true),
-            files: files
+            files: files,
+            now: now
         )
     }
 

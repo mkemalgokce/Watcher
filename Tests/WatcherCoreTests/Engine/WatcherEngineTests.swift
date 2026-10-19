@@ -22,6 +22,16 @@ struct WatcherEngineTests {
     }
 
     @Test
+    func aSavedWorkspaceIsTimestampedWithTheInjectedClock() throws {
+        let moment = Date(timeIntervalSince1970: 1_700_000_000)
+        let engine = try WatcherEngine(
+            directory: URL(fileURLWithPath: "/fake-home/.watcher"), files: files.access, now: { moment }
+        )
+        try engine.saveWorkspace(named: "debug")
+        #expect(try engine.workspaces.load(name: "debug").savedAt == moment)
+    }
+
+    @Test
     func aSavedWorkspaceBringsBackTheSessionAndTheSettings() async throws {
         let engine = try engine()
         try engine.settings.update { $0.port = 9111; $0.noCaching = true }
