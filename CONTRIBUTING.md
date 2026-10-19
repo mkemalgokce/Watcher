@@ -28,7 +28,7 @@ code owner (@mkemalgokce, see `.github/CODEOWNERS`) before it can be merged.
 
 | Target | Does |
 |---|---|
-| `make graph` | Rebuilds the local code graph in `graphify-out/` with [graphify](https://github.com/safishamsi/graphify) (`uv tool install graphifyy`); the git hooks refresh it in the background after every commit, merge and checkout, and skip it when graphify is not installed |
+| `make graph` | Rebuilds the local code graph in `graphify-out/` with [graphify](https://github.com/Graphify-Labs/graphify) (`uv tool install graphifyy`); the git hooks refresh it in the background after every commit, merge and checkout, and skip it when graphify is not installed |
 | `make bootstrap` | Installs the Brewfile tools, the pinned SwiftLint and SwiftFormat binaries (`scripts/install-tools.sh`) and the lefthook git hooks |
 | `make format` / `make format-check` | Formats with SwiftFormat / fails on unformatted code |
 | `make lint` | SwiftLint, strict; violations recorded in `.swiftlint-baseline.json` are tolerated, new ones fail |
