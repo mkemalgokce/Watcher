@@ -65,6 +65,18 @@ struct RequestMatcherTests {
         #expect(MatchingRule(pattern: "*", app: pattern).compile().matches(request) == matches)
     }
 
+    @Test(arguments: [
+        ("Google Chrome", "Google Chrome Helper", true),
+        ("Google Chrome Helper*", "Google Chrome Helper (Renderer)", true),
+        ("Google Chrome", "curl", true), ("Safari", "Google Chrome Helper", false),
+        ("curl", "Google Chrome Helper", false),
+    ])
+    func theAppFilterMatchesTheOwnerNameOrTheRawProcessName(pattern: String, process: String, matches: Bool) {
+        var request = RequestRecord.fixture(host: "api.test", path: "/", clientApp: "Google Chrome")
+        request.clientProcess = process
+        #expect(MatchingRule(pattern: "*", app: pattern).compile().matches(request) == matches)
+    }
+
     @Test(arguments: ["not json", "[]", #"{"query":"{ me }"}"#, ""])
     func aGraphQLRuleRejectsABodyWithoutAnOperationName(body: String) {
         let rule = MatchingRule(pattern: "*", graphQLQueryName: "GetUser").compile()

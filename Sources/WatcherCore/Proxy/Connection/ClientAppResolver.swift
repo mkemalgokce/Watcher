@@ -1,24 +1,36 @@
 import Foundation
 import NIO
 
-/// Looks up the program behind a client connection once and remembers the answer for the connection's later requests.
+/// Works out who is behind a client connection once and remembers the answer for the connection's later requests.
 final class ClientAppResolver: @unchecked Sendable {
     private let lock = NSLock()
-    private var cached: String??
-    private let lookup: @Sendable (Int) -> String?
+    private var cached: ClientIdentity??
+    private let localAddresses: @Sendable () -> Set<String>
+    private let lookup: @Sendable (Int) -> ClientIdentity?
 
-    init(lookup: @escaping @Sendable (Int) -> String?) {
+    /// `lookup` finds the program behind a local client port; clients from other addresses are devices.
+    init(localAddresses: @escaping @Sendable () -> Set<String>, lookup: @escaping @Sendable (Int) -> ClientIdentity?) {
+        self.localAddresses = localAddresses
         self.lookup = lookup
     }
 
-    func app(for channel: Channel) async -> String? {
+    func identity(for channel: Channel) async -> ClientIdentity? {
         if let known = lock.withLock({ cached }) {
             return known
         }
         // A plain connection knows its peer itself; an HTTP/2 stream channel asks the connection it belongs to.
-        let port = channel.remoteAddress?.port ?? channel.parent?.remoteAddress?.port
-        let name = await Task.detached { [lookup] in port.flatMap(lookup) }.value
-        lock.withLock { cached = .some(name) }
-        return name
+        let peer = channel.remoteAddress ?? channel.parent?.remoteAddress
+        let identity = await resolve(peer)
+        lock.withLock { cached = .some(identity) }
+        return identity
+    }
+
+    private func resolve(_ peer: SocketAddress?) async -> ClientIdentity? {
+        guard let peer, let address = peer.ipAddress else { return nil }
+        guard address == "127.0.0.1" || address == "::1" || localAddresses().contains(address) else {
+            return .device(address: address)
+        }
+        let port = peer.port
+        return await Task.detached { [lookup] in port.flatMap(lookup) }.value
     }
 }

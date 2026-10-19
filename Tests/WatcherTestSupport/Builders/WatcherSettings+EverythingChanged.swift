@@ -21,6 +21,7 @@ public extension WatcherSettings {
         settings.accessControl = AccessControlSettings(isEnabled: true, allowedAddresses: ["10.*"])
         settings.tlsKeyLogFile = "/k"; settings.leafCertificateValidityDays = 30; settings.maxFlows = 5
         settings.markModifiedTraffic = true; settings.mcpRedaction = false; settings.hideAppleTraffic = true
+        settings.hideSystemServices = true
         settings.includeProxyInCURL = true; settings.noCachingOnRepeat = true; settings.composeTimeoutSeconds = 9
         settings.autoSystemProxy = true
         settings.breakpointTemplates = [BreakpointTemplate(name: "t", status: 418)]

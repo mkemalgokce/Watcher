@@ -22,7 +22,7 @@ public final class Harness {
     /// The engine's data folder when it is on disk, removed when the harness goes away.
     private let directory: TemporaryDirectory?
 
-    /// `clientApp` names the program behind a client port; by default none, so no test runs `lsof` per connection.
+    /// `clientApp` identifies the program behind a client port; by default none, so no test runs `lsof` per connection.
     /// With `origin`, the echo origin speaks HTTPS and the proxy trusts `origin.trust` upstream; with `files`, the
     /// engine's data lives in that fake file system instead of a folder on disk.
     public init(
@@ -30,7 +30,7 @@ public final class Harness {
         origin: OriginAuthority? = nil,
         files: FileAccessFake? = nil,
         loopbackAddress: String? = nil,
-        clientApp: @escaping @Sendable (Int) -> String? = { _ in nil }
+        clientApp: @escaping @Sendable (Int) -> ClientIdentity? = { _ in nil }
     ) throws {
         let loopbackAddress = loopbackAddress ?? (host.contains(":") ? host : "127.0.0.1")
         self.host = host

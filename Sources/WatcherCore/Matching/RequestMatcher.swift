@@ -31,7 +31,8 @@ public struct RequestMatcher: Sendable {
         if !methods.isEmpty, !methods.contains(request.method.uppercased()) {
             return false
         }
-        if let appTest, !appTest.matches(request.clientApp ?? "") {
+        // Rules written against raw process names ("Google Chrome Helper*") keep matching.
+        if let appTest, ![request.clientApp, request.clientProcess].contains(where: { appTest.matches($0 ?? "") }) {
             return false
         }
         // Patterns may omit the scheme (`api.example.com/v1/*`) or spell out the port.

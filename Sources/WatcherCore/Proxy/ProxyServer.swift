@@ -12,7 +12,7 @@ public final class ProxyServer: @unchecked Sendable {
     /// Served for requests addressed to Watcher itself, so a device can download the root certificate.
     let certificatePage: CertificatePage?
     /// The program behind a loopback client port, for attributing requests to apps.
-    let clientApp: @Sendable (Int) -> String?
+    let clientApp: @Sendable (Int) -> ClientIdentity?
     /// The Mac's LAN addresses, so the certificate page also answers on them.
     let localAddresses: @Sendable () -> Set<String>
     let now: @Sendable () -> Date
@@ -77,7 +77,7 @@ public final class ProxyServer: @unchecked Sendable {
         sslProxying: HostFilter = HostFilter(),
         upstreamTLS: TLSConfiguration = .makeClientConfiguration(),
         upstream sender: (any UpstreamSending)? = nil,
-        clientApp: @escaping @Sendable (Int) -> String? = ClientProcess.name(forLocalPort:),
+        clientApp: @escaping @Sendable (Int) -> ClientIdentity? = ClientProcess.identity(forLocalPort:),
         localAddresses: @escaping @Sendable () -> Set<String> = { LocalNetwork.addressSet() },
         now: @escaping @Sendable () -> Date = { Date() },
         files: FileAccess = .live,

@@ -28,11 +28,12 @@ public extension Flow {
         status: Int?,
         body: Data = Data(),
         clientApp: String? = nil,
+        clientKind: ClientKind? = nil,
         starred: Bool = false
     ) -> Flow {
         fixture(
             sequence: sequence,
-            request: .fixture(host: host, path: "/\(sequence)", clientApp: clientApp),
+            request: .fixture(host: host, path: "/\(sequence)", clientApp: clientApp, clientKind: clientKind),
             response: status.map { .fixture(status: $0, body: body) },
             starred: starred
         )

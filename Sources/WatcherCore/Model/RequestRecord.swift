@@ -10,6 +10,11 @@ public struct RequestRecord: Codable, Equatable, Sendable {
     public var body: Data
     /// Program on this Mac that sent the request, when it could be determined.
     public var clientApp: String?
+    /// The raw process behind `clientApp`, which names its owner; nil in records saved before kinds existed.
+    public var clientProcess: String?
+    public var clientKind: ClientKind?
+    /// Outermost `.app` folder of the sending program, for its icon.
+    public var clientBundlePath: String?
 
     public var url: String {
         "\(scheme)://\(host.contains(":") ? "[\(host)]" : host)\(usesDefaultPort ? "" : ":\(port)")\(path)"
@@ -50,6 +55,11 @@ public struct RequestRecord: Codable, Equatable, Sendable {
 }
 
 public extension RequestRecord {
+    mutating func attribute(to client: ClientIdentity) {
+        clientApp = client.app; clientProcess = client.process
+        clientKind = client.kind; clientBundlePath = client.bundlePath
+    }
+
     /// The request without cache validators and with no-cache headers, so the server answers afresh.
     func droppingCacheValidators() -> RequestRecord {
         var copy = self
