@@ -147,3 +147,6 @@ consider [sponsoring its development](https://github.com/sponsors/mkemalgokce).
 ## License
 
 [MIT](LICENSE)
+
+Charles Proxy and Proxyman are trademarks of their respective owners. Watcher is an independent project and is not
+affiliated with them.
