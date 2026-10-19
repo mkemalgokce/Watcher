@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import WatcherCore
 
 /// An image from a response or a Base64 field, on a checkerboard so transparency is visible, with size info and save/copy.
 struct ImagePreview: View {
