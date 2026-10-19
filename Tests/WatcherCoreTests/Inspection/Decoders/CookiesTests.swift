@@ -20,4 +20,12 @@ struct CookiesTests {
         #expect(cookies[2].isSecure && cookies[2].isHttpOnly); #expect(!cookies[3].isSecure)
         #expect(cookies[3].attributes == ["SameSite=Lax"])
     }
+
+    @Test
+    func theSameFlowGivesTheSameDistinctIds() {
+        let flow = Flow.fixture(request: .fixture(headers: [Header("Cookie", "a=1; a=1")]))
+        let ids = Cookies.entries(for: flow).map(\.id)
+        #expect(ids == Cookies.entries(for: flow).map(\.id))
+        #expect(Set(ids).count == 2)
+    }
 }

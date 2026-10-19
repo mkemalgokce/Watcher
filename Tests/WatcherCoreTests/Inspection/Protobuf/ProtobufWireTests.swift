@@ -12,4 +12,12 @@ struct ProtobufWireTests {
         #expect(ProtobufWire.describe(message) == "1: 150\n2: \"hi\"\n3 {\n  1: 7\n}")
         #expect(ProtobufWire.describe(Data([0xFF, 0xFF, 0xFF])) == nil)
     }
+
+    @Test(arguments: [
+        ("application/grpc", 7, 2), ("Application/GRPC+proto", 6, 1), ("application/grpc", 5, 5),
+        ("application/protobuf", 7, 7), ("application/json", 7, 7),
+    ] as [(String?, Int, Int)] + [(nil, 7, 7)])
+    func onlyAGRPCBodyLongerThanItsFrameHeaderLosesFiveBytes(contentType: String?, size: Int, kept: Int) {
+        #expect(ProtobufWire.message(in: Data(count: size), contentType: contentType).count == kept)
+    }
 }

@@ -4,6 +4,11 @@ import Foundation
 public enum ProtobufWire {
     private static let maxDepth = 8
 
+    /// The protobuf message in a body; gRPC frames carry a 5-byte header (flag + length) before it.
+    static func message(in data: Data, contentType: String?) -> Data {
+        contentType?.lowercased().contains("grpc") == true && data.count > 5 ? Data(data.dropFirst(5)) : data
+    }
+
     /// Returns an indented description, or nil when `data` is not valid protobuf.
     public static func describe(_ data: Data) -> String? {
         var lines: [String] = []

@@ -33,4 +33,23 @@ struct HTTPMessageFileTests {
         let response = HTTPMessageFile.response(from: Data("x".utf8), fileName: name)
         #expect(response.headers.value(for: "Content-Type") == type)
     }
+
+    @Test(arguments: [
+        ("application/json; charset=utf-8", "json", "application/json"),
+        ("text/html", "html", "text/html; charset=utf-8"),
+        ("application/xhtml+xml", "html", "text/html; charset=utf-8"), ("text/xml", "xml", "application/xml"),
+        ("application/xml", "xml", "application/xml"), ("text/javascript", "js", "application/javascript"),
+        ("text/css", "css", "text/css"), ("TEXT/PLAIN; charset=utf-8", "txt", "text/plain; charset=utf-8"),
+        ("image/png", "png", "image/png"), ("image/jpeg", "jpg", "image/jpeg"), ("image/gif", "gif", "image/gif"),
+        ("image/svg", "svg", "image/svg+xml"), ("application/pdf", "pdf", "application/pdf"),
+    ])
+    func aContentTypeAndItsExtensionNameTheSameType(contentType: String, ext: String, mime: String) {
+        #expect(HTTPMessageFile.fileExtension(for: contentType) == ext)
+        #expect(HTTPMessageFile.mimeType(for: "a.\(ext)") == mime)
+    }
+
+    @Test(arguments: [nil, "", "application/octet-stream", "text/csv", "audio/ogg"] as [String?])
+    func anUnknownContentTypeHasNoExtension(contentType: String?) {
+        #expect(HTTPMessageFile.fileExtension(for: contentType) == nil)
+    }
 }

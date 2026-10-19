@@ -8,7 +8,7 @@ public enum HAR {
         let formatter = ISO8601DateFormatter.withFractionalSeconds()
         let document: [String: Any] = ["log": [
             "version": "1.2",
-            "creator": ["name": "Watcher", "version": "0.1.0"],
+            "creator": ["name": "Watcher", "version": WatcherVersion.current],
             "entries": flows.map { entry($0, formatter: formatter) },
         ]]
         return try JSONSerialization.data(withJSONObject: document, options: [.prettyPrinted, .sortedKeys])
@@ -106,11 +106,9 @@ public enum HAR {
               let urlString = request["url"] as? String,
               let url = URLComponents(string: urlString), let host = url.host else { return nil }
         let scheme = url.scheme ?? "http"
-        let path = (url.percentEncodedPath.isEmpty ? "/" : url.percentEncodedPath) + (url.percentEncodedQuery.map { "?\($0)" } ?? "")
-
         let record = RequestRecord(
             method: method, scheme: scheme, host: HostPort.unbracketed(host),
-            port: url.port ?? RequestRecord.defaultPort(for: scheme), path: path,
+            port: url.port ?? RequestRecord.defaultPort(for: scheme), path: url.originForm,
             headers: [Header](jsonList: request["headers"]),
             body: data(fromContent: request["postData"])
         )

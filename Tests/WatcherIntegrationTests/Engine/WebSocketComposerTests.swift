@@ -9,7 +9,8 @@ struct WebSocketComposerTests {
     private let recorded = LockedBox<FlowStore?>(nil)
     private let ticks = LockedBox(0.0)
 
-    /// Listening ends once both echoes are recorded, and the asked-for length is kept; the clock moves 2 s per reading.
+    /// Listening ends once both echoes are recorded, and the asked-for length is kept. The clock moves 2 s per
+    /// reading, and the store reads it too: once for the flow and once for each of the four messages.
     private func engine() throws -> WatcherEngine {
         let engine = try WatcherEngine(
             directory: URL(fileURLWithPath: "/fake-home/.watcher"),
@@ -51,7 +52,7 @@ struct WebSocketComposerTests {
         #expect(flow.request.path == "/chat?room=1")
         #expect(flow.response?.status == 101)
         #expect(flow.state == .completed)
-        #expect(flow.duration == 2)
+        #expect(flow.duration == 10)
         func payloads(_ direction: WebSocketMessage.Direction) -> [String?] {
             flow.webSocketMessages.filter { $0.direction == direction }
                 .map { String(bytes: $0.payload, encoding: .utf8) }

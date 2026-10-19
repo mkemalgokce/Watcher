@@ -123,7 +123,7 @@ public enum CurlImport {
         if !body.isEmpty, headers.value(for: "content-type") == nil {
             headers.append(Header("Content-Type", "application/x-www-form-urlencoded")) // what curl itself sends with -d
         }
-        let path = (components.percentEncodedPath.isEmpty ? "/" : components.percentEncodedPath) + (components.percentEncodedQuery.map { "?\($0)" } ?? "")
+        let path = components.originForm
         return RequestRecord(
             method: resolvedMethod,
             scheme: scheme,

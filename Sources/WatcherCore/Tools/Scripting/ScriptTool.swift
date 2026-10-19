@@ -102,7 +102,7 @@ enum ScriptPayload {
             }
             request.path = components.string ?? request.path
         }
-        if let body = encodedBody(object["body"], original: request.body) {
+        if let body = encodedBody(object["body"]) {
             request.body = body
         }
     }
@@ -119,7 +119,7 @@ enum ScriptPayload {
         if let headers = object["headers"] as? [String: Any] {
             response.headers = merge(headers, into: response.headers)
         }
-        if let body = encodedBody(object["body"], original: response.body) {
+        if let body = encodedBody(object["body"]) {
             response.body = body
         }
         if let path = object["bodyFilePath"] as? String,
@@ -131,7 +131,7 @@ enum ScriptPayload {
 
     // MARK: Helpers
 
-    private static func headerDictionary(_ headers: [Header]) -> [String: String] {
+    static func headerDictionary(_ headers: [Header]) -> [String: String] {
         Dictionary(headers.map { ($0.name, $0.value) }, uniquingKeysWith: { _, last in last })
     }
 
@@ -156,7 +156,7 @@ enum ScriptPayload {
         return text
     }
 
-    private static func encodedBody(_ value: Any?, original _: Data) -> Data? {
+    private static func encodedBody(_ value: Any?) -> Data? {
         switch value {
         case let text as String: Data(text.utf8)
         case let object as [String: Any]: try? JSONSerialization.data(withJSONObject: object)

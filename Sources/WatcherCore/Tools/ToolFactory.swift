@@ -5,6 +5,7 @@ enum ToolFactory {
     static func makeTools(
         from settings: WatcherSettings,
         breakpoints: BreakpointCenter,
+        read: @escaping @Sendable (URL) throws -> Data,
         log: @escaping @Sendable (String) -> Void
     ) -> [Tool] {
         var tools: [Tool] = []
@@ -22,14 +23,14 @@ enum ToolFactory {
         }
         let local = settings.mapLocal.active
         if !local.isEmpty {
-            tools.append(MapLocalTool(rules: local))
+            tools.append(MapLocalTool(rules: local, read: read))
         }
         if settings.noCaching {
             tools.append(NoCachingTool())
         }
         let scripts = settings.scripting.active
         if !scripts.isEmpty {
-            tools.append(ScriptTool(rules: scripts, log: log))
+            tools.append(ScriptTool(rules: scripts, log: log, read: read))
         }
         let hits = settings.breakpoints.active
         if !hits.isEmpty {

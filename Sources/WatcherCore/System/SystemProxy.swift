@@ -31,8 +31,6 @@ public struct SystemProxy: Sendable {
         self.run = run; self.backupURL = backupURL; self.files = files
     }
 
-    public static let shared = SystemProxy()
-
     /// True when an earlier run turned the system proxy on and never put the original back (crash, force quit).
     public var hasPendingRestore: Bool {
         files.fileExists(backupURL.path)

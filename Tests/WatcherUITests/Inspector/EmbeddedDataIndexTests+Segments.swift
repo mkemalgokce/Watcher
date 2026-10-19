@@ -80,9 +80,18 @@ extension EmbeddedDataIndexTests {
             for flow in flows.dropFirst() {
                 _ = index.segments(in: flow, side: .response)
             }
+            // Same id and body size, different content: only a fresh scan sees the difference.
+            func sameKeyDifferentBody(_ flow: Flow) -> Flow {
+                var changed = flow
+                let other = Data(Self.payload.reversed()).base64EncodedString()
+                changed.response = .fixture(body: Data(#"{"a":"\#(other)"}"#.utf8))
+                return changed
+            }
             let last = index.segments(in: flows[300], side: .response)
-            #expect(index.segments(in: flows[300], side: .response).map(\.id) == last.map(\.id), "recent entries stay")
-            #expect(index.segments(in: flows[0], side: .response).map(\.id) != firstSegments.map(\.id), "scanned again")
+            let lastAgain = index.segments(in: sameKeyDifferentBody(flows[300]), side: .response)
+            #expect(lastAgain.map(\.data) == last.map(\.data), "recent entries stay")
+            let firstAgain = index.segments(in: sameKeyDifferentBody(flows[0]), side: .response)
+            #expect(firstAgain.map(\.data) != firstSegments.map(\.data), "scanned again")
         }
     }
 }

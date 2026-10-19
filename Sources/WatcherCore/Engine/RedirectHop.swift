@@ -10,17 +10,17 @@ enum RedirectHop {
               let location = response.headers.value(for: "location"),
               let target = URL(string: location, relativeTo: URL(string: current.url)),
               let components = URLComponents(url: target.absoluteURL, resolvingAgainstBaseURL: true),
-              let host = components.host, !host.isEmpty else { return nil }
+              let rawHost = components.host, !rawHost.isEmpty else { return nil }
+        let host = HostPort.unbracketed(rawHost)
         let scheme = components.scheme ?? current.scheme
         let port = components.port ?? RequestRecord.defaultPort(for: scheme)
         let crossOrigin = scheme != current.scheme || host.lowercased() != current.host.lowercased()
             || port != current.port
         let changesMethod = response.status == 303
             || ((response.status == 301 || response.status == 302) && current.method == "POST")
-        let query = components.percentEncodedQuery.map { "?\($0)" } ?? ""
         return RequestRecord(
             method: changesMethod ? "GET" : current.method, scheme: scheme, host: host, port: port,
-            path: (components.percentEncodedPath.isEmpty ? "/" : components.percentEncodedPath) + query,
+            path: components.originForm,
             headers: current.headers.filter {
                 let name = $0.name.lowercased()
                 return name != "host" && !(changesMethod && name.hasPrefix("content-"))

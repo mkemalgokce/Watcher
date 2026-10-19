@@ -39,7 +39,7 @@ public final class MCPServer: @unchecked Sendable {
             return response(id: id, result: [
                 "protocolVersion": params["protocolVersion"] as? String ?? "2024-11-05",
                 "capabilities": ["tools": [String: Any]()],
-                "serverInfo": ["name": "watcher", "version": "0.1.0"],
+                "serverInfo": ["name": "watcher", "version": WatcherVersion.current],
             ])
         case "ping":
             return response(id: id, result: [String: Any]())
@@ -223,16 +223,14 @@ public final class MCPServer: @unchecked Sendable {
             ToolDefinition(name: "create_compose_http", description: "Send an HTTP request through Watcher and return the response.", properties: ["method": "HTTP method", "url": "Absolute URL", "headers": "Lines of `Name: value`", "body": "Request body"], required: ["url"]) { args in
                 guard let url = URLComponents(string: args["url"] as? String ?? ""), let host = url.host else { throw Failure(description: "url must be absolute") }
                 let scheme = url.scheme ?? "https"
-                let headers = (args["headers"] as? String ?? "").split(separator: "\n").compactMap { line -> Header? in
-                    guard let colon = line.firstIndex(of: ":") else { return nil }
-                    return Header(line[..<colon].trimmingCharacters(in: .whitespaces), line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces))
-                }
+                let lines = (args["headers"] as? String ?? "").split(separator: "\n")
+                let headers = lines.compactMap { Header(line: String($0)) }
                 let request = RequestRecord(
                     method: (args["method"] as? String ?? "GET").uppercased(),
                     scheme: scheme,
                     host: HostPort.unbracketed(host),
                     port: url.port ?? RequestRecord.defaultPort(for: scheme),
-                    path: (url.percentEncodedPath.isEmpty ? "/" : url.percentEncodedPath) + (url.percentEncodedQuery.map { "?\($0)" } ?? ""),
+                    path: url.originForm,
                     headers: headers,
                     body: Data((args["body"] as? String ?? "").utf8)
                 )

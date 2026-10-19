@@ -43,4 +43,12 @@ struct Base64FinderTests {
         #expect(Base64Finder.imageMime(Data("<svg xmlns='x'/>".utf8)) == "image/svg+xml")
         #expect(Base64Finder.imageMime(Data("plain".utf8)) == nil)
     }
+
+    @Test
+    func theSameTextGivesTheSameDistinctIds() {
+        let text = #"{"a":"aGVsbG8gd29ybGQsIGhlbGxvIHdvcmxk","b":"Zm9vYmFyIGZvb2JhciBmb29iYXIgZm9vYmFy"}"#
+        let ids = Base64Finder.find(in: text).map(\.id)
+        #expect(ids.count == 2 && Set(ids).count == 2)
+        #expect(ids == Base64Finder.find(in: text).map(\.id))
+    }
 }

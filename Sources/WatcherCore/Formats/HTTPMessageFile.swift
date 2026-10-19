@@ -16,27 +16,45 @@ enum HTTPMessageFile {
         var lines = head.components(separatedBy: .newlines)
         let statusLine = lines.removeFirst().split(separator: " ")
         guard statusLine.count >= 2, let status = Int(statusLine[1]) else { return nil }
-        let headers = lines.compactMap { line -> Header? in
-            guard let colon = line.firstIndex(of: ":") else { return nil }
-            return Header(String(line[..<colon]), line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces))
-        }
+        let headers = lines.compactMap { Header(line: $0) }
         return ResponseRecord(status: status, headers: headers, body: data[range.upperBound...])
     }
 
-    static func mimeType(for fileName: String) -> String {
-        switch (fileName as NSString).pathExtension.lowercased() {
-        case "json": "application/json"
-        case "html", "htm": "text/html; charset=utf-8"
-        case "txt": "text/plain; charset=utf-8"
-        case "xml": "application/xml"
-        case "js": "application/javascript"
-        case "css": "text/css"
-        case "png": "image/png"
-        case "jpg", "jpeg": "image/jpeg"
-        case "gif": "image/gif"
-        case "svg": "image/svg+xml"
-        case "pdf": "application/pdf"
-        default: "application/octet-stream"
+    private struct FileType {
+        let extensions: [String], mime: String, contentType: String, isPrefix: Bool
+
+        init(_ extensions: [String], _ mime: String, _ contentType: String, isPrefix: Bool = false) {
+            self.extensions = extensions; self.mime = mime; self.contentType = contentType; self.isPrefix = isPrefix
         }
+
+        func matches(_ type: String) -> Bool {
+            isPrefix ? type.hasPrefix(contentType) : type.contains(contentType)
+        }
+    }
+
+    /// Order matters: the first entry a content type matches wins, so `xhtml` is HTML before it is XML.
+    private static let types = [
+        FileType(["json"], "application/json", "json"),
+        FileType(["html", "htm"], "text/html; charset=utf-8", "html"),
+        FileType(["xml"], "application/xml", "xml"),
+        FileType(["js"], "application/javascript", "javascript"),
+        FileType(["css"], "text/css", "css"),
+        FileType(["txt"], "text/plain; charset=utf-8", "text/plain", isPrefix: true),
+        FileType(["png"], "image/png", "image/png", isPrefix: true),
+        FileType(["jpg", "jpeg"], "image/jpeg", "image/jpeg", isPrefix: true),
+        FileType(["gif"], "image/gif", "image/gif", isPrefix: true),
+        FileType(["svg"], "image/svg+xml", "image/svg", isPrefix: true),
+        FileType(["pdf"], "application/pdf", "pdf"),
+    ]
+
+    static func mimeType(for fileName: String) -> String {
+        let ext = (fileName as NSString).pathExtension.lowercased()
+        return types.first { $0.extensions.contains(ext) }?.mime ?? "application/octet-stream"
+    }
+
+    /// The extension of a file holding a body of this content type, nil when it has none.
+    static func fileExtension(for contentType: String?) -> String? {
+        let type = (contentType ?? "").lowercased()
+        return types.first { $0.matches(type) }?.extensions[0]
     }
 }

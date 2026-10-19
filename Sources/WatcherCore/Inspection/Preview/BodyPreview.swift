@@ -13,9 +13,7 @@ public enum BodyPreview {
             return pretty
         }
         if type.contains("protobuf") || type.contains("grpc") {
-            // gRPC frames carry a 5-byte header (flag + length) before the message.
-            let message = type.contains("grpc") && data.count > 5 ? data.dropFirst(5) : data
-            if let described = ProtobufWire.describe(Data(message)) {
+            if let described = ProtobufWire.describe(ProtobufWire.message(in: data, contentType: type)) {
                 return described
             }
         }

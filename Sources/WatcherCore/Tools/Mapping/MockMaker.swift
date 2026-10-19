@@ -14,7 +14,7 @@ public enum MockMaker {
         guard let response = flow.response else { throw Failure(description: "This request has no response to mock yet.") }
         let decoded = BodyDecoder.decode(response.body, contentEncoding: response.headers.value(for: "content-encoding")).data
         let type = response.headers.value(for: "content-type")
-        let ext = fileExtension(for: type)
+        let ext = HTTPMessageFile.fileExtension(for: type)
 
         // A plain body file is easiest to edit; status codes other than 200, or types an extension cannot express,
         // need the raw message form (status line + headers), which Map Local also understands.
@@ -47,44 +47,6 @@ public enum MockMaker {
             source: .file(file.path)
         )
         return Mock(rule: rule, file: file)
-    }
-
-    static func fileExtension(for contentType: String?) -> String? {
-        let type = (contentType ?? "").lowercased()
-        if type.contains("json") {
-            return "json"
-        }
-        if type.contains("html") {
-            return "html"
-        }
-        if type.contains("xml") {
-            return "xml"
-        }
-        if type.contains("javascript") {
-            return "js"
-        }
-        if type.contains("css") {
-            return "css"
-        }
-        if type.hasPrefix("text/plain") {
-            return "txt"
-        }
-        if type.hasPrefix("image/png") {
-            return "png"
-        }
-        if type.hasPrefix("image/jpeg") {
-            return "jpg"
-        }
-        if type.hasPrefix("image/gif") {
-            return "gif"
-        }
-        if type.hasPrefix("image/svg") {
-            return "svg"
-        }
-        if type.contains("pdf") {
-            return "pdf"
-        }
-        return nil
     }
 
     private static func safe(_ text: String) -> String {

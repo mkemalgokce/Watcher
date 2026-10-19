@@ -3,7 +3,8 @@ import Foundation
 public struct CookieEntry: Identifiable, Equatable, Sendable {
     public enum Source: String, Sendable { case request = "Cookie", response = "Set-Cookie" }
 
-    public let id = UUID()
+    /// The cookie's position among the flow's cookies, so the same flow gives the same ids.
+    public let id: Int
     public let source: Source
     public let name: String
     public let value: String
@@ -31,7 +32,9 @@ public enum Cookies {
             for pair in header.value.split(separator: ";") {
                 let (name, value) = split(String(pair))
                 if !name.isEmpty {
-                    result.append(CookieEntry(source: .request, name: name, value: value, attributes: []))
+                    result.append(CookieEntry(
+                        id: result.count, source: .request, name: name, value: value, attributes: []
+                    ))
                 }
             }
         }
@@ -40,7 +43,9 @@ public enum Cookies {
             guard let first = parts.first else { continue }
             let (name, value) = split(first)
             if !name.isEmpty {
-                result.append(CookieEntry(source: .response, name: name, value: value, attributes: Array(parts.dropFirst())))
+                result.append(CookieEntry(
+                    id: result.count, source: .response, name: name, value: value, attributes: Array(parts.dropFirst())
+                ))
             }
         }
         return result

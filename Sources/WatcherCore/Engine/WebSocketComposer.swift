@@ -52,13 +52,12 @@ public extension WatcherEngine {
 
     private static func handshake(url: URL, scheme: String, host: String, headers: [Header]) -> RequestRecord {
         let parts = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        let path = parts?.percentEncodedPath ?? ""
         return RequestRecord(
             method: "GET",
             scheme: scheme == "wss" ? "https" : "http",
             host: host,
             port: url.port ?? RequestRecord.defaultPort(for: scheme),
-            path: (path.isEmpty ? "/" : path) + (parts?.percentEncodedQuery.map { "?\($0)" } ?? ""),
+            path: parts?.originForm ?? "/",
             headers: headers + [Header("Upgrade", "websocket"), Header("Connection", "Upgrade")]
         )
     }

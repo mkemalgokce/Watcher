@@ -9,7 +9,7 @@ struct KeyValueRowTests {
     private func cookie(
         _ source: CookieEntry.Source, _ attributes: [String] = [], value: String = "v"
     ) -> CookieEntry {
-        CookieEntry(source: source, name: "sid", value: value, attributes: attributes)
+        CookieEntry(id: 0, source: source, name: "sid", value: value, attributes: attributes)
     }
 
     @Test(arguments: [
