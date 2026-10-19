@@ -1,0 +1,3 @@
+on  Login · request + response
+on  api.example.com/* · request
+off * · request + response

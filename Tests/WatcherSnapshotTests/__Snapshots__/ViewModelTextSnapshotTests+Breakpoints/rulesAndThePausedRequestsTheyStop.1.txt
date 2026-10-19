@@ -1,6 +1,0 @@
-on  Login · request + response
-on  api.example.com/* · request
-off * · request + response
-api.example.com/login stops at: Login, api.example.com/*
-api.example.com/v1/users stops at: api.example.com/*
-cdn.a.com/a.css stops at: nothing

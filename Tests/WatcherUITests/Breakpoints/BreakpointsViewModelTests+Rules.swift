@@ -18,14 +18,10 @@ extension BreakpointsViewModelTests {
             return BreakpointsViewModel(center: BreakpointCenter(), settings: settings, notices: notices)
         }
 
-        @Test(arguments: [
-            ("/login", "stops at: login"),
-            ("/users", "stops at: */users"),
-            ("/other", "stops at: nothing"),
-        ])
-        func aRequestIsSummarisedByTheRulesThatStopIt(path: String, expected: String) {
+        @Test(arguments: [("/login", ["login"]), ("/users", ["*/users"]), ("/other", [])])
+        func aRequestIsStoppedByTheRulesThatMatchIt(path: String, expected: [String]) {
             let breakpoints = viewModel()
-            #expect(breakpoints.stopsAtLine(for: .fixture(host: "a.test", path: path)) == "a.test\(path) \(expected)")
+            #expect(breakpoints.rules(matching: .fixture(host: "a.test", path: path)).map(\.displayName) == expected)
         }
 
         @Test
