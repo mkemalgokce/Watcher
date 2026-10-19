@@ -1,2 +1,2 @@
-request: Headers (0), Params (1), Body, Cookies (0), Raw · 
+request: Headers (0), Params (1), Cookies (0), Raw · 
 response: Headers (0), Body, Cookies (0), Raw, Messages (0), Previewers · 0 B

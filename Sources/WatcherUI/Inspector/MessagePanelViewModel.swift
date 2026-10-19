@@ -29,19 +29,23 @@ struct MessagePanelViewModel {
             case .messages: side == .response && flow.isWebSocket
             case .previewers: side == .response && previewersActive
             case .decoded: !embedded.isEmpty
+            // A request without a body (a GET) has no Body tab; a response keeps it to show it came back empty.
+            case .body: side == .response || !flow.request.body.isEmpty
             default: true
             }
         }
     }
 
-    /// The chosen section, except that a request without a body shows its parameters (or headers) instead of an empty
-    /// Body, and a section this exchange does not have (Messages on plain HTTP) falls back to Body.
+    /// The chosen section; one this exchange does not have (Messages on plain HTTP, Body on a GET) falls back to Body,
+    /// or, without a Body, to the parameters or else the headers.
     func section(chosen raw: String) -> Section {
-        var chosen = Section(rawValue: raw) ?? .body
-        if !available.contains(chosen) {
-            chosen = .body
+        let chosen = Section(rawValue: raw) ?? .body
+        if available.contains(chosen) {
+            return chosen
         }
-        guard side == .request, chosen == .body, flow.request.body.isEmpty else { return chosen }
+        if available.contains(.body) {
+            return .body
+        }
         return fields.isEmpty ? .headers : .params
     }
 
