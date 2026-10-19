@@ -15,7 +15,7 @@ extension ViewModelTextSnapshotTests {
             let androids = found ? [AndroidDevice(serial: "emulator-5554", model: "Pixel 9", isEmulator: true)] : []
             return DevicesViewModel(
                 probe: .init(
-                    simulators: { simulators }, androidDevices: { androids }, isMacTrusted: { trusted },
+                    simulators: { simulators }, androidDevices: { androids }, isMacTrusted: { _ in trusted },
                     lanAddresses: { lan }
                 ),
                 certificateURL: URL(fileURLWithPath: "/fake/ca.pem")

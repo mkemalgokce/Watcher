@@ -10,13 +10,28 @@ struct MacTrustTests {
         let calls = LockedBox<[[String]]>([])
         let trust = MacTrust(keychain: "/k") { path, args in
             #expect(path == "/usr/bin/security"); calls.mutate(args)
-            return (args[0] == "find-certificate" ? 44 : 0, "")
+            return (0, "")
         }
-        #expect(!trust.isInstalled())
         try trust.install(certificate: URL(fileURLWithPath: "/tmp/ca.pem"))
         #expect(calls.value.last == ["add-trusted-cert", "-r", "trustRoot", "-k", "/k", "/tmp/ca.pem"])
         let failing = MacTrust(keychain: "/k") { _, _ in (1, "denied") }
         #expect(throws: (any Error).self) { try failing.install(certificate: URL(fileURLWithPath: "/x")) }
+    }
+
+    /// Another Watcher root of the same name (an older install) must not make a new certificate look trusted.
+    @Test(arguments: [(Int32(0), true), (1, false)])
+    func trustIsCheckedForThisCertificateFileNotByName(status: Int32, trusted: Bool) {
+        let calls = LockedBox<[[String]]>([])
+        let trust = MacTrust(keychain: "/k") { _, args in calls.mutate(args); return (status, "") }
+        #expect(trust.isTrusted(certificate: URL(fileURLWithPath: "/home/.watcher/watcher-ca.pem")) == trusted)
+        #expect(calls.value == [["verify-cert", "-c", "/home/.watcher/watcher-ca.pem", "-p", "basic", "-L", "-l"]])
+    }
+
+    @Test
+    func trustIsNotClaimedWhenTheCheckCannotRun() {
+        struct Missing: Error {}
+        let trust = MacTrust(keychain: "/k") { _, _ in throw Missing() }
+        #expect(!trust.isTrusted(certificate: URL(fileURLWithPath: "/ca.pem")))
     }
 
     @Test

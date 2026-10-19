@@ -11,7 +11,7 @@ struct StatusBarViewModelTests {
 
     private func model(lan: [String] = ["192.168.1.5"], clipboard: ClipboardSpy? = nil) throws -> AppModel {
         let probe = DevicesViewModel.DeviceProbe(
-            simulators: { [] }, androidDevices: { [] }, isMacTrusted: { false }, lanAddresses: { lan }
+            simulators: { [] }, androidDevices: { [] }, isMacTrusted: { _ in false }, lanAddresses: { lan }
         )
         return try AppModel(dependencies: .test(clipboard: clipboard, systemProxy: systemProxy, devices: probe))
     }

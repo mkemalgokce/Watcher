@@ -19,7 +19,7 @@ struct AppDependenciesPreviewTests {
         #expect(!dependencies.loginItem.isEnabled())
         #expect(dependencies.devices.simulators().isEmpty)
         #expect(dependencies.devices.androidDevices().isEmpty)
-        #expect(!dependencies.devices.isMacTrusted())
+        #expect(!dependencies.devices.isMacTrusted(URL(fileURLWithPath: "/ca.pem")))
         #expect(dependencies.devices.lanAddresses().isEmpty)
         #expect(await dependencies.faviconDownload(URL(fileURLWithPath: "/x")) == nil)
         #expect(dependencies.paths.directory == directory.url)

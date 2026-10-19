@@ -10,7 +10,7 @@ final class DevicesViewModel {
     struct DeviceProbe: Sendable {
         var simulators: @Sendable () -> [SimulatorCertificate.Simulator]
         var androidDevices: @Sendable () -> [AndroidDevice]
-        var isMacTrusted: @Sendable () -> Bool
+        var isMacTrusted: @Sendable (_ certificate: URL) -> Bool
         /// This Mac's IPv4 addresses on the local network, the first one preferred.
         var lanAddresses: @Sendable () -> [String] = { [] }
         var trustMac: @Sendable (_ certificate: URL) throws -> Void = { _ in }
@@ -22,7 +22,7 @@ final class DevicesViewModel {
         static let live = DeviceProbe(
             simulators: { (try? SimulatorCertificate.simulators()) ?? [] },
             androidDevices: { (try? AndroidDevice.list()) ?? [] },
-            isMacTrusted: { MacTrust().isInstalled() },
+            isMacTrusted: { MacTrust().isTrusted(certificate: $0) },
             lanAddresses: { LocalNetwork.ipv4Addresses().map(\.ip) },
             trustMac: { try MacTrust().install(certificate: $0) },
             removeMacTrust: { try MacTrust().remove() },
@@ -32,7 +32,7 @@ final class DevicesViewModel {
         )
 
         /// Previews and tests: nothing found, nothing trusted, and actions that change nothing.
-        static let none = DeviceProbe(simulators: { [] }, androidDevices: { [] }, isMacTrusted: { false })
+        static let none = DeviceProbe(simulators: { [] }, androidDevices: { [] }, isMacTrusted: { _ in false })
     }
 
     /// The outcome of the last action, for the status line under each pane.
@@ -92,17 +92,19 @@ final class DevicesViewModel {
 
     /// Only the keychain check, for the first-run list: starting simctl and adb at launch woke the simulator service for nothing.
     func refreshMacTrust() async {
-        let probe = probe
-        macTrusted = await Task.detached { probe.isMacTrusted() }.value
+        let probe = probe, url = certificateURL
+        macTrusted = await Task.detached { probe.isMacTrusted(url) }.value
     }
 
     /// Runs simctl, adb and the keychain check off the main thread; a scan already running is not started again.
     func refresh() async {
         guard scan == nil else { return }
         isScanning = true
-        let probe = probe
+        let probe = probe, url = certificateURL
         let task = Task {
-            let found = await Task.detached { (probe.simulators(), probe.androidDevices(), probe.isMacTrusted()) }.value
+            let found = await Task.detached {
+                (probe.simulators(), probe.androidDevices(), probe.isMacTrusted(url))
+            }.value
             (simulators, androidDevices, macTrusted) = found
             isScanning = false
             scan = nil

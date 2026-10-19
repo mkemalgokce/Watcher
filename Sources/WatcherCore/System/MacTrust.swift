@@ -12,9 +12,10 @@ public struct MacTrust: Sendable {
         self.keychain = keychain; self.run = run
     }
 
-    /// Whether a certificate with Watcher's name is in the keychain (it can still be untrusted).
-    public func isInstalled() -> Bool {
-        ((try? run("/usr/bin/security", ["find-certificate", "-c", Self.certificateName, keychain]))?.status ?? 1) == 0
+    /// Whether macOS trusts this certificate file; a root of the same name from an older install does not count.
+    public func isTrusted(certificate: URL) -> Bool {
+        let arguments = ["verify-cert", "-c", certificate.path, "-p", "basic", "-L", "-l"]
+        return ((try? run("/usr/bin/security", arguments))?.status ?? 1) == 0
     }
 
     /// Asks macOS to trust the certificate as a root for SSL; macOS shows its own password prompt.

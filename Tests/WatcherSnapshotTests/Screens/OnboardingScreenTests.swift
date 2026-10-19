@@ -14,7 +14,7 @@ struct OnboardingScreenTests {
     private static let withDevices = DevicesViewModel.DeviceProbe(
         simulators: { [.init(udid: "A1", name: "iPhone 16", runtime: "iOS 18.0", isBooted: true)] },
         androidDevices: { [AndroidDevice(serial: "emulator-5554", model: "Pixel 8", isEmulator: true)] },
-        isMacTrusted: { false },
+        isMacTrusted: { _ in false },
         lanAddresses: { ["192.168.1.5"] }
     )
 
