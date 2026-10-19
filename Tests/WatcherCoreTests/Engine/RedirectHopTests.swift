@@ -91,4 +91,16 @@ struct RedirectHopTests {
         #expect(next.body == Data("body".utf8))
         #expect(names(next).isSuperset(of: ["content-type", "content-length"]))
     }
+
+    @Test
+    func anIPv6TargetIsRecordedWithoutBracketsAndKeepsCredentialsOnItsOwnOrigin() throws {
+        let current = RequestRecord.fixture(
+            scheme: "http", host: "::1", port: 8080, path: "/start", headers: Self.headers
+        )
+        let response = ResponseRecord.fixture(status: 302, headers: [Header("Location", "http://[::1]:8080/next")])
+        let next = try #require(RedirectHop.next(after: response, from: current))
+        #expect((next.host, next.port, next.path) == ("::1", 8080, "/next"))
+        #expect(next.url == "http://[::1]:8080/next")
+        #expect(names(next).isSuperset(of: ["authorization", "cookie", "proxy-authorization"]))
+    }
 }
