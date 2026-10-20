@@ -31,3 +31,30 @@ struct WebSocketMessageListTests {
         #expect(list.emptyText == text)
     }
 }
+
+@Suite(.tags(.unit))
+struct WebSocketJSONMessageTests {
+    private func message(_ kind: WebSocketMessage.Kind, _ text: String, compressed: Bool = false) -> WebSocketMessage {
+        WebSocketMessage(direction: .serverToClient, kind: kind, payload: Data(text.utf8), isCompressed: compressed)
+    }
+
+    @Test
+    func aTextFrameWithJSONCanBeOpened() {
+        let frame = #"{"type":"tick","n":1}"#
+        #expect(WebSocketMessageList.jsonText(of: message(.text, frame)) == frame)
+    }
+
+    @Test
+    func someServersSendJSONInBinaryFrames() {
+        #expect(WebSocketMessageList.jsonText(of: message(.binary, "[1,2]")) == "[1,2]")
+    }
+
+    @Test(arguments: [
+        (WebSocketMessage.Kind.text, "hello", false), (.text, "{broken", false), (.text, "42", false),
+        (.ping, #"{"a":1}"#, false), (.pong, #"{"a":1}"#, false), (.close, #"{"a":1}"#, false),
+        (.text, #"{"a":1}"#, true),
+    ])
+    func everythingElseIsLeftAsText(kind: WebSocketMessage.Kind, text: String, compressed: Bool) {
+        #expect(WebSocketMessageList.jsonText(of: message(kind, text, compressed: compressed)) == nil)
+    }
+}

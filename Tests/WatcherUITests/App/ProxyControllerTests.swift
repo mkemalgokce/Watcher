@@ -146,8 +146,33 @@ struct ProxyControllerTests {
         #expect(await eventually { !proxy.isSwitchingProxy })
         #expect(!proxy.isRunning, "shown as stopped at once")
         #expect(await eventually { log.value.last == "stop" })
-        #expect(log.value == ["start 9090", "enable 9123", "disable", "stop"])
+        #expect(log.value == ["recording on", "start 9090", "enable 9123", "recording off", "disable", "stop"])
         #expect(!proxy.systemProxyOn)
+    }
+
+    @Test
+    func pauseStopsKeepingTrafficBeforeAnythingSlowHappens() async {
+        let (proxy, runner, _) = controller()
+        proxy.toggleRunning()
+        #expect(await eventually { proxy.isRunning && !proxy.isSwitchingProxy })
+        #expect(runner.isRecording)
+        proxy.toggleRunning()
+        #expect(await eventually { !proxy.isSwitchingProxy })
+        #expect(!runner.isRecording)
+        #expect(log.value == ["recording on", "start 9090", "recording off", "stop"])
+    }
+
+    @Test
+    func recordKeepsTrafficAgainBeforeTheProxyStarts() async {
+        let (proxy, runner, _) = controller()
+        proxy.toggleRunning()
+        #expect(await eventually { proxy.isRunning && !proxy.isSwitchingProxy })
+        proxy.toggleRunning()
+        #expect(await eventually { !proxy.isSwitchingProxy })
+        proxy.toggleRunning()
+        #expect(await eventually { proxy.isRunning && !proxy.isSwitchingProxy })
+        #expect(runner.isRecording)
+        #expect(log.value.suffix(2) == ["recording on", "start 9090"], "on first, so no early request is lost")
     }
 
     @Test

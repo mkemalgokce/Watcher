@@ -5,6 +5,7 @@ import WatcherCore
 struct FlowDetailView: View {
     @Environment(WindowRouter.self) private var router
     @Environment(FlowListViewModel.self) private var list
+    @AppStorage("responseWidth") private var responseWidth = 420.0
 
     /// Below this width request and response no longer fit side by side and share the space instead.
     static let sideBySideWidth: CGFloat = 760
@@ -19,7 +20,7 @@ struct FlowDetailView: View {
             }
         } else {
             ContentUnavailableView {
-                Label("No Request Selected", systemImage: "sidebar.right")
+                Label("No Request Selected", systemImage: "doc.text.magnifyingglass")
             } description: {
                 Text("Pick a row to see what was sent and what came back.\n↑ ↓ move through the list · ⌘F filters · ⌘/ shows every shortcut")
             }
@@ -30,9 +31,10 @@ struct FlowDetailView: View {
     private func exchange(_ flow: Flow) -> some View {
         GeometryReader { geometry in
             if geometry.size.width >= Self.sideBySideWidth {
-                HSplitView {
-                    MessagePanel(flow: flow, side: .request).frame(minWidth: 300)
-                    MessagePanel(flow: flow, side: .response).frame(minWidth: 300)
+                ResizableSplit(axis: .horizontal, secondSize: $responseWidth, minFirst: 300, minSecond: 300) {
+                    MessagePanel(flow: flow, side: .request)
+                } second: {
+                    MessagePanel(flow: flow, side: .response)
                 }
             } else {
                 MessagePanel(flow: flow, side: router.exchangeSide, switchesSide: true).id(router.exchangeSide)
@@ -51,6 +53,13 @@ private struct InspectorHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            url
+            if let error = flow.error {
+                Label(error, systemImage: "exclamationmark.octagon.fill").font(.callout).foregroundStyle(Palette.error)
+                    .padding(8).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Palette.error.opacity(0.1), in: RoundedRectangle(cornerRadius: Metrics.controlRadius))
+                    .textSelection(.enabled)
+            }
             HStack(spacing: 6) {
                 Pill(text: flow.request.method, tint: Palette.method(flow.request.method), monospaced: true)
                 statusPill
@@ -62,26 +71,26 @@ private struct InspectorHeader: View {
                 Spacer(minLength: 8)
                 actions
             }
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 5) {
-                    SiteIconView(domain: FlowGrouping.domainName(flow.request.host), size: 13)
-                    Text(flow.request.host).font(.callout).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-                    if flow.request.scheme == "https" {
-                        Image(systemName: flow.clientTLS != nil ? "lock.fill" : "lock").font(.caption2)
-                            .foregroundStyle(flow.clientTLS != nil ? Palette.done : .secondary)
-                            .help(flow.clientTLS.map { "Decrypted by Watcher (\($0))" } ?? "Encrypted; add the host to SSL Proxying to see inside")
-                    }
-                }
-                Text(flow.request.path).font(.system(.title3, design: .monospaced).weight(.medium))
-                    .lineLimit(2).truncationMode(.middle).textSelection(.enabled).help(flow.request.url)
-            }
             meta
-            if let error = flow.error {
-                Label(error, systemImage: "exclamationmark.octagon.fill").font(.callout).foregroundStyle(Palette.error)
-                    .padding(8).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Palette.error.opacity(0.1), in: RoundedRectangle(cornerRadius: Metrics.controlRadius))
-                    .textSelection(.enabled)
+        }
+    }
+
+    private var tlsHelp: String {
+        flow.clientTLS.map { "Decrypted by Watcher (\($0))" } ?? "Encrypted; add the host to SSL Proxying to see inside"
+    }
+
+    /// The whole URL, wrapped rather than cut off: it is what people came to read.
+    private var url: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            SiteIconView(domain: FlowGrouping.domainName(flow.request.host), size: 14)
+            if flow.request.scheme == "https" {
+                Image(systemName: flow.clientTLS != nil ? "lock.fill" : "lock").font(.caption)
+                    .foregroundStyle(flow.clientTLS != nil ? Palette.done : .secondary)
+                    .help(tlsHelp)
             }
+            (Text(flow.request.host).foregroundStyle(.secondary) + Text(flow.request.path))
+                .font(Font.code(.body).weight(.medium))
+                .fixedSize(horizontal: false, vertical: true).textSelection(.enabled).help(flow.request.url)
         }
     }
 

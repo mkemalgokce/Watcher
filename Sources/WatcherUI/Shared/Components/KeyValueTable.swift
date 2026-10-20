@@ -56,6 +56,9 @@ struct KeyValueTable: View {
                                         OpenWithMenu(data: data, name: file.filename ?? row.name, contentType: file.contentType)
                                             .labelStyle(.iconOnly).menuStyle(.borderlessButton).fixedSize().help("Open the file in another app")
                                     }
+                                    if row.isJSON {
+                                        JSONPopoverButton(source: row.value)
+                                    }
                                     Button("Copy \(row.name)", systemImage: "doc.on.doc") {
                                         actions.copy(row.value, "\(row.name) copied")
                                     }

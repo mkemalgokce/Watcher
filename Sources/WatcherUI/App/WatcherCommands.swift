@@ -54,6 +54,8 @@ public struct WatcherCommands: Commands {
             }
             CommandGroup(after: .sidebar) {
                 Divider()
+                InspectorLayoutPicker()
+                Divider()
                 Button("All Requests") { model.list.sidebar = .all }.keyboardShortcut("1")
                 Button("Starred") { model.list.sidebar = .starred }.keyboardShortcut("2")
                 Button("Errors") { model.list.sidebar = .errors }.keyboardShortcut("3")

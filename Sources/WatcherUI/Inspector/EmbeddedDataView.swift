@@ -40,9 +40,15 @@ struct EmbeddedDataView: View {
             ImagePreview(data: segment.data, mime: mime).frame(maxWidth: .infinity, minHeight: 120, maxHeight: 280)
         case .text:
             let text = segment.text ?? String(decoding: segment.data, as: UTF8.self)
-            SyntaxTextView(text, language: BodyLanguage.detect(contentType: segment.mimeType, data: Data(text.utf8)))
-                .frame(height: min(260, max(60, CGFloat(text.split(separator: "\n", omittingEmptySubsequences: false).count) * 16 + 20)))
-                .clipShape(RoundedRectangle(cornerRadius: Metrics.controlRadius))
+            if JSONTree.isDocument(text) {
+                JSONDocumentView(source: text).frame(height: 300)
+            } else {
+                let language = BodyLanguage.detect(contentType: segment.mimeType, data: Data(text.utf8))
+                let lines = text.split(separator: "\n", omittingEmptySubsequences: false).count
+                SyntaxTextView(text, language: language)
+                    .frame(height: min(260, max(60, CGFloat(lines) * 16 + 20)))
+                    .clipShape(RoundedRectangle(cornerRadius: Metrics.controlRadius))
+            }
         case .binary:
             SyntaxTextView(BodyFormatter.hexDump(segment.data, limit: 2048), language: .binary, wraps: false).frame(height: 140)
                 .clipShape(RoundedRectangle(cornerRadius: Metrics.controlRadius))

@@ -23,6 +23,7 @@ let package = Package(
         .package(url: "https://github.com/tree-sitter/tree-sitter-html", from: "0.23.0"),
         .package(url: "https://github.com/tree-sitter/tree-sitter-css", exact: "0.25.0"),
         .package(url: "https://github.com/tree-sitter/tree-sitter-javascript", exact: "0.25.0"),
+        .package(url: "https://github.com/jpsim/Yams.git", from: "6.2.1"),
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.19.6"),
     ],
     targets: [
@@ -45,6 +46,7 @@ let package = Package(
                 .product(name: "X509", package: "swift-certificates"),
                 .product(name: "Crypto", package: "swift-crypto"),
                 "SwiftTreeSitter", "TreeSitterScanners",
+                .product(name: "Yams", package: "Yams"),
                 .product(name: "TreeSitterJSON", package: "tree-sitter-json"),
                 .product(name: "TreeSitterHTML", package: "tree-sitter-html"),
                 .product(name: "TreeSitterCSS", package: "tree-sitter-css"),

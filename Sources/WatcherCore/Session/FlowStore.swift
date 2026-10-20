@@ -15,6 +15,10 @@ public final class FlowStore: @unchecked Sendable {
     private var counter = 0
     private var _isRecording = true
     private var _maxFlows = 0
+    private var _maxBodyBytes = FlowStore.defaultMaxBodyBytes
+    /// Body bytes per stored flow and their sum, kept current so the budget check never rescans the session.
+    private var bodyBytes: [UUID: Int] = [:]
+    private var totalBodyBytes = 0
     private var observers: [Int: AsyncStream<FlowEvent>.Continuation] = [:]
     private var nextObserver = 0
     private let now: @Sendable () -> Date
@@ -36,6 +40,20 @@ public final class FlowStore: @unchecked Sendable {
         set {
             lock.withLock {
                 _maxFlows = max(0, newValue)
+                trimLocked().forEach { publishLocked(.removed($0)) }
+            }
+        }
+    }
+
+    /// Request and response bodies the session may hold in all; the oldest requests are dropped beyond it, and the newest
+    /// is always kept. A request count alone cannot bound memory, as one body can be tens of megabytes. 0 keeps everything.
+    public static let defaultMaxBodyBytes = 512 * 1024 * 1024
+
+    public var maxBodyBytes: Int {
+        get { lock.withLock { _maxBodyBytes } }
+        set {
+            lock.withLock {
+                _maxBodyBytes = max(0, newValue)
                 trimLocked().forEach { publishLocked(.removed($0)) }
             }
         }
@@ -64,7 +82,7 @@ public final class FlowStore: @unchecked Sendable {
             counter += 1
             let flow = Flow(sequence: counter, request: request, id: makeID(), startedAt: now())
             guard _isRecording else { return flow }
-            flows[flow.id] = flow; order.append(flow.id)
+            flows[flow.id] = flow; order.append(flow.id); track(flow)
             trimLocked().forEach { publishLocked(.removed($0)) }
             publishLocked(.added(flow))
             return flow
@@ -74,8 +92,9 @@ public final class FlowStore: @unchecked Sendable {
     func update(_ id: UUID, _ change: (inout Flow) -> Void) {
         lock.withLock {
             guard var flow = flows[id] else { return }
-            change(&flow); flows[id] = flow
+            change(&flow); flows[id] = flow; track(flow)
             publishLocked(.updated(flow))
+            trimLocked().forEach { publishLocked(.removed($0)) }
         }
     }
 
@@ -84,6 +103,8 @@ public final class FlowStore: @unchecked Sendable {
 
     /// The message is dated by the store's clock, whoever built it.
     func appendWebSocketMessage(_ message: WebSocketMessage, to id: UUID) {
+        // A socket opened before the pause stays open; its later frames are new traffic, not the request finishing.
+        guard isRecording else { return }
         var dated = message
         dated.date = now()
         update(id) {
@@ -115,6 +136,7 @@ public final class FlowStore: @unchecked Sendable {
     public func discard(_ ids: Set<UUID>) {
         lock.withLock {
             let existing = ids.filter { flows.removeValue(forKey: $0) != nil }
+            existing.forEach { untrack($0) }
             order.removeAll { ids.contains($0) }
             existing.forEach { publishLocked(.removed($0)) }
         }
@@ -130,7 +152,8 @@ public final class FlowStore: @unchecked Sendable {
     public func clear() -> [Flow] {
         lock.withLock {
             let removed = order.compactMap { flows[$0] }
-            flows.removeAll(); order.removeAll(); counter = 0; publishLocked(.cleared)
+            flows.removeAll(); order.removeAll(); counter = 0; bodyBytes.removeAll(); totalBodyBytes = 0
+            publishLocked(.cleared)
             return removed
         }
     }
@@ -146,24 +169,40 @@ public final class FlowStore: @unchecked Sendable {
 
     /// Makes `replacement` the whole session, renumbered and trimmed, and tells observers; call with the lock held.
     private func replaceLocked(with replacement: [Flow]) {
-        flows.removeAll(); order.removeAll(); counter = 0
+        flows.removeAll(); order.removeAll(); counter = 0; bodyBytes.removeAll(); totalBodyBytes = 0
         for var flow in replacement {
             counter += 1; flow.sequence = counter
-            flows[flow.id] = flow; order.append(flow.id)
+            flows[flow.id] = flow; order.append(flow.id); track(flow)
         }
         trimLocked()
         publishLocked(.cleared)
         order.compactMap { flows[$0] }.forEach { publishLocked(.added($0)) }
     }
 
-    /// Drops the oldest flows beyond `maxFlows`; call with the lock held.
+    /// Drops the oldest flows beyond `maxFlows` and until the bodies fit `maxBodyBytes`; call with the lock held.
     @discardableResult
     private func trimLocked() -> [UUID] {
-        var dropped: [UUID] = []
-        while _maxFlows > 0, order.count > _maxFlows {
-            let oldest = order.removeFirst(); flows.removeValue(forKey: oldest); dropped.append(oldest)
+        // Counted first and removed in one go: removing the oldest one at a time shifted the array for each.
+        var drop = _maxFlows > 0 ? max(0, order.count - _maxFlows) : 0
+        var bytes = totalBodyBytes - order.prefix(drop).reduce(0) { $0 + (bodyBytes[$1] ?? 0) }
+        while _maxBodyBytes > 0, bytes > _maxBodyBytes, drop < order.count - 1 {
+            bytes -= bodyBytes[order[drop]] ?? 0
+            drop += 1
         }
+        guard drop > 0 else { return [] }
+        let dropped = Array(order.prefix(drop))
+        order.removeFirst(drop)
+        dropped.forEach { flows.removeValue(forKey: $0); untrack($0) }
         return dropped
+    }
+
+    private func track(_ flow: Flow) {
+        let size = flow.request.body.count + (flow.response?.body.count ?? 0)
+        totalBodyBytes += size - (bodyBytes.updateValue(size, forKey: flow.id) ?? 0)
+    }
+
+    private func untrack(_ id: UUID) {
+        totalBodyBytes -= bodyBytes.removeValue(forKey: id) ?? 0
     }
 
     /// Call with the lock held so observers see events in the order the changes were applied; yield neither blocks nor runs onTermination inline.

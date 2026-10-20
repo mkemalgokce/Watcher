@@ -21,6 +21,6 @@ struct WatcherSettingsTests {
                 || defaults.autoSystemProxy)
         )
         let numbers = [defaults.leafCertificateValidityDays, defaults.maxFlows, defaults.composeTimeoutSeconds]
-        #expect(numbers == [365, 0, 60])
+        #expect(numbers == [365, WatcherSettings.defaultMaxFlows, 60])
     }
 }

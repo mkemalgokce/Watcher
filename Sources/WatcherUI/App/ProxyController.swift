@@ -94,6 +94,11 @@ final class ProxyController {
     private func switchProxy() {
         isSwitchingProxy = true
         proxyError = nil
+        // At the click, not after the queued system-proxy switch: that can take seconds, the proxy keeps carrying traffic
+        // until it is done, and the window already says paused.
+        if isRunning {
+            runner.isRecording = false
+        }
         let pending = systemProxySwitch
         Task {
             defer { isSwitchingProxy = false }
@@ -129,6 +134,8 @@ final class ProxyController {
 
     private func record() async {
         let settings = settings()
+        // Before the listener opens, so the first request is not dropped.
+        runner.isRecording = true
         do {
             _ = try await runner.start(port: settings.port)
             isRunning = true

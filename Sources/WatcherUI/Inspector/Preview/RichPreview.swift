@@ -14,6 +14,8 @@ struct RichPreview: View {
         case .pdf: PDFPreview(data: data)
         case .media: MediaPreview(data: data, contentType: contentType)
         case .eventStream: EventStreamView(text: String(decoding: data, as: UTF8.self))
+        case .json: JSONBodyTree(text: data.lossyUTF8).padding(4)
+        case .yaml: JSONBodyTree(text: data.lossyUTF8, notation: .yaml).padding(4)
         case .form:
             let fields = FormFields.parse(body: data, contentType: contentType)
             KeyValueTable(rows: KeyValueRow.fields(fields), emptyText: "No fields could be read from this body.").padding(8)

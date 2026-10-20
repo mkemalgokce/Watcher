@@ -15,6 +15,7 @@ public final class ProxyRunnerStub: ProxyRunning, @unchecked Sendable {
     private let log: LockedBox<[String]>
     private let port: Int
     private var running = false
+    private var recording = true
     private var failure: (any Error)?
     private var runsDespiteFailure = false
 
@@ -31,6 +32,15 @@ public final class ProxyRunnerStub: ProxyRunning, @unchecked Sendable {
     /// With `stillRunning`, the failed start leaves the proxy listening, as a runner that bound a port and then threw.
     public func failStarting(_ failure: (any Error)? = Failure(), stillRunning: Bool = false) {
         lock.withLock { self.failure = failure; runsDespiteFailure = stillRunning }
+    }
+
+    /// Whether the store keeps new traffic; each change is logged as `recording on` or `recording off`.
+    public var isRecording: Bool {
+        get { lock.withLock { recording } }
+        set {
+            lock.withLock { recording = newValue }
+            log.mutate { $0.append("recording \(newValue ? "on" : "off")") }
+        }
     }
 
     public var isRunning: Bool {

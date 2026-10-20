@@ -35,8 +35,10 @@ public struct WatcherSettings: Codable, Equatable, Sendable {
     public var tlsKeyLogFile = ""
     /// Validity of generated per-host certificates, 1 to 825 days (Apple rejects longer ones).
     public var leafCertificateValidityDays = 365
-    /// Oldest requests are dropped beyond this many; 0 keeps everything.
-    public var maxFlows = 0
+    /// Oldest requests are dropped beyond this many; 0 keeps everything. Bounded by default so a recording left running
+    /// for days neither grows without end nor slows the window down.
+    public static let defaultMaxFlows = 10000
+    public var maxFlows = WatcherSettings.defaultMaxFlows
     /// Adds an `X-Watcher-Applied` response header naming the tools that touched a request.
     public var markModifiedTraffic = false
     /// Hides Authorization, Cookie and similar header values from MCP output.

@@ -16,13 +16,16 @@ public enum BodyFormatter {
     /// Bodies above this are shown as they are; pretty-printing megabytes of JSON would freeze the viewer.
     static let prettyLimit = 64 * 1024 * 1024
 
-    public static func format(_ data: Data, contentType: String?, contentEncoding: String? = nil, sortKeys: Bool = false) -> FormattedBody {
+    public static func format(
+        _ data: Data, contentType: String?, contentEncoding: String? = nil, sortKeys: Bool = false,
+        detectsGraphQL: Bool = true
+    ) -> FormattedBody {
         let decoded = BodyDecoder.decode(data, contentEncoding: contentEncoding)
         let note = decoded.removedEncoding.map { "decoded from \($0)" }
         let body = decoded.data
         guard !body.isEmpty else { return FormattedBody(text: "", language: .plain, note: note) }
 
-        var language = BodyLanguage.detect(contentType: contentType, data: body)
+        let language = BodyLanguage.detect(contentType: contentType, data: body)
         if language == .binary {
             return FormattedBody(text: hexDump(body), language: .binary, note: note ?? "\(body.count) bytes")
         }
@@ -31,32 +34,56 @@ public enum BodyFormatter {
             return FormattedBody(text: text, language: language, note: "too large to format")
         }
 
+        let options = JSONOptions(sortKeys: sortKeys, detectsGraphQL: detectsGraphQL)
+        return render(body, text: text, language: language, note: note, json: options)
+    }
+
+    private struct JSONOptions {
+        let sortKeys: Bool
+        let detectsGraphQL: Bool
+    }
+
+    private static func render(
+        _ body: Data, text: String, language: BodyLanguage, note: String?, json: JSONOptions
+    ) -> FormattedBody {
         switch language {
         case .json:
-            if body.count < 1_000_000, let graphQL = BodyPreview.graphQL(body) {
-                return FormattedBody(text: graphQL, language: .graphql, note: note)
-            }
-            if sortKeys, let sorted = JSONFormatter.sortedKeys(body) {
-                return FormattedBody(text: sorted, language: .json, note: note)
-            }
-            return FormattedBody(text: JSONFormatter.looksLikeJSON(text) ? String(decoding: JSONFormatter.prettyData(body), as: UTF8.self) : text, language: .json, note: note)
+            formatJSON(body, text: text, note: note, options: json)
         case .xml, .html:
-            let pretty = prettyXML(body, html: language == .html)
-            if pretty == nil, language == .xml {
-                language = .plain
-            }
-            return FormattedBody(text: pretty ?? text, language: language, note: note)
+            formatMarkup(body, text: text, language: language, note: note)
         case .javascript, .css:
-            return FormattedBody(text: CodeBeautifier.beautify(text), language: language, note: note)
+            FormattedBody(text: CodeBeautifier.beautify(text), language: language, note: note)
         case .urlencoded:
-            return FormattedBody(text: urlEncodedLines(text), language: .urlencoded, note: note)
+            FormattedBody(text: urlEncodedLines(text), language: .urlencoded, note: note)
         case .plist:
-            return FormattedBody(text: plistText(body) ?? text, language: .xml, note: note)
+            FormattedBody(text: plistText(body) ?? text, language: .xml, note: note)
         case .protobuf:
-            return FormattedBody(text: ProtobufWire.describe(body) ?? hexDump(body), language: .protobuf, note: note)
+            FormattedBody(text: ProtobufWire.describe(body) ?? hexDump(body), language: .protobuf, note: note)
         default:
-            return FormattedBody(text: text, language: language, note: note)
+            FormattedBody(text: text, language: language, note: note)
         }
+    }
+
+    /// Markup that does not parse is shown as plain text, not as broken XML.
+    private static func formatMarkup(
+        _ body: Data, text: String, language: BodyLanguage, note: String?
+    ) -> FormattedBody {
+        let pretty = prettyXML(body, html: language == .html)
+        let shown = pretty == nil && language == .xml ? BodyLanguage.plain : language
+        return FormattedBody(text: pretty ?? text, language: shown, note: note)
+    }
+
+    private static func formatJSON(
+        _ body: Data, text: String, note: String?, options: JSONOptions
+    ) -> FormattedBody {
+        if options.detectsGraphQL, body.count < 1_000_000, let graphQL = BodyPreview.graphQL(body) {
+            return FormattedBody(text: graphQL, language: .graphql, note: note)
+        }
+        if options.sortKeys, let sorted = JSONFormatter.sortedKeys(body) {
+            return FormattedBody(text: sorted, language: .json, note: note)
+        }
+        let pretty = JSONFormatter.looksLikeJSON(text) ? JSONFormatter.prettyData(body).lossyUTF8 : text
+        return FormattedBody(text: pretty, language: .json, note: note)
     }
 
     /// Back to compact form, for copying a body into a command line.

@@ -1,3 +1,4 @@
+import Foundation
 import WatcherCore
 
 /// The frames the WebSocket tab lists: all of them, or without the keep-alive ping and pong frames.
@@ -15,5 +16,12 @@ struct WebSocketMessageList {
 
     var emptyText: String {
         all.isEmpty ? "The socket has not sent anything yet." : "Only ping/pong frames so far."
+    }
+
+    /// The message as JSON when it carries a JSON object or array in a data frame that can be read as it is.
+    static func jsonText(of message: WebSocketMessage) -> String? {
+        guard message.kind == .text || message.kind == .binary, !message.isCompressed else { return nil }
+        let text = message.payload.lossyUTF8
+        return JSONTree.isDocument(text) ? text : nil
     }
 }

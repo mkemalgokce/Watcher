@@ -14,10 +14,8 @@ public struct ContentView: View {
         @Bindable var model = model
         NavigationSplitView {
             SidebarView().navigationSplitViewColumnWidth(min: 190, ideal: 220, max: 320)
-        } content: {
-            FlowListView().navigationSplitViewColumnWidth(min: 480, ideal: 700)
         } detail: {
-            FlowDetailView().navigationSplitViewColumnWidth(min: 380, ideal: 520)
+            TrafficSplit()
         }
         .navigationTitle("Watcher")
         // Every filter lives in the search field as a token; typing offers where to look and the quick filters it names.
@@ -76,6 +74,7 @@ private struct WatcherToolbar: ToolbarContent {
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) { CaptureControls() }
         ToolbarItemGroup(placement: .primaryAction) { ToolControls() }
+        ToolbarItem(placement: .primaryAction) { InspectorLayoutMenu() }
         ToolbarItem(placement: .primaryAction) { MoreMenu() }
     }
 }
