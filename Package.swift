@@ -24,6 +24,7 @@ let package = Package(
         .package(url: "https://github.com/tree-sitter/tree-sitter-css", exact: "0.25.0"),
         .package(url: "https://github.com/tree-sitter/tree-sitter-javascript", exact: "0.25.0"),
         .package(url: "https://github.com/jpsim/Yams.git", from: "6.2.1"),
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.10.0"),
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.19.6"),
     ],
     targets: [
@@ -70,7 +71,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "Watcher",
-            dependencies: ["WatcherUI", "WatcherCore"],
+            dependencies: ["WatcherUI", "WatcherCore", .product(name: "Sparkle", package: "Sparkle")],
             exclude: ["Info.plist"],
             swiftSettings: [.swiftLanguageMode(.v5)],
             linkerSettings: [.unsafeFlags([
@@ -90,6 +91,11 @@ let package = Package(
                 "14.0",
                 "-Xlinker",
                 "27.0",
+                // tools/build-app.sh puts Sparkle.framework in Contents/Frameworks.
+                "-Xlinker",
+                "-rpath",
+                "-Xlinker",
+                "@executable_path/../Frameworks",
             ])]
         ),
         .target(

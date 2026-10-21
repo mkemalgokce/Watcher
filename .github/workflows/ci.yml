@@ -59,6 +59,7 @@ jobs:
         run: |
           bash scripts/tests/check-commit-msg-test.sh
           bash scripts/tests/coverage-gate-test.sh
+          bash scripts/tests/appcast-test.sh
           bash scripts/tests/package-release-test.sh
           bash scripts/tests/third-party-notices-test.sh
 

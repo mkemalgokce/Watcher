@@ -20,6 +20,7 @@ check() {
     while [[ "$1" != "--" ]]; do assignments+=("$1"); shift; done
     shift
     output="$(env -u CODESIGN_IDENTITY -u NOTARY_KEY -u NOTARY_KEY_ID -u NOTARY_ISSUER_ID -u REQUIRE_NOTARIZATION \
+        -u REQUIRE_UPDATES -u SPARKLE_PUBLIC_KEY \
         ${assignments[@]+"${assignments[@]}"} bash "$workdir/scripts/package-release.sh" "$@" 2>&1)" || status=$?
     if [[ "$status" -ne "$expected_status" || "$output" != *"$expected_text"* ]]; then
         echo "FAIL: $* expected exit $expected_status with '$expected_text'; got exit $status: $output"
@@ -41,6 +42,10 @@ check 99 "build-app reached" -- 0.0.0 1
 check 1 "REQUIRE_NOTARIZATION=1 needs CODESIGN_IDENTITY" REQUIRE_NOTARIZATION=1 -- 1.2.3 7
 check 1 "REQUIRE_NOTARIZATION=1 needs CODESIGN_IDENTITY" REQUIRE_NOTARIZATION=1 CODESIGN_IDENTITY=x NOTARY_KEY=k \
     NOTARY_KEY_ID=i -- 1.2.3 7
+check 1 "REQUIRE_UPDATES=1 needs SPARKLE_PUBLIC_KEY" REQUIRE_UPDATES=1 -- 1.2.3 7
+check 1 "REQUIRE_UPDATES=1 needs SPARKLE_PUBLIC_KEY" REQUIRE_UPDATES=1 SPARKLE_PUBLIC_KEY= -- 1.2.3 7
+check 99 "build-app reached" REQUIRE_UPDATES=1 SPARKLE_PUBLIC_KEY=k -- 1.2.3 7
+check 99 "build-app reached" SPARKLE_PUBLIC_KEY=k -- 1.2.3 7
 check 99 "build-app reached" -- 1.2.3 7
 check 99 "build-app reached" REQUIRE_NOTARIZATION=1 CODESIGN_IDENTITY=x NOTARY_KEY=k NOTARY_KEY_ID=i \
     NOTARY_ISSUER_ID=s -- 1.2.3 7

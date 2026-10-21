@@ -22,6 +22,7 @@ public extension AppDependencies {
         previews: (@Sendable (Flow) async -> [PreviewOutput])? = nil,
         workspace: WorkspaceOpenerSpy? = nil,
         loginItem: LoginItemStub? = nil,
+        updater: UpdaterStub? = nil,
         clock: ClockStub? = nil,
         devices: DevicesViewModel.DeviceProbe = .none
     ) throws -> AppDependencies {
@@ -46,6 +47,7 @@ public extension AppDependencies {
             focusFilterField: {},
             devices: devices,
             loginItem: (loginItem ?? LoginItemStub()).loginItem,
+            updater: updater?.updater,
             now: (clock ?? ClockStub()).now,
             homeDirectory: URL(fileURLWithPath: "/fake-home"),
             appInfo: AppInfo(

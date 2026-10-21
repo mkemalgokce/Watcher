@@ -12,9 +12,12 @@ struct SettingsViewModelTests {
 
     private func model(
         loginItem: LoginItemStub? = nil,
-        preferences: PreferencesFake? = nil
+        preferences: PreferencesFake? = nil,
+        updater: UpdaterStub? = nil
     ) throws -> AppModel {
-        try AppModel(dependencies: .test(preferences: preferences, runner: runner, loginItem: loginItem))
+        try AppModel(dependencies: .test(
+            preferences: preferences, runner: runner, loginItem: loginItem, updater: updater
+        ))
     }
 
     @Test
@@ -90,6 +93,37 @@ struct SettingsViewModelTests {
         #expect(model.notices.notice?.kind == .error)
         #expect(model.notices.notice?.message
             == "Cannot change the login item: not a bundled app. This works only in the packaged Watcher.app.")
+    }
+
+    @Test
+    func updateSettingsAreOfferedOnlyWhereThereIsAnUpdater() throws {
+        #expect(try !model().settingsPane.offersUpdates)
+        #expect(try model(updater: UpdaterStub()).settingsPane.offersUpdates)
+    }
+
+    @Test(arguments: [true, false])
+    func automaticChecksAreReadFromTheUpdater(enabled: Bool) throws {
+        let pane = try model(updater: UpdaterStub(checksAutomatically: enabled)).settingsPane
+        #expect(pane.checksForUpdates == enabled)
+    }
+
+    @Test
+    func switchingAutomaticChecksTellsTheUpdater() throws {
+        let updater = UpdaterStub(checksAutomatically: false)
+        let pane = try model(updater: updater).settingsPane
+        pane.checksForUpdates = true
+        #expect(updater.checksAutomatically)
+        #expect(pane.checksForUpdates)
+        pane.checksForUpdates = false
+        #expect(!updater.checksAutomatically)
+        #expect(!pane.checksForUpdates)
+    }
+
+    @Test
+    func automaticChecksReadAsOffWithoutAnUpdater() throws {
+        let pane = try model().settingsPane
+        pane.checksForUpdates = true
+        #expect(!pane.checksForUpdates)
     }
 
     @Test

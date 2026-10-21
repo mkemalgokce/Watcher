@@ -68,6 +68,18 @@ Only the maintainer releases. Pushing a `v*` tag starts `.github/workflows/relea
 `release` environment, then signs the DMG with the project's Developer ID, notarizes and staples it, and publishes the
 release with notes from git-cliff. The signing and notary secrets live only in that environment.
 
+Installed copies update themselves with [Sparkle](https://sparkle-project.org). The release also carries `appcast.xml`, which
+`scripts/appcast.sh` writes and signs with an EdDSA key; the app reads the newest one from
+`releases/latest/download/appcast.xml`. A release is refused without the key. One-time setup:
+
+1. Run `.build/artifacts/sparkle/Sparkle/bin/generate_keys` (after `swift package resolve`). It keeps the private key in your
+   keychain and prints the public one.
+2. Add the public key as the `SPARKLE_PUBLIC_KEY` variable of the `release` environment.
+3. Export the private key with `generate_keys -x <file>`, add its contents as the `SPARKLE_PRIVATE_KEY` secret of the same
+   environment, then delete the file. Keep a backup: without this key no installed copy can be updated.
+
+A local build (`make dmg`, `swift run`) has no key and so no update menu item.
+
 To cut a release:
 
 1. `make release-prep VERSION=1.2.3` sets the version Watcher reports and adds the `1.2.3` section to `CHANGELOG.md`.

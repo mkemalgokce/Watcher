@@ -26,6 +26,8 @@ public struct AppDependencies {
     var focusFilterField: @MainActor () -> Void
     var devices: DevicesViewModel.DeviceProbe
     var loginItem: LoginItem
+    /// Nil where there is nothing to update from: the app then offers no update.
+    var updater: AppUpdater?
     var now: @Sendable () -> Date
     var homeDirectory: URL
     var appInfo: AppInfo

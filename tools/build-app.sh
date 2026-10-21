@@ -1,7 +1,8 @@
 #!/bin/bash
 # Builds Watcher.app (release) so the menu bar shows the app's name and the icon.
 # Usage: tools/build-app.sh [output-dir]   (default: ./build)
-# APP_VERSION / APP_BUILD set the version shown in About and Finder; CODESIGN_IDENTITY a Developer ID (default: ad hoc).
+# APP_VERSION / APP_BUILD set the version shown in About and Finder; CODESIGN_IDENTITY a Developer ID (default: ad hoc);
+# SPARKLE_PUBLIC_KEY the key that signs updates (without it the app has nothing to update from and offers no update).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 out="${1:-build}"
@@ -15,6 +16,16 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin/Watcher" "$app/Contents/MacOS/Watcher"
 # SwiftPM resource bundles (icon, privacy manifests): Bundle.module looks in Contents/Resources and traps if they are missing.
 for bundle in "$bin"/*.bundle; do cp -R "$bundle" "$app/Contents/Resources/"; done
+# The app links Sparkle, which installs updates itself; it is not sandboxed, so Sparkle's XPC services are not needed.
+sparkle="$app/Contents/Frameworks/Sparkle.framework"
+mkdir -p "$app/Contents/Frameworks"
+cp -R .build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework "$sparkle"
+rm -rf "$sparkle/XPCServices" "$sparkle/Versions/B/XPCServices"
+updates=""
+if [[ -n "${SPARKLE_PUBLIC_KEY:-}" ]]; then
+  updates="<key>SUFeedURL</key><string>https://github.com/mkemalgokce/Watcher/releases/latest/download/appcast.xml</string>
+  <key>SUPublicEDKey</key><string>$SPARKLE_PUBLIC_KEY</string>"
+fi
 scripts/third-party-notices.sh "$app/Contents/Resources/THIRD_PARTY_NOTICES.md" >/dev/null
 # Liquid Glass icon (light, dark, clear, tinted) from the Icon Composer document; AppIcon.icns stays as the pre-macOS 26 fallback.
 xcrun actool tools/icon/AppIcon.icon --compile "$app/Contents/Resources" --app-icon AppIcon --platform macosx \
@@ -37,13 +48,18 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSLocalNetworkUsageDescription</key><string>Watcher lets phones and tablets on your network send their traffic through it.</string>
+  $updates
 </dict></plist>
 PLIST
 # Ad hoc runs locally; a release is signed with a Developer ID and the hardened runtime, which notarization requires.
 identity="${CODESIGN_IDENTITY:--}"
-if [[ "$identity" == "-" ]]; then
-  codesign --force --deep --sign - "$app" >/dev/null
-else
-  codesign --force --deep --options runtime --timestamp --sign "$identity" "$app" >/dev/null
+flags=(--force --sign -)
+if [[ "$identity" != "-" ]]; then
+  flags=(--force --options runtime --timestamp --sign "$identity")
 fi
+# Inside out: a seal covers what is inside it, so Sparkle's helpers are signed before its framework, and that before the app.
+for item in "$sparkle/Versions/B/Autoupdate" "$sparkle/Versions/B/Updater.app" "$sparkle" "$app"; do
+  codesign "${flags[@]}" "$item" >/dev/null
+done
+codesign --verify --deep --strict "$app"
 echo "Built $app"

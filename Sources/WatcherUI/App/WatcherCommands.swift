@@ -17,6 +17,7 @@ public struct WatcherCommands: Commands {
 
             CommandGroup(replacing: .appInfo) {
                 Button("About Watcher") { openWindow(id: "about") }
+                Button("Check for Updates…") { model.checkForUpdates() }.disabled(!model.canCheckForUpdates)
             }
 
             CommandGroup(replacing: .newItem) {
