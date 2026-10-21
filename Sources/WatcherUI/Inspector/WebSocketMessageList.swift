@@ -1,4 +1,3 @@
-import Foundation
 import WatcherCore
 
 /// The frames the WebSocket tab lists: all of them, or without the keep-alive ping and pong frames.
