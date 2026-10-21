@@ -33,8 +33,18 @@ public enum FlowGrouping {
 
     /// Registrable-ish domain: the last two labels (three for common second-level suffixes like `co.uk`); IPs are kept whole.
     public static func domains(_ flows: [Flow]) -> [FlowGroup] {
-        Dictionary(grouping: flows, by: { domain(of: $0.request.host) })
-            .map { FlowGroup(name: $0.key, count: $0.value.count, kind: nil) }
+        // Hosts repeat far more than they differ, and splitting one into labels costs more than counting it,
+        // so the domain is worked out once per distinct host instead of once per request.
+        var perHost: [String: Int] = [:]
+        for flow in flows {
+            perHost[flow.request.host, default: 0] += 1
+        }
+        var perDomain: [String: Int] = [:]
+        for (host, count) in perHost {
+            perDomain[domain(of: host), default: 0] += count
+        }
+        return perDomain
+            .map { FlowGroup(name: $0.key, count: $0.value, kind: nil) }
             .sorted(by: byCountThenName)
     }
 

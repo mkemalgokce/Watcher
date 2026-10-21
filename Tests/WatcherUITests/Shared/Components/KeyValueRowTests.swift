@@ -92,3 +92,25 @@ struct KeyValueFilterTests {
         #expect(KeyValueFilter.apply("name-3", to: rows(8)).count == 8)
     }
 }
+
+@Suite(.tags(.unit))
+struct KeyValueRowJSONTests {
+    @Test(arguments: [#"{"a":1}"#, "[1,2,3]", "  {\"a\": {\"b\": []}}\n"])
+    func aValueHoldingAJSONDocumentCanBeOpened(value: String) {
+        #expect(KeyValueRow(id: 0, name: "payload", value: value).isJSON)
+    }
+
+    @Test(arguments: ["", "42", "true", "plain text", "[draft]", "{broken"])
+    func otherValuesCannot(value: String) {
+        #expect(!KeyValueRow(id: 0, name: "n", value: value).isJSON)
+    }
+
+    @Test
+    func aFormFieldWithJSONInItIsOffered() {
+        let rows = KeyValueRow.fields([
+            FormField(source: .form, name: "data", value: #"{"id":7}"#, filename: nil),
+            FormField(source: .form, name: "page", value: "2", filename: nil),
+        ])
+        #expect(rows.map(\.isJSON) == [true, false])
+    }
+}

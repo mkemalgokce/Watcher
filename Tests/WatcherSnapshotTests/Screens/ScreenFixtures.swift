@@ -101,6 +101,40 @@ enum Screen {
         body: json(#"{"name":"Ada","avatar":"data:image/png;base64,\#(redPNG.base64EncodedString())"}"#)
     )
 
+    /// Nesting, every value type, a Unix time, an empty container and a long string, for the JSON tree.
+    static let nestedJSON = exchange(
+        7, "GET", "https://api.example.com/v1/orders",
+        body: json("""
+        {"order":{"id":"ord_91","createdAt":1700000000,"paid":true,"coupon":null,
+        "items":[{"sku":"A-1","qty":2,"price":9.5,"tags":[]},{"sku":"B-7","qty":1,"price":120,"meta":{}}],
+        "note":"Leave at the door, ring twice. Fragile: contains glass and a very long line that keeps going"},
+        "next":"/v1/orders?page=2"}
+        """)
+    )
+
+    static let yaml = exchange(
+        8, "GET", "https://api.example.com/v1/config", contentType: "application/yaml",
+        body: json("""
+        server:
+          host: example.com
+          ports: [80, 443]
+        features:
+          - name: search
+            enabled: true
+          - name: beta
+            enabled: false
+        """)
+    )
+
+    /// A form whose `payload` field carries JSON, which the Params table offers to open.
+    static let formWithJSON = exchange(
+        9, "POST", "https://api.example.com/v1/submit",
+        contentType: "application/x-www-form-urlencoded",
+        requestBody: "page=2&payload=%7B%22user%22%3A%7B%22id%22%3A7%2C%22tags%22%3A%5B%22a%22%5D%7D%7D",
+        requestHeaders: [Header("Content-Type", "application/x-www-form-urlencoded")],
+        body: json("ok=1")
+    )
+
     static let exchanges = [users, image, failed, webSocket, embedded]
 }
 

@@ -13,6 +13,11 @@ public final class AnyPortRunner: ProxyRunning, @unchecked Sendable {
         engine.isRunning
     }
 
+    public var isRecording: Bool {
+        get { engine.isRecording }
+        set { engine.isRecording = newValue }
+    }
+
     public var boundPort: Int? {
         engine.boundPort
     }

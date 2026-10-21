@@ -72,9 +72,10 @@ struct GeneralSettings: View {
             Section("Session") {
                 Stepper(
                     FlowLimitText.label(for: model.settings.maxFlows), value: $model.settings.maxFlows,
-                    in: 0 ... 100_000, step: 500
+                    in: 0 ... 100_000, step: 1000
                 )
-                Text("0 keeps everything until you clear the session.").font(.caption).foregroundStyle(.secondary)
+                Text("The oldest requests are dropped first, so Watcher can record for days. 0 keeps everything.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

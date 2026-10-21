@@ -121,4 +121,72 @@ struct BodyRenderingTests {
         #expect(BodyRendering.summary(mode: .raw, richKind: .image, prepared: raw) == "JSON · raw")
         #expect(BodyRendering.summary(mode: .pretty, richKind: nil, prepared: nil) == "…")
     }
+
+    @Test
+    func graphQLDetectionCanBeTurnedOffToKeepTheJSON() {
+        let envelope = Data(#"{"query":"{ viewer { id } }"}"#.utf8)
+        let detected = BodyRendering.prepare(envelope, contentType: "application/json", mode: .pretty, sortKeys: false)
+        let plain = BodyRendering.prepare(
+            envelope, contentType: "application/json", mode: .pretty, sortKeys: false, detectsGraphQL: false
+        )
+        #expect(detected.language == .graphql)
+        #expect(plain.language == .json)
+    }
+
+    @Test(arguments: [
+        ("application/json", #"{"a":1}"#, true), ("application/vnd.api+json; charset=utf-8", "[1]", true),
+        // The header decides; the viewer falls back to text if the body will not parse.
+        ("application/json", "not even json", true),
+        (nil, #"{"a":1}"#, true), ("text/plain", "[1, 2]", true),
+        ("text/plain", "[draft]", false), ("text/plain", "hello", false), (nil, "{broken", false),
+        ("text/html", #"{"a":1}"#, false),
+    ])
+    func jsonBodiesCanBeShownAsATree(contentType: String?, body: String, isJSON: Bool) {
+        let kind = RichKind.of(contentType: contentType, data: Data(body.utf8))
+        #expect((kind == .json) == isJSON)
+    }
+
+    @Test
+    func aFormIsStillAFormEvenWhenAFieldHoldsJSON() {
+        let kind = RichKind.of(contentType: "application/x-www-form-urlencoded", data: Data(#"a=%7B%7D"#.utf8))
+        #expect(kind == .form)
+    }
+
+    @Test
+    func theRenderedTabIsCalledTreeForJSONAndPreviewForTheRest() {
+        #expect(BodyRendering.title(of: .preview, richKind: .json) == "Tree")
+        #expect(BodyRendering.title(of: .preview, richKind: .image) == "Preview")
+        #expect(BodyRendering.title(of: .raw, richKind: .json) == "Raw")
+        #expect(BodyRendering.symbol(of: .preview, richKind: .json) == "list.bullet.indent")
+        #expect(BodyRendering.symbol(of: .preview, richKind: .pdf) == "eye")
+    }
+
+    @Test
+    func jsonKeepsThePreviewTab() {
+        #expect(BodyRendering.modes(richKind: .json) == BodyMode.allCases)
+        #expect(BodyRendering.effectiveMode(chosen: .preview, richKind: .json) == .preview)
+    }
+
+    @Test
+    func theTreeNeedsNoSummaryBecauseItsTabAlreadySaysTree() {
+        #expect(BodyRendering.summary(mode: .preview, richKind: .json, prepared: nil).isEmpty)
+    }
+
+    @Test(arguments: [
+        ("application/yaml", true), ("text/yaml; charset=utf-8", true), ("application/x-yaml", true),
+        ("application/vnd.kubernetes+yaml", true), ("text/x-yaml", true),
+        ("text/plain", false), (nil, false), ("application/json", false),
+    ])
+    func yamlIsRecognisedByItsHeaderOnly(contentType: String?, isYAML: Bool) {
+        let kind = RichKind.of(contentType: contentType, data: Data("a: 1\nb: [1, 2]\n".utf8))
+        #expect((kind == .yaml) == isYAML)
+    }
+
+    @Test
+    func yamlGetsTheTreeTabToo() {
+        #expect(BodyRendering.title(of: .preview, richKind: .yaml) == "Tree")
+        #expect(BodyRendering.symbol(of: .preview, richKind: .yaml) == "list.bullet.indent")
+        #expect(BodyRendering.summary(mode: .preview, richKind: .yaml, prepared: nil) == "YAML")
+        #expect(BodyRendering.modes(richKind: .yaml) == BodyMode.allCases)
+    }
 }

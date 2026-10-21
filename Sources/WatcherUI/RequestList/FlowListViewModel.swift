@@ -43,13 +43,19 @@ final class FlowListViewModel {
     /// Whether the sidebar's System Services section is open; it starts closed, as daemons are rarely what is wanted.
     var expandsSystemServices = false
 
+    private static let arrivalOrder = [KeyPathComparator(\Flow.sequence)]
+    private static let typingPause = Duration.milliseconds(200)
+
     private(set) var visibleFlows: [Flow] = []
     private(set) var counts = SidebarCounts()
     private(set) var visibleBytes = 0
+    /// Longest duration among the visible rows; the Duration column draws its bars against it.
+    private(set) var visibleSlowest: TimeInterval = 0
 
     @ObservationIgnored private var indexByID: [Flow.ID: Int] = [:]
     @ObservationIgnored private var pendingEvents: [FlowEvent] = []
     @ObservationIgnored private var flushTask: Task<Void, Never>?
+    @ObservationIgnored private var visibleTask: Task<Void, Never>?
     @ObservationIgnored private let store: FlowStore
     @ObservationIgnored private let sleep: Sleep
 
@@ -142,9 +148,10 @@ final class FlowListViewModel {
         Dictionary(uniqueKeysWithValues: flows.enumerated().map { ($1.id, $0) })
     }
 
+    /// A change to what is shown leaves the sidebar counts alone: they count every flow, whatever is filtered.
     private func refresh<Value: Equatable>(ifChanged old: Value, _ new: Value) {
         if old != new {
-            refreshDerived()
+            refreshVisible()
         }
     }
 
@@ -159,12 +166,7 @@ final class FlowListViewModel {
     }
 
     private func refreshDerived() {
-        let hidesAny = hidesAppleTraffic || hidesSystemServices
-        let shown = hidesAny ? flows.filter { !isHidden($0) } : flows
-        let filtered = effectiveFilter.apply(to: shown)
-        // Arrival order is the order flows are kept in; sorting is only paid for when another column was chosen.
-        visibleFlows = sortOrder == [KeyPathComparator(\Flow.sequence)] ? filtered : filtered.sorted(using: sortOrder)
-        visibleBytes = visibleFlows.reduce(0) { $0 + ($1.response?.body.count ?? 0) }
+        refreshVisible()
         var next = SidebarCounts(apps: FlowGrouping.apps(flows), domains: FlowGrouping.domains(flows))
         for flow in flows {
             next.starred += flow.isStarred ? 1 : 0
@@ -175,6 +177,75 @@ final class FlowListViewModel {
             counts = next
         }
     }
+
+    /// Cheap filters apply on the spot. Searching text through a long list (bodies especially) or sorting it takes long
+    /// enough to freeze the window, so that runs off the main thread, after a pause in typing, and a newer change
+    /// replaces it; until it lands the list keeps showing the previous result.
+    private func refreshVisible() {
+        visibleTask?.cancel(); visibleTask = nil
+        let work = VisibleRows(
+            flows: flows, filter: effectiveFilter, hidesApple: hidesAppleTraffic, hidesServices: hidesSystemServices,
+            sort: sortOrder == Self.arrivalOrder ? nil : SendableSort(order: sortOrder)
+        )
+        guard work.isExpensive else { return show(work.run()) }
+        let sleep = sleep
+        visibleTask = Task { [weak self] in
+            try? await sleep(Self.typingPause)
+            guard !Task.isCancelled else { return }
+            let result = await Task.detached(priority: .userInitiated) { work.run() }.value
+            guard !Task.isCancelled else { return }
+            self?.show(result)
+        }
+    }
+
+    private func show(_ rows: VisibleRows.Result) {
+        visibleFlows = rows.flows
+        visibleBytes = rows.bytes
+        visibleSlowest = rows.slowest
+    }
+}
+
+/// What the list shows for a set of flows and filters; a value so it can be worked out on any thread.
+private struct VisibleRows: Sendable {
+    struct Result: Sendable {
+        let flows: [Flow]
+        let bytes: Int
+        let slowest: TimeInterval
+    }
+
+    /// Below this many flows even a text search is quick enough to run in place.
+    static let backgroundThreshold = 2000
+
+    let flows: [Flow]
+    let filter: FlowFilter
+    let hidesApple: Bool
+    let hidesServices: Bool
+    /// nil keeps arrival order, which is how the flows are stored, so nothing is sorted.
+    let sort: SendableSort?
+
+    var isExpensive: Bool {
+        flows.count >= Self.backgroundThreshold && (!filter.text.isEmpty || !filter.terms.isEmpty || sort != nil)
+    }
+
+    func run() -> Result {
+        let shown = hidesApple || hidesServices ? flows.filter { !isHidden($0) } : flows
+        let filtered = filter.apply(to: shown)
+        let rows = sort.map { filtered.sorted(using: $0.order) } ?? filtered
+        return Result(
+            flows: rows, bytes: rows.reduce(0) { $0 + ($1.response?.body.count ?? 0) },
+            slowest: rows.lazy.compactMap(\.duration).max() ?? 0
+        )
+    }
+
+    private func isHidden(_ flow: Flow) -> Bool {
+        let isApple = hidesApple && AppleTraffic.isApple(flow.request.host)
+        return isApple || (hidesServices && flow.request.clientKind == .service)
+    }
+}
+
+/// Key-path comparators are immutable, but not marked Sendable.
+private struct SendableSort: @unchecked Sendable {
+    let order: [KeyPathComparator<Flow>]
 }
 
 /// The flows and their positions while one batch of store events is applied.

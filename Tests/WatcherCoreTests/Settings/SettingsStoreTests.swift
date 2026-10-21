@@ -171,3 +171,10 @@ struct SettingsStoreTests {
         #expect(!settings.listenOnAllInterfaces)
     }
 }
+
+struct SessionRetentionDefaultTests {
+    @Test func aFreshSettingsFileKeepsABoundedSession() {
+        #expect(WatcherSettings().maxFlows == WatcherSettings.defaultMaxFlows)
+        #expect(WatcherSettings.defaultMaxFlows > 0)
+    }
+}

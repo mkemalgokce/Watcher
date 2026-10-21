@@ -38,7 +38,8 @@ enum BodyRendering {
         mode: BodyMode,
         sortKeys: Bool,
         path: String = "",
-        limit: Int? = displayLimit
+        limit: Int? = displayLimit,
+        detectsGraphQL: Bool = true
     ) -> Prepared {
         var result: Prepared
         switch mode {
@@ -51,7 +52,8 @@ enum BodyRendering {
             )
         case .pretty, .preview:
             let formatted = BodyFormatter.format(
-                payload, contentType: contentType, contentEncoding: encoding, sortKeys: sortKeys
+                payload, contentType: contentType, contentEncoding: encoding, sortKeys: sortKeys,
+                detectsGraphQL: detectsGraphQL
             )
             result = Prepared(text: formatted.text, language: formatted.language, note: formatted.note)
         }
@@ -84,6 +86,15 @@ enum BodyRendering {
         BodyMode.allCases.filter { $0 != .preview || richKind != nil }
     }
 
+    /// Preview is how a body is rendered; for JSON that is a tree, and the tab says so.
+    static func title(of mode: BodyMode, richKind: RichKind?) -> String {
+        mode == .preview && richKind?.isTree == true ? "Tree" : mode.rawValue
+    }
+
+    static func symbol(of mode: BodyMode, richKind: RichKind?) -> String {
+        mode == .preview && richKind?.isTree == true ? "list.bullet.indent" : mode.symbol
+    }
+
     /// The line beside the mode tabs: what is rendered, or the language and how it was formatted.
     static func summary(mode: BodyMode, richKind: RichKind?, prepared: Prepared?) -> String {
         if mode == .preview, let richKind {
@@ -94,6 +105,8 @@ enum BodyRendering {
             case .media: "Audio / video"
             case .eventStream: "Server-Sent Events"
             case .form: "Form fields"
+            case .json: ""
+            case .yaml: "YAML"
             }
         }
         return ([prepared?.language.displayName ?? "…"] + [prepared?.note].compactMap(\.self)).joined(separator: " · ")

@@ -34,6 +34,9 @@ struct InspectorScreenTests {
         Scene(name: "failed", flow: Screen.failed),
         Scene(name: "webSocket", flow: Screen.webSocket, response: .messages),
         Scene(name: "embeddedData", flow: Screen.embedded, response: .decoded),
+        Scene(name: "jsonTree", flow: Screen.nestedJSON),
+        Scene(name: "yamlTree", flow: Screen.yaml),
+        Scene(name: "formWithJSON", flow: Screen.formWithJSON, request: .params),
     ]
 
     private func inspector(_ scene: Scene) throws -> some View {

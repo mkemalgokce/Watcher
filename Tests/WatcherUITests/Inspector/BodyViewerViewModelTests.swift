@@ -35,6 +35,13 @@ struct BodyViewerViewModelTests {
     }
 
     @Test
+    func aJSONBodyIsKnownToBeATreeBeforeAnyTaskRuns() {
+        let model = model(flow(Data(#"{"a":1}"#.utf8)), mode: .preview)
+        #expect(model.unpacked?.richKind == .json)
+        #expect(model.prepared?.language == .json, "the tree is built from the pretty JSON text")
+    }
+
+    @Test
     func aSmallBodyIsReadyBeforeAnyTaskRuns() {
         let model = model(flow(Data(#"{"a":1}"#.utf8)))
         #expect(model.prepared?.language == .json)

@@ -64,8 +64,28 @@ struct BodyViewer: View {
         BodyRendering.effectiveMode(chosen: options.mode, richKind: richKind)
     }
 
+    /// The tree is a JSON view too, so the filter, sort and copy tools belong to it as much as to the pretty text.
+    private var isJSONView: Bool {
+        prepared?.language == .json && (effectiveMode != .preview || richKind == .json)
+    }
+
     private var showsFilterField: Bool {
-        effectiveMode != .preview && prepared?.language == .json && (options.showsJSONFilter || !jsonPath.isEmpty)
+        isJSONView && (options.showsJSONFilter || !jsonPath.isEmpty)
+    }
+
+    /// What the tree is built from: the filtered JSON, a GraphQL request's whole JSON envelope, or the YAML as written.
+    private var tree: (text: String, notation: JSONBodyTree.Notation)? {
+        guard effectiveMode == .preview, let prepared else { return nil }
+        switch richKind {
+        case .json:
+            return switch prepared.language {
+            case .json: (prepared.text, .json)
+            case .graphql: (decoded.lossyUTF8, .json)
+            default: nil
+            }
+        case .yaml: return (decoded.lossyUTF8, .yaml)
+        default: return nil
+        }
     }
 
     private var textMode: BodyMode {
@@ -99,13 +119,19 @@ struct BodyViewer: View {
     private var toolbar: some View {
         HStack(spacing: 8) {
             TabStrip(items: BodyRendering.modes(richKind: richKind).map { item in
-                TabItem(id: item, title: item.rawValue, symbol: item.symbol, shortcut: "⌃⌘\((BodyMode.allCases.firstIndex(of: item) ?? 0) + 1)")
+                TabItem(
+                    id: item, title: BodyRendering.title(of: item, richKind: richKind),
+                    symbol: BodyRendering.symbol(of: item, richKind: richKind),
+                    shortcut: "⌃⌘\((BodyMode.allCases.firstIndex(of: item) ?? 0) + 1)"
+                )
             }, selection: Binding(get: { effectiveMode }, set: { options.mode = $0 }))
-            Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(1).layoutPriority(-1)
+            if !summary.isEmpty {
+                Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(1).layoutPriority(-1)
+            }
             Spacer(minLength: 0)
             GlassGroup {
                 HStack(spacing: 2) {
-                    if effectiveMode != .preview, prepared?.language == .json {
+                    if isJSONView {
                         IconButton(
                             "Filter with a JSON path or jq expression", symbol: "line.3.horizontal.decrease.circle",
                             shortcut: "⇧⌘J", isOn: options.showsJSONFilter
@@ -145,7 +171,10 @@ struct BodyViewer: View {
     @ViewBuilder private var content: some View {
         if payload.isEmpty {
             ContentUnavailableView("No body", systemImage: "doc", description: Text(side == .response ? "The server sent no content." : "This request has no body."))
-        } else if effectiveMode == .preview, let richKind {
+        } else if let tree {
+            JSONBodyTree(text: tree.text, notation: tree.notation, fontSize: options.fontSize)
+                .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 6))
+        } else if effectiveMode == .preview, let richKind, !richKind.isTree {
             RichPreview(kind: richKind, data: decoded, contentType: contentType)
                 .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 6))
         } else if let prepared {

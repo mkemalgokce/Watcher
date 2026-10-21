@@ -9,6 +9,11 @@ extension ProxyControllerTests {
     @MainActor
     struct Edges {
         private let log = LockedBox<[String]>([])
+        /// The proxy and system-proxy calls in order, without the recording switches that ProxyControllerTests covers.
+        private var systemCalls: [String] {
+            log.value.filter { !$0.hasPrefix("recording") }
+        }
+
         private let notices = NoticeCenter.silent()
 
         private func controller(
@@ -66,9 +71,10 @@ extension ProxyControllerTests {
             #expect(await eventually { proxy.isRunning && !proxy.isSwitchingProxy })
             proxy.toggleRunning()
             #expect(await eventually { systemProxy.enableCallsStarted == 1 })
-            #expect(log.value == ["start 9090"], "the enable is still held, so pause has not begun")
+            #expect(log.value == ["recording on", "start 9090", "recording off"], "recording stops at the click")
+            #expect(!log.value.contains("disable"), "but the enable is still held, so the proxy has not stopped")
             gate.signal()
-            #expect(await eventually { log.value == ["start 9090", "enable 9123", "disable", "stop"] })
+            #expect(await eventually { systemCalls == ["start 9090", "enable 9123", "disable", "stop"] })
             #expect(await eventually { !proxy.isSwitchingProxy })
             #expect(!proxy.systemProxyOn)
         }
@@ -95,7 +101,7 @@ extension ProxyControllerTests {
             #expect(await eventually { proxy.isRunning && !proxy.isSwitchingProxy })
             proxy.toggleRunning()
             proxy.toggleSystemProxy()
-            #expect(await eventually { log.value == ["start 9090", "enable 9123", "disable", "stop"] })
+            #expect(await eventually { systemCalls == ["start 9090", "enable 9123", "disable", "stop"] })
             #expect(await eventually { !proxy.isSwitchingProxy })
             #expect(!proxy.systemProxyOn)
             #expect(!proxy.isRunning)

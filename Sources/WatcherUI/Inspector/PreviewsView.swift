@@ -19,7 +19,12 @@ struct PreviewsView: View {
                     VStack(alignment: .leading, spacing: Metrics.gutter) {
                         ForEach(Array(outputs.enumerated()), id: \.offset) { _, output in
                             Card(output.name, symbol: "eye") {
-                                SyntaxTextView(output.text, language: BodyLanguage.detect(contentType: nil, data: Data(output.text.utf8))).frame(minHeight: 120)
+                                if JSONTree.isDocument(output.text) {
+                                    JSONDocumentView(source: output.text).frame(height: 260)
+                                } else {
+                                    let language = BodyLanguage.detect(contentType: nil, data: Data(output.text.utf8))
+                                    SyntaxTextView(output.text, language: language).frame(minHeight: 120)
+                                }
                             }
                         }
                     }

@@ -7,30 +7,30 @@ struct FlowListView: View {
     @Environment(RequestActions.self) private var actions
     @Environment(\.timestamp) private var timestamp
     @State private var commenting: Flow?
-    @State private var commentText = ""
     /// Which columns are shown and in what order; right-click a column header to change it.
     @SceneStorage("flowList.columns") private var columns = TableColumnCustomization<Flow>()
 
     var body: some View {
         @Bindable var model = model
         let flows = list.visibleFlows
-        // Bars in the Duration column are relative to the slowest request on screen.
-        let slowest = flows.lazy.compactMap(\.duration).max() ?? 0
+        // Bars in the Duration column are relative to the slowest request on screen; the model works it out with the rows,
+        // as a scan of every row in this body would run on each update.
+        let slowest = list.visibleSlowest
         Table(flows, selection: Bindable(list).selection, sortOrder: Bindable(list).sortOrder, columnCustomization: $columns) {
             TableColumn("#", value: \.sequence) { Text("\($0.sequence)").monospacedDigit().foregroundStyle(.secondary) }
-                .width(min: 22, ideal: 30).customizationID("sequence")
-            TableColumn("Date", value: \.startedAt) { flow in
+                .width(36).customizationID("sequence").defaultVisibility(.hidden)
+            TableColumn("Time", value: \.startedAt) { flow in
                 Text(timestamp.clockWithoutFraction(flow.startedAt)).monospacedDigit().foregroundStyle(.secondary)
                     .help(timestamp.complete(flow.startedAt))
             }
-            .width(min: 54, ideal: 60).customizationID("date")
+            .width(70).customizationID("date")
             TableColumn("Method", value: \.request.method) { MethodBadge(method: $0.request.method) }
-                .width(min: 40, ideal: 48).customizationID("method")
+                .width(58).customizationID("method")
             TableColumn("Status", value: \.sortStatus) { StatusPill(flow: $0) }
-                .width(min: 44, ideal: 54).customizationID("status")
+                .width(64).customizationID("status")
             // Table cells drop the environment's IconStore, so the cells that show icons get it directly.
             TableColumn("Request", value: \.sortURL) { RequestCell(flow: $0).environment(model.icons) }
-                .width(min: 120, ideal: 160).customizationID("request").disabledCustomizationBehavior(.visibility)
+                .width(min: 160, ideal: 560).customizationID("request").disabledCustomizationBehavior(.visibility)
             TableColumn("App", value: \.sortApp) { flow in
                 if let app = flow.request.clientApp {
                     HStack(spacing: 5) {
@@ -49,12 +49,12 @@ struct FlowListView: View {
                 .defaultVisibility(.hidden)
             TableColumn("Size", value: \.sortSize) { flow in
                 Text(flow.response.map { Format.bytes($0.body.count) } ?? "").monospacedDigit().foregroundStyle(.secondary)
-            }.width(min: 40, ideal: 48).alignment(.trailing).customizationID("size")
+            }.width(62).alignment(.trailing).customizationID("size")
             TableColumn("Duration", value: \.sortDuration) { TimeCell(flow: $0, slowest: slowest) }
-                .width(min: 56, ideal: 80).customizationID("time")
+                .width(min: 96, ideal: 110, max: 150).customizationID("time")
         }
         .contextMenu(forSelectionType: Flow.ID.self) { ids in
-            FlowActions(ids: ids, onComment: { flow in commentText = flow.comment ?? ""; commenting = flow })
+            FlowActions(ids: ids, onComment: { commenting = $0 })
         } primaryAction: { ids in
             if let flow = list.flows.first(where: { ids.contains($0.id) }) {
                 actions.editAndRepeat(flow)
@@ -64,28 +64,50 @@ struct FlowListView: View {
         .alternatingRowBackgrounds(.disabled)
         .onDeleteCommand { actions.delete(list.selection.map { [$0] } ?? []) }
         .safeAreaInset(edge: .top, spacing: 0) { FilterSummary() }
-        .overlay {
-            if flows.isEmpty {
-                if list.flows.isEmpty {
-                    GettingStarted()
-                } else {
-                    NoMatches()
+        .overlay { EmptyListOverlay() }
+        .modifier(CommentAlert(flow: $commenting))
+    }
+}
+
+/// What an empty list shows. A view of its own so the table's body does not depend on every captured request,
+/// only this does.
+private struct EmptyListOverlay: View {
+    @Environment(FlowListViewModel.self) private var list
+
+    var body: some View {
+        if list.visibleFlows.isEmpty {
+            if list.flows.isEmpty {
+                GettingStarted()
+            } else {
+                NoMatches()
+            }
+        }
+    }
+}
+
+/// The comment field's text lives here, not in the list: a keystroke in it would otherwise rebuild every row.
+private struct CommentAlert: ViewModifier {
+    @Binding var flow: Flow?
+    @Environment(RequestActions.self) private var actions
+    @State private var text = ""
+
+    func body(content: Content) -> some View {
+        content
+            .alert("Comment", isPresented: Binding(get: { flow != nil }, set: {
+                if !$0 {
+                    flow = nil
                 }
+            })) {
+                TextField("Comment", text: $text)
+                Button("Save") {
+                    if let flow {
+                        actions.setComment(text, for: flow.id)
+                    }
+                    flow = nil
+                }
+                Button("Cancel", role: .cancel) { flow = nil }
             }
-        }
-        .alert("Comment", isPresented: Binding(get: { commenting != nil }, set: {
-            if !$0 {
-                commenting = nil
-            }
-        })) {
-            TextField("Comment", text: $commentText)
-            Button("Save") {
-                if let commenting {
-                    actions.setComment(commentText, for: commenting.id)
-                }; commenting = nil
-            }
-            Button("Cancel", role: .cancel) { commenting = nil }
-        }
+            .onChange(of: flow?.id) { _, _ in text = flow?.comment ?? "" }
     }
 }
 

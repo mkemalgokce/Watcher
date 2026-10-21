@@ -13,6 +13,11 @@ struct KeyValueRow: Identifiable {
     var file: FormField?
     /// A short warning shown under the value.
     var warning: String?
+
+    /// The value is a JSON object or array, which can be opened in the JSON viewer.
+    var isJSON: Bool {
+        JSONTree.isDocument(value)
+    }
 }
 
 extension KeyValueRow {

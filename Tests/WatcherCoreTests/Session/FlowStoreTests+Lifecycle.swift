@@ -105,3 +105,127 @@ extension FlowStoreTests.Lifecycle {
         #expect(store.begin(.fixture()).sequence == 2)
     }
 }
+
+@Suite(.tags(.unit))
+struct FlowStoreBodyBudgetTests {
+    private func store(budget: Int) -> FlowStore {
+        let store = FlowStore()
+        store.maxBodyBytes = budget
+        return store
+    }
+
+    private func add(_ store: FlowStore, _ path: String, bytes: Int) -> Flow {
+        let flow = store.begin(.fixture(path: path))
+        store.update(flow.id) { $0.response = .fixture(body: Data(count: bytes)) }
+        return flow
+    }
+
+    @Test
+    func theOldestRequestsGoWhenBodiesOutgrowTheBudget() {
+        let store = store(budget: 100)
+        let flows = (1 ... 4).map { add(store, "/\($0)", bytes: 40) }
+        #expect(store.all.map(\.id) == flows.suffix(2).map(\.id))
+    }
+
+    @Test
+    func theNewestRequestStaysEvenWhenItAloneIsOverBudget() {
+        let store = store(budget: 10)
+        let big = add(store, "/big", bytes: 500)
+        #expect(store.all.map(\.id) == [big.id])
+    }
+
+    @Test
+    func aBodyThatArrivesLateCountsTowardTheBudget() {
+        let store = store(budget: 100)
+        let early = store.begin(.fixture(path: "/early"))
+        let late = add(store, "/late", bytes: 150)
+        #expect(store.all.map(\.id) == [late.id])
+        #expect(!store.all.contains { $0.id == early.id })
+    }
+
+    @Test
+    func discardedAndClearedFlowsReleaseTheirBytes() {
+        let store = store(budget: 100)
+        let first = add(store, "/1", bytes: 60)
+        store.discard(first.id)
+        let second = add(store, "/2", bytes: 60)
+        #expect(store.all.map(\.id) == [second.id], "the discarded 60 bytes no longer count")
+        store.clear()
+        let third = add(store, "/3", bytes: 90)
+        #expect(store.all.map(\.id) == [third.id])
+    }
+
+    @Test
+    func zeroKeepsEveryBody() {
+        let store = store(budget: 0)
+        _ = (1 ... 3).map { add(store, "/\($0)", bytes: 1_000_000) }
+        #expect(store.all.count == 3)
+    }
+
+    @Test
+    func observersAreToldWhichRequestsWereDropped() async {
+        let store = store(budget: 100)
+        var events = store.events().makeAsyncIterator()
+        let first = add(store, "/1", bytes: 80)
+        _ = add(store, "/2", bytes: 80)
+        var removed: [UUID] = []
+        for _ in 0 ..< 5 {
+            if case let .removed(id)? = await events.next() {
+                removed.append(id)
+            }
+        }
+        #expect(removed == [first.id])
+    }
+}
+
+/// What pausing does to traffic already on its way: a request in flight still finishes, nothing new is added.
+@Suite(.tags(.unit))
+struct FlowStorePauseTests {
+    private let store = FlowStore()
+
+    private func message() -> WebSocketMessage {
+        WebSocketMessage(direction: .serverToClient, kind: .text, payload: Data("tick".utf8))
+    }
+
+    @Test
+    func aRequestInFlightWhenPausedStillGetsItsResponse() {
+        let flow = store.begin(.fixture(path: "/slow"))
+        store.isRecording = false
+        store.update(flow.id) { $0.response = .fixture(status: 200) }
+        #expect(store.all.first?.response?.status == 200, "it would stay pending forever otherwise")
+    }
+
+    @Test
+    func aWebSocketFrameThatArrivesWhilePausedIsNotAdded() {
+        let flow = store.begin(.fixture(path: "/socket"))
+        store.appendWebSocketMessage(message(), to: flow.id)
+        store.isRecording = false
+        store.appendWebSocketMessage(message(), to: flow.id)
+        store.appendWebSocketMessage(message(), to: flow.id)
+        #expect(store.all.first?.webSocketMessages.count == 1)
+    }
+
+    @Test
+    func framesAreAddedAgainOnceRecordingResumes() {
+        let flow = store.begin(.fixture(path: "/socket"))
+        store.isRecording = false
+        store.appendWebSocketMessage(message(), to: flow.id)
+        store.isRecording = true
+        store.appendWebSocketMessage(message(), to: flow.id)
+        #expect(store.all.first?.webSocketMessages.count == 1)
+    }
+
+    @Test
+    func aPausedStoreSendsObserversNothingForNewTraffic() async {
+        var events = store.events().makeAsyncIterator()
+        store.isRecording = false
+        _ = store.begin(.fixture(path: "/new"))
+        store.isRecording = true
+        let kept = store.begin(.fixture(path: "/kept"))
+        guard case let .added(flow)? = await events.next() else {
+            Issue.record("no event")
+            return
+        }
+        #expect(flow.id == kept.id, "the first event is the request after resuming")
+    }
+}

@@ -49,6 +49,9 @@ private struct MessageRow: View {
             Pill(text: message.kind.rawValue, monospaced: true).frame(width: 64, alignment: .leading)
             Text(preview).font(.system(.callout, design: .monospaced)).lineLimit(4).textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            if let json = WebSocketMessageList.jsonText(of: message) {
+                JSONPopoverButton(source: json)
+            }
             Text(timestamp.clock(message.date))
                 .font(.caption.monospacedDigit()).foregroundStyle(.tertiary)
         }
