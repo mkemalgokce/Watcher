@@ -1,4 +1,4 @@
 /// The version Watcher reports to HAR files and MCP clients.
 enum WatcherVersion {
-    static let current = "0.4.0"
+    static let current = "0.4.1"
 }
