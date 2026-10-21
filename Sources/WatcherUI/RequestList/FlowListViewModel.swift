@@ -160,11 +160,6 @@ final class FlowListViewModel {
         kind == .service && hidesSystemServices ? [] : counts.apps.filter { $0.kind == kind }
     }
 
-    private func isHidden(_ flow: Flow) -> Bool {
-        (hidesAppleTraffic && AppleTraffic.isApple(flow.request.host))
-            || (hidesSystemServices && flow.request.clientKind == .service)
-    }
-
     private func refreshDerived() {
         refreshVisible()
         var next = SidebarCounts(apps: FlowGrouping.apps(flows), domains: FlowGrouping.domains(flows))
