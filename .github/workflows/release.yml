@@ -72,17 +72,27 @@ jobs:
           echo "CODESIGN_IDENTITY=${identity:?no Developer ID Application identity in the certificate}" >> "$GITHUB_ENV"
       - name: Install create-dmg
         run: brew install create-dmg
-      # The build number is the commit count, so it grows with every tag cut from main.
+      # The build number is the commit count, so it grows with every tag cut from main; the update feed must carry the same one.
       - name: Package, sign and notarize
         env:
           NOTARY_KEY: ${{ secrets.NOTARY_KEY }}
           NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
           NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
-        run: scripts/package-release.sh "${GITHUB_REF_NAME#v}" "$(git rev-list --count HEAD)"
+          REQUIRE_UPDATES: 1
+          SPARKLE_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_KEY }}
+        run: |
+          echo "BUILD=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
+          scripts/package-release.sh "${GITHUB_REF_NAME#v}" "$(git rev-list --count HEAD)"
+      - name: Sign the update feed
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: scripts/appcast.sh "${GITHUB_REF_NAME#v}" "$BUILD" "dist/Watcher-${GITHUB_REF_NAME#v}.dmg" dist/appcast.xml
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: app
-          path: dist/*.dmg
+          path: |
+            dist/*.dmg
+            dist/appcast.xml
           if-no-files-found: error
           retention-days: 7
 
@@ -104,4 +114,6 @@ jobs:
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           body_path: RELEASE_NOTES.md
-          files: dist/*.dmg
+          files: |
+            dist/*.dmg
+            dist/appcast.xml

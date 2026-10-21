@@ -9,6 +9,27 @@ import WatcherTestSupport
 @Suite(.serialized, .tags(.unit))
 struct AppModelTests {
     @Test
+    func checkingForUpdatesAsksTheUpdater() throws {
+        let updater = UpdaterStub()
+        let model = try AppModel(dependencies: .test(updater: updater))
+        model.checkForUpdates()
+        model.checkForUpdates()
+        #expect(updater.checks == 2)
+    }
+
+    @Test
+    func checkingForUpdatesWithoutAnUpdaterDoesNothing() throws {
+        let model = try AppModel.test()
+        #expect(!model.canCheckForUpdates)
+        model.checkForUpdates()
+    }
+
+    @Test
+    func updatesCanBeCheckedWhereThereIsAnUpdater() throws {
+        #expect(try AppModel(dependencies: .test(updater: UpdaterStub())).canCheckForUpdates)
+    }
+
+    @Test
     func hidingAppleTrafficRefreshesTheList() throws {
         let model = try AppModel.test()
         model.settings.hideAppleTraffic = false

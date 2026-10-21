@@ -62,6 +62,9 @@ struct GeneralSettings: View {
             }
             Section("This Mac") {
                 Toggle("Open Watcher at login", isOn: $pane.opensAtLogin)
+                if pane.offersUpdates {
+                    Toggle("Check for updates automatically", isOn: $pane.checksForUpdates)
+                }
                 Toggle("Turn on the system proxy when the proxy starts", isOn: $model.settings.autoSystemProxy)
                 Toggle("Hide Apple system traffic", isOn: $model.settings.hideAppleTraffic)
                 Toggle("Hide system services (macOS daemons and agents)", isOn: $model.settings.hideSystemServices)

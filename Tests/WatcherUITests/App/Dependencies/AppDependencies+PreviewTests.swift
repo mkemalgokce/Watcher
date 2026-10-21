@@ -17,6 +17,7 @@ struct AppDependenciesPreviewTests {
         #expect(dependencies.systemProxy is InertSystemProxy)
         #expect(!dependencies.systemProxy.hasPendingRestore)
         #expect(!dependencies.loginItem.isEnabled())
+        #expect(dependencies.updater == nil)
         #expect(dependencies.devices.simulators().isEmpty)
         #expect(dependencies.devices.androidDevices().isEmpty)
         #expect(!dependencies.devices.isMacTrusted(URL(fileURLWithPath: "/ca.pem")))

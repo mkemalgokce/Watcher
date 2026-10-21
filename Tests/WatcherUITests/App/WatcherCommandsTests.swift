@@ -15,4 +15,11 @@ struct WatcherCommandsTests {
         #expect(seen.count > 30)
         #expect(seen.filter { $0.value > 1 }.keys.sorted() == [], "these key combinations are used twice")
     }
+
+    @Test
+    func theAppMenuOffersAnUpdateCheckOnlyWhereThereIsAnUpdater() throws {
+        let source = try SourceTree.text("Sources/WatcherUI/App/WatcherCommands.swift")
+        #expect(source.contains(#"Button("Check for Updates…") { model.checkForUpdates() }"#))
+        #expect(source.contains(".disabled(!model.canCheckForUpdates)"))
+    }
 }

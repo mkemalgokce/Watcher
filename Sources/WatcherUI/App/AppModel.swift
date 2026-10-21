@@ -11,6 +11,7 @@ public final class AppModel {
     let engine: WatcherEngine
     let clipboard: any Clipboard
     let preferences: any Preferences
+    private let updater: AppUpdater?
     let notices: NoticeCenter
     var settings: SettingsEditor
     let router: WindowRouter
@@ -43,8 +44,11 @@ public final class AppModel {
     }
 
     /// The app's model: the real services, following the engine from the start.
-    public convenience init() {
-        self.init(dependencies: .live())
+    /// `updater` is the app's way to update itself, where it has one.
+    public convenience init(updater: AppUpdater? = nil) {
+        var dependencies = AppDependencies.live()
+        dependencies.updater = updater
+        self.init(dependencies: dependencies)
         observeEngine()
     }
 
@@ -53,7 +57,7 @@ public final class AppModel {
         let engine = dependencies.engine
         self.engine = engine
         clipboard = dependencies.clipboard
-        now = dependencies.now
+        now = dependencies.now; updater = dependencies.updater
         sleep = dependencies.sleep; files = dependencies.files; homeDirectory = dependencies.homeDirectory
         appInfo = dependencies.appInfo; supportDirectory = dependencies.paths.directory
         preferences = dependencies.preferences; startupProblem = dependencies.startupProblem
@@ -82,7 +86,7 @@ public final class AppModel {
         breakpoints = BreakpointsViewModel(center: engine.breakpoints, settings: settings, notices: notices)
         settingsPane = SettingsViewModel(
             proxy: proxy, settings: settings, preferences: dependencies.preferences,
-            loginItem: dependencies.loginItem, notices: notices
+            loginItem: dependencies.loginItem, updater: dependencies.updater, notices: notices
         )
         let proxy = proxy
         devices = DevicesViewModel(probe: dependencies.devices, certificateURL: dependencies.paths.certificateURL) {
@@ -106,6 +110,14 @@ public final class AppModel {
     func showStartupFolder() {
         guard let startupProblem else { return }
         externalApps.reveal(startupProblem.folder)
+    }
+
+    var canCheckForUpdates: Bool {
+        updater != nil
+    }
+
+    func checkForUpdates() {
+        updater?.check()
     }
 
     /// Follows the store and paused breakpoints; separate from init so tests can watch a model that has no system side effects.

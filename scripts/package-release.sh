@@ -5,12 +5,19 @@
 # Signing: CODESIGN_IDENTITY (a Developer ID Application identity in the keychain) signs the app and the DMG;
 # NOTARY_KEY (.p8 contents), NOTARY_KEY_ID and NOTARY_ISSUER_ID then notarize the DMG and staple the ticket.
 # REQUIRE_NOTARIZATION=1 refuses to package without all of them, so a release is never shipped unsigned by mistake.
+# SPARKLE_PUBLIC_KEY (from generate_keys) is what lets the app check for updates; REQUIRE_UPDATES=1 refuses to package
+# without it, so a release is never shipped that cannot update itself.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 version="${1:?usage: package-release.sh <version> <build-number>}"
 build="${2:?build number required}"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "version must look like 1.2.3: $version" >&2; exit 1; }
 [[ "$build" =~ ^[0-9]+$ ]] || { echo "build number must be an integer: $build" >&2; exit 1; }
+
+if [[ "${REQUIRE_UPDATES:-}" == 1 && -z "${SPARKLE_PUBLIC_KEY:-}" ]]; then
+  echo "REQUIRE_UPDATES=1 needs SPARKLE_PUBLIC_KEY" >&2
+  exit 1
+fi
 
 notarize=false
 if [[ -n "${CODESIGN_IDENTITY:-}" && -n "${NOTARY_KEY:-}" && -n "${NOTARY_KEY_ID:-}" && -n "${NOTARY_ISSUER_ID:-}" ]]; then

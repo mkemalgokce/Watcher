@@ -4,7 +4,7 @@ import WatcherUI
 @main
 struct WatcherApp: App {
     @NSApplicationDelegateAdaptor private var delegate: AppDelegate
-    @State private var model = AppModel()
+    @State private var model = AppModel(updater: .sparkle())
 
     var body: some Scene {
         // One main window: there is one session, so a second window would only show the same list again.
